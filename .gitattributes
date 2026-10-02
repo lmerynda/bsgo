@@ -1,0 +1,5 @@
+# Keep frozen data and validation evidence byte-for-byte across checkouts.
+test-data/** -text
+logs/** -text
+tools/hud-reader/fixtures/** -text
+tools/hud-reader/runs/** -text

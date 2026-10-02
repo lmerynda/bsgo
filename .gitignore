@@ -1,0 +1,29 @@
+# Local Python/Node environments and generated caches.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Downloaded inference environments, model weights, and native runtime binaries.
+/tools/model-runtimes/
+
+# Codex session attachments and unrelated account-storage backups.
+/.codex-remote-attachments/
+/logs/account-storage-audit-*/
+
+# Local credentials and machine-specific settings.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Interrupted telemetry publication and unit-test scratch folders.
+*.tmp
+/tools/offline-bot/tests/*-scratch-*/
+/logs/offline-bot/test-temp/
+/tools/hud-reader/.bsgo-hud-perf-*/

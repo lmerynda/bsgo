@@ -1,0 +1,1105 @@
+{
+  "frozen_utc": "2026-10-01T01:34:00Z",
+  "rows": [
+    {
+      "file": "runs/miner-dry-relaunch-2141/frame-1790804477638-000.png",
+      "source_run": "miner-dry-relaunch-2141",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 3635,
+        "speed": 0.0,
+        "target_max_hp": 3874,
+        "target_identity": "asteroid:hp:3874",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-four-live-2309/frame-1790809793199-000.png",
+      "source_run": "sol-four-live-2309",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2026,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-four-live-2309/frame-1790809793199-001.png",
+      "source_run": "sol-four-live-2309",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2011,
+        "speed": 13.3,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-four-live-2309/frame-1790809793199-002.png",
+      "source_run": "sol-four-live-2309",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1993,
+        "speed": 20.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-human-approval-2252/frame-1790808363195-000.png",
+      "source_run": "sol-human-approval-2252",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2211,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-page-live-0012/frame-1790813557046-000.png",
+      "source_run": "sol-page-live-0012",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1862,
+        "speed": 0.0,
+        "target_max_hp": 4366,
+        "target_identity": "asteroid:hp:4366",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-page-water-0018/frame-1790813998678-000.png",
+      "source_run": "sol-page-water-0018",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1863,
+        "speed": 0.0,
+        "target_max_hp": 3730,
+        "target_identity": "asteroid:hp:3730",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-separator-live-2252/frame-1790808721870-000.png",
+      "source_run": "sol-separator-live-2252",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2211,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-separator-live-2252/frame-1790808721870-001.png",
+      "source_run": "sol-separator-live-2252",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2205,
+        "speed": 8.9,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-separator-live-2252/frame-1790808721870-002.png",
+      "source_run": "sol-separator-live-2252",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2173,
+        "speed": 21.8,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-speed-live-2303/frame-1790809416784-000.png",
+      "source_run": "sol-speed-live-2303",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2094,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-speed-live-2303/frame-1790809416784-001.png",
+      "source_run": "sol-speed-live-2303",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2075,
+        "speed": 15.4,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0109/frame-1790817169321-000.png",
+      "source_run": "sol-static-0109",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2067,
+        "speed": 0.0,
+        "target_max_hp": 3338,
+        "target_identity": "asteroid:hp:3338",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0114/frame-1790817218587-000.png",
+      "source_run": "sol-static-0114",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2067,
+        "speed": 0.0,
+        "target_max_hp": 3338,
+        "target_identity": "asteroid:hp:3338",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-000.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1529,
+        "speed": 0.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-001.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1521,
+        "speed": 9.4,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-002.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1493,
+        "speed": 20.7,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-003.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1429,
+        "speed": 35.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-004.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1355,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-005.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1258,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-006.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1180,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-007.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1085,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-008.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 992,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-009.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 913,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-010.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 818,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-011.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 739,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-static-0121/frame-1790817668601-012.png",
+      "source_run": "sol-static-0121",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 645,
+        "speed": 44.0,
+        "target_max_hp": 3131,
+        "target_identity": "asteroid:hp:3131",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-000.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2191,
+        "speed": 0.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-001.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2176,
+        "speed": 13.7,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-002.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2158,
+        "speed": 20.7,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-003.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2110,
+        "speed": 32.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-004.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2036,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-005.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1944,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-006.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1847,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-007.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1764,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-008.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1670,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-009.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1592,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-010.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1497,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-011.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1417,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-012.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1323,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-013.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1245,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-014.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1149,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-015.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1054,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-016.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 975,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-017.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 881,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-018.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 802,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-019.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 711,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-020.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 617,
+        "speed": 44.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-021.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 507,
+        "speed": 31.2,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-022.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 477,
+        "speed": 24.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-023.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 448,
+        "speed": 11.6,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-024.png",
+      "source_run": "sol-tylium-live-2321",
+      "split": "held_out",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 438,
+        "speed": 0.0,
+        "target_max_hp": 3230,
+        "target_identity": "asteroid:hp:3230",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-0125/frame-1790817952724-000.png",
+      "source_run": "sol-water-0125",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1430,
+        "speed": 0.0,
+        "target_max_hp": 3844,
+        "target_identity": "asteroid:hp:3844",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-0125/frame-1790817952724-001.png",
+      "source_run": "sol-water-0125",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1423,
+        "speed": 8.5,
+        "target_max_hp": 3844,
+        "target_identity": "asteroid:hp:3844",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-0125/frame-1790817952724-002.png",
+      "source_run": "sol-water-0125",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1387,
+        "speed": 22.6,
+        "target_max_hp": 3844,
+        "target_identity": "asteroid:hp:3844",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-0125/frame-1790817952724-003.png",
+      "source_run": "sol-water-0125",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1333,
+        "speed": 35.2,
+        "target_max_hp": 3844,
+        "target_identity": "asteroid:hp:3844",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-0125/frame-1790817952724-004.png",
+      "source_run": "sol-water-0125",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1244,
+        "speed": 44.0,
+        "target_max_hp": 3844,
+        "target_identity": "asteroid:hp:3844",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-0125/frame-1790817952724-005.png",
+      "source_run": "sol-water-0125",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1163,
+        "speed": 44.0,
+        "target_max_hp": 3844,
+        "target_identity": "asteroid:hp:3844",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-dry-2226/frame-1790807205672-000.png",
+      "source_run": "sol-water-dry-2226",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2211,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-live-2227/frame-1790807274365-000.png",
+      "source_run": "sol-water-live-2227",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2211,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/sol-water-live-2237/frame-1790807924104-000.png",
+      "source_run": "sol-water-live-2237",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2211,
+        "speed": 0.0,
+        "target_max_hp": 3770,
+        "target_identity": "asteroid:hp:3770",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/trial-2s/frame-000.png",
+      "source_run": "trial-2s",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/trial-2s/frame-001.png",
+      "source_run": "trial-2s",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/trial-2s/frame-002.png",
+      "source_run": "trial-2s",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/trial-2s/frame-003.png",
+      "source_run": "trial-2s",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/trial-2s/frame-004.png",
+      "source_run": "trial-2s",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      }
+    },
+    {
+      "file": "runs/trial-2s/frame-005.png",
+      "source_run": "trial-2s",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      }
+    },
+    {
+      "file": "fixtures/live/live-01.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 1416,
+        "speed": 0.0,
+        "target_max_hp": 4168,
+        "target_identity": "asteroid:hp:4168",
+        "valid": true
+      },
+      "negative_type": null
+    },
+    {
+      "file": "fixtures/live/live-02.png",
+      "source_run": "initial-live-fixtures",
+      "split": "calibration",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 205,
+        "speed": 0.0,
+        "target_max_hp": 4292,
+        "target_identity": "asteroid:hp:4292",
+        "valid": true
+      },
+      "negative_type": null
+    },
+    {
+      "file": "fixtures/live/live-03.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 3063,
+        "speed": 0.0,
+        "target_max_hp": null,
+        "target_identity": null,
+        "valid": false
+      },
+      "negative_type": "planetoid"
+    },
+    {
+      "file": "fixtures/live/live-04.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 3063,
+        "speed": 0.0,
+        "target_max_hp": null,
+        "target_identity": null,
+        "valid": false
+      },
+      "negative_type": "planetoid"
+    },
+    {
+      "file": "fixtures/live/live-05.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 10327,
+        "speed": 0.0,
+        "target_max_hp": null,
+        "target_identity": null,
+        "valid": false
+      },
+      "negative_type": "planetoid"
+    },
+    {
+      "file": "fixtures/live/live-06.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 9091,
+        "speed": 0.0,
+        "target_max_hp": null,
+        "target_identity": null,
+        "valid": false
+      },
+      "negative_type": "planetoid"
+    },
+    {
+      "file": "fixtures/live/live-07.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 3063,
+        "speed": 0.0,
+        "target_max_hp": null,
+        "target_identity": null,
+        "valid": false
+      },
+      "negative_type": "planetoid"
+    },
+    {
+      "file": "fixtures/live/live-08.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 3063,
+        "speed": 0.0,
+        "target_max_hp": null,
+        "target_identity": null,
+        "valid": false
+      },
+      "negative_type": "planetoid"
+    },
+    {
+      "file": "fixtures/live/live-09.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      },
+      "negative_type": null
+    },
+    {
+      "file": "fixtures/live/live-10.png",
+      "source_run": "initial-live-fixtures",
+      "split": "development",
+      "source": "real_saved_gameplay_screenshot",
+      "label_source": "independent visual transcription of magnified saved pixels",
+      "expected": {
+        "distance": 2885,
+        "speed": 0.0,
+        "target_max_hp": 3622,
+        "target_identity": "asteroid:hp:3622",
+        "valid": true
+      },
+      "negative_type": null
+    }
+  ],
+  "split_method": "Whole source runs; related same-target 3338 and3770 calibration sessions grouped as calibration. No synthetic/mock images included. Held-out runs were visually labeled before recognition scores were examined; no fix derives from their pixels. Existing prior exposure by older development is possible: this is a development holdout, not a prospective population trial.",
+  "limitations": "77 genuine frames;26 held-out in two source runs, including25 correlated frames in one approach. Every saved failure used to design this fix is development data. Cannot demonstrate>=99% representative production accuracy.",
+  "label_revisions": [
+    {
+      "file": "runs/sol-tylium-live-2321/frame-1790810573208-022.png",
+      "field": "speed",
+      "initial_sheet_transcription": 24.3,
+      "corrected_visual_label": 24.0,
+      "reason": "Magnification of original raster clearly shows both left vertical bands and no middle bar on last digit:0. Initial contact-sheet transcription was wrong. Correction did not change classifier.",
+      "evidence": "inspect-heldout-speed.png"
+    }
+  ]
+}

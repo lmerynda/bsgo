@@ -1,0 +1,63 @@
+{
+  "hp_calibration": [
+    {
+      "file": "calibration/hp-3770-current.png",
+      "label": "3770",
+      "source": "runs/sol-water-dry-2226/frame-1790807205672-000.png",
+      "crop": [
+        797,
+        76,
+        861,
+        90
+      ],
+      "field": "current_hp",
+      "label_source": "manual_visual_inspection",
+      "maximum_hp_side_used_for_training": false
+    },
+    {
+      "file": "calibration/hp-4292-current.png",
+      "label": "4292",
+      "source": "fixtures/live/live-02.png",
+      "crop": [
+        797,
+        76,
+        861,
+        90
+      ],
+      "field": "current_hp",
+      "label_source": "manual_visual_inspection",
+      "maximum_hp_side_used_for_training": false
+    },
+    {
+      "file": "calibration/hp-4366-current.png",
+      "label": "4366",
+      "source": "runs/sol-page-live-0012/frame-1790813557046-000.png",
+      "crop": [
+        797,
+        76,
+        859,
+        90
+      ],
+      "field": "current_hp",
+      "label_source": "independent manual visual inspection",
+      "maximum_hp_side_used_for_training": false,
+      "source_run_excluded_from_accuracy_holdout": true
+    },
+    {
+      "file": "calibration/hp-3338-current.png",
+      "label": "3338",
+      "source": "runs/sol-static-0114/frame-1790817218587-000.png",
+      "crop": [
+        797,
+        76,
+        859,
+        90
+      ],
+      "field": "current_hp",
+      "label_source": "independent manual visual inspection",
+      "maximum_hp_side_used_for_training": false,
+      "source_run_excluded_from_accuracy_holdout": true
+    }
+  ],
+  "note": "HP font calibration only; source runs and related3338/3770 frames excluded from held-out accuracy. Maximum-side checks in those runs are development regressions, not independent held-out tests."
+}

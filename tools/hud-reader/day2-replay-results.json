@@ -1,0 +1,24 @@
+{
+  "frames": 33,
+  "previously_accepted": 31,
+  "changed_accepted": [],
+  "remaining_rejections": [],
+  "recovered": [
+    {
+      "file": "runs\\mining-20261001-1510\\frame-1790867455787-011.png",
+      "values": {
+        "distance": 556,
+        "speed": 27.1,
+        "target_max_hp": 4320
+      }
+    },
+    {
+      "file": "runs\\mining-20261001-1517\\frame-1790867886210-003.png",
+      "values": {
+        "distance": 2876,
+        "speed": 37.3,
+        "target_max_hp": 4239
+      }
+    }
+  ]
+}

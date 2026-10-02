@@ -1,0 +1,116 @@
+{
+  "calibration": "sample.png HUD manually annotated; live frames held out",
+  "live": [
+    {
+      "file": "fixtures\\live\\live-01.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:03:30 PM",
+      "saved_at_utc": "2026-09-30T21:03:49.939424+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 1416,
+      "speed": 0.0,
+      "valid": true
+    },
+    {
+      "file": "fixtures\\live\\live-02.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:03:49 PM",
+      "saved_at_utc": "2026-09-30T21:04:30.071131+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 205,
+      "speed": 0.0,
+      "valid": true
+    },
+    {
+      "file": "fixtures\\live\\live-03.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:04:30 PM",
+      "saved_at_utc": "2026-09-30T21:05:07.632343+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 3063,
+      "speed": 0.0,
+      "valid": false
+    },
+    {
+      "file": "fixtures\\live\\live-04.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:05:07 PM",
+      "saved_at_utc": "2026-09-30T21:05:26.032048+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 3063,
+      "speed": 0.0,
+      "valid": false
+    },
+    {
+      "file": "fixtures\\live\\live-05.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:05:26 PM",
+      "saved_at_utc": "2026-09-30T21:06:01.145790+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 10327,
+      "speed": 0.0,
+      "valid": false
+    },
+    {
+      "file": "fixtures\\live\\live-06.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:06:01 PM",
+      "saved_at_utc": "2026-09-30T21:06:21.760455+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 9091,
+      "speed": 0.0,
+      "valid": false
+    },
+    {
+      "file": "fixtures\\live\\live-07.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:06:21 PM",
+      "saved_at_utc": "2026-09-30T21:08:18.584985+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 3063,
+      "speed": 0.0,
+      "valid": false
+    },
+    {
+      "file": "fixtures\\live\\live-08.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:08:18 PM",
+      "saved_at_utc": "2026-09-30T21:08:55.122935+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 3063,
+      "speed": 0.0,
+      "valid": false
+    },
+    {
+      "file": "fixtures\\live\\live-09.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:08:55 PM",
+      "saved_at_utc": "2026-09-30T21:08:56.745437+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 2885,
+      "speed": 0.0,
+      "valid": true
+    },
+    {
+      "file": "fixtures\\live\\live-10.png",
+      "source": "live_sky_capture",
+      "label_source": "manual_visual_inspection",
+      "game_clock": "9:09:50 PM",
+      "saved_at_utc": "2026-09-30T21:09:51.004008+00:00",
+      "saved_timestamp_is_not_precise_capture_time": true,
+      "distance": 2885,
+      "speed": 0.0,
+      "valid": true
+    }
+  ],
+  "synthetic_count": 17
+}
