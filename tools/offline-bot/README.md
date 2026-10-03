@@ -116,6 +116,27 @@ declares the unimplemented ownership, revision and mining fields as unsupported.
 unknown or stale ownership is `null`, while observed lost ownership is `false`.
 These diagnostics do not override the existing execution guards.
 
+The read-only live experiment uses the application capture and recognizer:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path 'tools/offline-bot').Path
+& $offlinePython -m bsgo_offline.diagnose --hwnd <current-game-window-handle> --pid <current-game-pid> --profile restart-20261001 --seconds 6 --frames 6 --output logs/mining/<new-run>
+```
+
+Select the current game window and profile before running. The command refuses
+an existing nonempty output folder. `manifest.json` is written at startup with
+the configuration, Git revision and hashes of the runtime and HUD reader.
+`status.json` updates during the run with worker timing, observation age, usable
+fields, preflight blockers, frame backlog, action/input counts and journal loss.
+The trace stores each published snapshot and observed event with acquisition
+identity, plus frame retention and action lifecycle events. Captured pixels go
+through a bounded background writer into `frames/`; the trace records their
+SHA-256 hashes. A missing frame, queue overflow or writer failure is explicit.
+`report.json` records the final result, zero or more input requests, diagnostic
+completeness and each worker's shutdown outcome. A complete diagnostic record
+can still prove that the game control preflight failed. The diagnostic command
+never starts a native input dispatcher or the mining mission.
+
 The tests cover concurrent publication, defensive immutability, per-field timestamps, rejected OCR fields, source/recognizer faults, target/session/layout changes, delayed planning, queued input cancellation, backlog overflow cleanup, ignored braking, and fresh stop acknowledgement. Rolling history and journal failure cases distinguish telemetry loss from control failure. Worker joins report whether shutdown finished; a blocked recognizer is not falsely reported stopped.
 
 An optional browser smoke test checks the HTML receiver with Playwright and an isolated headless Chromium browser. With Playwright available to Node, run `node tools/offline-bot/verify_receiver.cjs logs/offline-bot/nominal "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`. It saves received events, screenshots, and a verification report alongside the simulation report. It loads the local HTML file directly and closes its browser afterward.

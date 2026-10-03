@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib.util
 from pathlib import Path
-from threading import Event, Thread
+from threading import Event, Thread, Lock
 import time
 from typing import Callable, Mapping, Protocol
 
@@ -39,7 +39,8 @@ class RecognitionWorker:
 
     def __init__(self, source: FrameSource,
                  recognizer: Callable[[FrameSample], RecognitionResult],
-                 store: SnapshotStore, clock: Callable[[], float] = time.monotonic) -> None:
+                 store: SnapshotStore, clock: Callable[[], float] = time.monotonic,
+                 *, diagnostics=None) -> None:
         self.source = source
         self.recognizer = recognizer
         self.store = store
@@ -50,6 +51,33 @@ class RecognitionWorker:
         self.processed = 0
         self.end_reason: str | None = None
         self._events = EventDetector()
+        self.diagnostics = diagnostics
+        self.diagnostic_dropped = 0
+        self._metrics_lock = Lock()
+        self._stage = "not_started"
+        self._stage_started = time.monotonic()
+        self._durations = {}
+
+    def metrics(self):
+        with self._metrics_lock:
+            return {"running": self.running, "processed": self.processed,
+                "end_reason": self.end_reason, "error": self.error, "stage": self._stage,
+                "stage_age_real_seconds": time.monotonic() - self._stage_started,
+                "last_durations_real_seconds": dict(self._durations),
+                "diagnostic_dropped": self.diagnostic_dropped}
+
+    def _set_stage(self, stage):
+        with self._metrics_lock:
+            self._stage, self._stage_started = stage, time.monotonic()
+
+    def _observe(self, snapshot, events, sample, timings):
+        if self.diagnostics is not None:
+            try:
+                accepted = self.diagnostics.observation(snapshot, events, sample, timings)
+            except Exception:
+                accepted = False
+            if accepted is False:
+                self.diagnostic_dropped += 1
 
     @property
     def source_exhausted(self) -> bool:
@@ -83,7 +111,10 @@ class RecognitionWorker:
         try:
             while not self._stop.is_set():
                 stage = "source"
+                self._set_stage(stage)
+                source_started = time.monotonic()
                 sample = self.source.next_sample(self._stop)
+                source_elapsed = time.monotonic() - source_started
                 if self._stop.is_set():
                     self.end_reason = "cancelled"
                     break
@@ -91,12 +122,16 @@ class RecognitionWorker:
                     self.end_reason = "source_exhausted"
                     break
                 stage = "recognizer"
+                self._set_stage(stage)
+                recognition_started = time.monotonic()
                 result = self.recognizer(sample)
+                recognition_elapsed = time.monotonic() - recognition_started
                 if self._stop.is_set():
                     self.end_reason = "cancelled"
                     break
                 sequence += 1
                 stage = "publish"
+                self._set_stage(stage)
                 geometry = getattr(sample, "geometry", None)
                 window_id = (f"{geometry.pid}:{geometry.hwnd}" if geometry else
                              getattr(sample, "window_id", None) or sample.source_id or "unknown")
@@ -109,8 +144,13 @@ class RecognitionWorker:
                     capture_started_at=getattr(sample, "capture_started_at", None),
                     capture_completed_at=getattr(sample, "capture_completed_at", None),
                     frame_produced_at=getattr(sample, "frame_produced_at", None))
-                self.store.publish(snapshot, self._events.update(snapshot))
+                events = self._events.update(snapshot)
+                self.store.publish(snapshot, events)
                 self.processed += 1
+                with self._metrics_lock:
+                    self._durations = {"source_wait_and_capture": source_elapsed,
+                                       "recognition": recognition_elapsed}
+                self._observe(snapshot, events, sample, dict(self._durations))
             if self.end_reason is None:
                 self.end_reason = "cancelled"
         except Exception as exc:
@@ -134,6 +174,9 @@ class RecognitionWorker:
                 window_id=previous.window_id if previous else "unknown",
                 ownership_generation=previous.ownership_generation if previous else 0)
             self.store.publish(fault)
+            self._observe(fault, (), sample if stage == "recognizer" else None, {})
+        finally:
+            self._set_stage("ended")
 
 
 class HudRecognizer:
