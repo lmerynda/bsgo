@@ -1,6 +1,8 @@
 """Supervised approach seam tests; no native window or game calls."""
 from threading import Event, Lock, Thread
 import inspect
+import json
+import math
 import time
 import unittest
 from unittest.mock import patch
@@ -251,7 +253,7 @@ class ApproachProbeTests(unittest.TestCase):
                     configuration={}, profile=PROFILE, expected_window_id="42:17",
                     frame_size=(4, 3), clear_corridor_assessed=True,
                     aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
-                    max_thrust_seconds=45.1)
+                    max_thrust_seconds=180.1)
         with scratch_directory() as directory:
             with self.assertRaisesRegex(ValueError, "stop_seconds"):
                 run_approach_probe(directory / "unused", source_factory=lambda: None,
@@ -261,6 +263,21 @@ class ApproachProbeTests(unittest.TestCase):
                     frame_size=(4, 3), clear_corridor_assessed=True,
                     aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
                     stop_seconds=45.1)
+
+    def test_long_transit_still_brakes_promptly_on_target_loss(self):
+        with scratch_directory() as directory:
+            started = time.monotonic()
+            result, ship, source, _ = self.run_fixture(directory,
+                max_thrust_seconds=180., source_options={"change_at": 5})
+            self.assertLess(time.monotonic() - started, 2.)
+            self.assertEqual(result["state"], "blocked")
+            self.assertTrue(result["brake_requests"])
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+            report = json.loads((directory / "run" / "report.json").read_text())
+            self.assertGreaterEqual(report["frames"]["max_frames"],
+                math.ceil((.3 + 180 + .8 + 8) / .4))
 
     def test_dispatcher_shutdown_failure_still_joins_capture_worker(self):
         def fail_stop(dispatcher, timeout):

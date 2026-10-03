@@ -284,12 +284,13 @@ consistent stopped target readings before one PageUp press. It validates target
 identity, portrait, maximum HP, context, distance and speed on every new image.
 At 900 m it requests a reserved PageDown brake. An independent watchdog also
 requests PageDown on stale or invalid images and after 12 seconds of thrust by
-default; `--max-thrust-seconds` accepts an explicit bound from 0.1 to 45 seconds
-for a longer supervised threshold trial. After PageDown, the probe
+default; `--max-thrust-seconds` accepts an explicit bound from 0.1 to 180 seconds
+for a longer supervised threshold transit. Continue to assess the clear route
+and aligned heading before using the longer bound. After PageDown, the probe
 watches deceleration for up to 35 seconds by default; `--stop-seconds` accepts
 a bounded value up to 45 seconds. This extends observation only, not thrust.
-The frame budget retains the full 0.4-second capture sequence through the
-maximum configured stop window. It reports success only
+The frame budget grows with the configured thrust and stop windows to retain
+the full 0.4-second capture sequence, including cleanup headroom. It reports success only
 after image-observed closure and speed, injected controls and two fresh zero
 speed images after the brake delivery. A short run that stops before 900 m is
 retained as a blocked, bounded segment. The gun ranges are recorded as 760 m
