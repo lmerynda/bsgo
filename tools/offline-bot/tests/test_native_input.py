@@ -160,6 +160,56 @@ class NativeInputTests(unittest.TestCase):
         self.assertEqual(dispatcher.injected_held_keys, ())
         self.assertEqual(first.evidence, "windows_input_stream_insertion")
 
+    def test_virtual_key_mode_presses_and_releases_page_keys_with_matching_tags(self):
+        backend, api, dispatcher = self.setup_dispatcher(keyboard_mode="virtual_key",
+                                                       minimum_key_hold_seconds=.05)
+        api.scan_code = lambda *_: self.fail("virtual key mode requested a scan code")
+        up_down, up_up = backend.press_key("PageUp")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        backend.request_cleanup_stop()
+        down_down, down_up = tuple(r for r in backend.records() if r.key == "PageDown")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        events = [batch[0] for batch in api.sent]
+        self.assertEqual([event.ki.wVk for event in events], [0x21, 0x21, 0x22, 0x22])
+        self.assertEqual([event.ki.wScan for event in events], [0, 0, 0, 0])
+        self.assertEqual([event.ki.dwFlags for event in events],
+                         [0, KEYEVENTF_KEYUP, 0, KEYEVENTF_KEYUP])
+        self.assertEqual([event.ki.dwExtraInfo for event in events],
+                         [input_tag(r.sequence) for r in (up_down, up_up, down_down, down_up)])
+        self.assertGreaterEqual(api.sent_at[1] - api.sent_at[0], .045)
+        self.assertGreaterEqual(api.sent_at[3] - api.sent_at[2], .045)
+        self.assertEqual(dispatcher.injected_held_keys, ())
+
+    def test_virtual_key_emergency_release_preserves_down_encoding(self):
+        backend, api, dispatcher = self.setup_dispatcher(keyboard_mode="virtual_key")
+        backend.key_down("PageUp")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        # The stored encoding, not mutable dispatcher configuration, governs up.
+        dispatcher.keyboard_mode = "scan_code"
+        api.status = replace(api.status, foreground=101)
+        backend.click_mouse(20, 20)
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "failed")
+        release = api.sent[-1][0].ki
+        self.assertEqual((release.wVk, release.wScan, release.dwFlags),
+                         (0x21, 0, KEYEVENTF_KEYUP))
+        self.assertEqual(dispatcher.injected_held_keys, ())
+
+    def test_virtual_key_uncertain_down_attempts_matching_emergency_release(self):
+        backend, api, dispatcher = self.setup_dispatcher(keyboard_mode="virtual_key")
+        backend.press_key("PageDown")
+        api.send_counts = [RuntimeError("uncertain insertion"), 1]
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "failed")
+        self.assertEqual([batch[0].ki.wVk for batch in api.sent], [0x22, 0x22])
+        self.assertEqual(api.sent[-1][0].ki.dwFlags, KEYEVENTF_KEYUP)
+        self.assertEqual(dispatcher.injected_held_keys, ())
+
+    def test_virtual_key_mode_validation(self):
+        for value in (None, "", "vk", "SCAN_CODE", True):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.setup_dispatcher(keyboard_mode=value)
+
     def test_configured_key_dwell_starts_at_insertion_for_pageup_and_cleanup_pagedown(self):
         backend, api, dispatcher = self.setup_dispatcher(minimum_key_hold_seconds=.05)
         backend.press_key("PageUp")

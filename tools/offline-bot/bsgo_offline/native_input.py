@@ -211,12 +211,23 @@ class _Win32Api:
         return ctypes.get_last_error()
 
 
-def _keyboard(scan: int, extended: bool, up: bool, tag: int) -> INPUT:
-    flags = KEYEVENTF_SCANCODE | (KEYEVENTF_EXTENDEDKEY if extended else 0)
+@dataclass(frozen=True, slots=True)
+class _KeyEncoding:
+    key: str
+    mode: str
+    scan: int = 0
+    extended: bool = False
+
+
+def _keyboard(encoding: _KeyEncoding, up: bool, tag: int) -> INPUT:
+    flags = (KEYEVENTF_SCANCODE | (KEYEVENTF_EXTENDEDKEY if encoding.extended else 0)
+             if encoding.mode == "scan_code" else 0)
     if up:
         flags |= KEYEVENTF_KEYUP
     event = INPUT(type=1)
-    event.ki = KEYBDINPUT(0, scan, flags, 0, tag)
+    event.ki = KEYBDINPUT(0 if encoding.mode == "scan_code" else _VK[encoding.key],
+                         encoding.scan if encoding.mode == "scan_code" else 0,
+                         flags, 0, tag)
     return event
 
 
@@ -243,7 +254,9 @@ class NativeInputDispatcher:
     def __init__(self, backend: RecordingInputBackend, hwnd: int, pid: int, *,
                  expected_size: tuple[int, int], expected_origin: tuple[int, int],
                  history_capacity: int | None = None, journal=None, _api=None,
-                 minimum_key_hold_seconds: float = 0.):
+                 minimum_key_hold_seconds: float = 0., keyboard_mode: str = "scan_code"):
+        if keyboard_mode not in ("scan_code", "virtual_key"):
+            raise ValueError("keyboard_mode must be scan_code or virtual_key")
         if (type(minimum_key_hold_seconds) not in (int, float)
                 or not math.isfinite(minimum_key_hold_seconds)
                 or not 0 <= minimum_key_hold_seconds <= .5):
@@ -273,9 +286,10 @@ class NativeInputDispatcher:
         self._delivery_evicted = 0
         self._logging_gaps = 0
         self._journal = journal
-        self._keys: dict[str, tuple[int, bool]] = {}
+        self._keys: dict[str, _KeyEncoding] = {}
         self._key_down_at: dict[str, float] = {}
         self.minimum_key_hold_seconds = minimum_key_hold_seconds
+        self.keyboard_mode = keyboard_mode
         self._buttons: set[str] = set()
 
     @property
@@ -350,7 +364,7 @@ class NativeInputDispatcher:
             keys, buttons = tuple(sorted(self._keys)), tuple(sorted(self._buttons))
             if not keys and not buttons:
                 return
-            events = tuple(_keyboard(*self._keys[key], True, input_tag(0)) for key in keys)
+            events = tuple(_keyboard(self._keys[key], True, input_tag(0)) for key in keys)
             events += tuple(_mouse(_BUTTON_FLAGS[button][1], input_tag(0)) for button in buttons)
             try:
                 inserted = self._api.send(events)
@@ -436,10 +450,14 @@ class NativeInputDispatcher:
                     if record.kind == "key_down":
                         if record.key in self._keys:
                             raise NativeDispatchError("duplicate injected key down")
-                        scan = self._api.scan_code(record.key, self.hwnd)
+                        if self.keyboard_mode == "scan_code":
+                            scan, extended = self._api.scan_code(record.key, self.hwnd)
+                            encoding = _KeyEncoding(record.key, "scan_code", scan, extended)
+                        else:
+                            encoding = _KeyEncoding(record.key, "virtual_key")
                     else:
-                        scan = self._keys[record.key]
-                    events = (_keyboard(*scan, record.kind == "key_up", tag),)
+                        encoding = self._keys[record.key]
+                    events = (_keyboard(encoding, record.kind == "key_up", tag),)
                 elif record.kind in ("mouse_move", "mouse_click"):
                     if (type(record.x) is not int or type(record.y) is not int
                             or not 0 <= record.x < self.expected_size[0]
@@ -476,18 +494,18 @@ class NativeInputDispatcher:
                     # A native exception provides no insertion count. Release
                     # any offered downs conservatively and retain uncertainty.
                     if record.kind == "key_down":
-                        self._keys[record.key] = scan
+                        self._keys[record.key] = encoding
                     elif button is not None:
                         self._buttons.add(button)
                     raise
                 if type(inserted) is not int or not 0 <= inserted <= len(events):
                     if record.kind == "key_down":
-                        self._keys[record.key] = scan
+                        self._keys[record.key] = encoding
                     elif button is not None:
                         self._buttons.add(button)
                     raise NativeDispatchError("invalid SendInput insertion count")
                 if record.kind == "key_down" and inserted:
-                    self._keys[record.key] = scan
+                    self._keys[record.key] = encoding
                     self._key_down_at[record.key] = time.monotonic()
                 elif record.kind == "key_up" and inserted:
                     self._keys.pop(record.key, None)
