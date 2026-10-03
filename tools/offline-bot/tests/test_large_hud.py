@@ -31,6 +31,19 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_motion_crops_and_clipped_one(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for label in ('1p0', '1p9', '1p1', '0p1'):
+            im = fixture_image()
+            with Image.open(FIXTURES/('speed-'+label+'.png')) as crop:
+                im.paste(crop, tuple(data['speed_box'][:2]))
+            self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['speed'].value,
+                             float(label.replace('p','.')))
+            # Remove the top endpoint of a measured one, in either position.
+            x = 1408 if label.startswith('1') else 1431
+            ImageDraw.Draw(im).rectangle((x,1066,x+2,1068), fill='black')
+            self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
     def test_measured_tall_distance_six_and_clipped_variant(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()
@@ -50,7 +63,8 @@ class LargeHudTests(unittest.TestCase):
         self.assertEqual(result.fields['ocr_evidence'].value['resampling'], 'none')
 
     def test_missing_decimal_and_partial_segment_are_unknown(self):
-        for box in [(1423,1084,1426,1087), (1406,1070,1408,1074)]:
+        for box in [(1423,1084,1426,1087), (1406,1070,1408,1074),
+                    (1406,1066,1416,1087)]:
             im = fixture_image()
             ImageDraw.Draw(im).rectangle((box[0],box[1],box[2]-1,box[3]-1), fill='black')
             field = HudRecognizer(PROFILE)(native(im)).fields['speed']

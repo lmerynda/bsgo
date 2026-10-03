@@ -6,7 +6,7 @@
   ],
   "source_frame_sha256": "007c8acd1ddb19e5557212ae91e3919e64bb06b480ca269ec23d19832949fcd8",
   "source": "exrun-largehud-startup-1 observation1; parent visual labels",
-  "limitations": "Two stationary development frames; no held-out or motion accuracy claim.",
+  "limitations": "Stationary and one bounded motion development sequence; no held-out motion or general accuracy claim.",
   "title_box": [
     844,
     66,
@@ -7182,5 +7182,158 @@
       1,
       0
     ]
+  ],
+  "speed_one": [
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      1
+    ]
+  ],
+  "speed_sources": [
+    {
+      "file": "speed-1p0.png",
+      "label": "1.0",
+      "box": [
+        1370,
+        1062,
+        1446,
+        1091
+      ],
+      "source_frame_sha256": "ab3d2e30e41fc38a93c2b21dd989189c2a00b00223337a8916ba4eb8566e2932"
+    },
+    {
+      "file": "speed-1p9.png",
+      "label": "1.9",
+      "box": [
+        1370,
+        1062,
+        1446,
+        1091
+      ],
+      "source_frame_sha256": "dd8901e72889ac22041dbf551b638c033093e4c36f5935df9e854d76102c6d2a"
+    },
+    {
+      "file": "speed-1p1.png",
+      "label": "1.1",
+      "box": [
+        1370,
+        1062,
+        1446,
+        1091
+      ],
+      "source_frame_sha256": "a8b9ce426d3e81be621a177f3288b24c00016f858ecc9e620abfc2673456a1c5"
+    },
+    {
+      "file": "speed-0p1.png",
+      "label": "0.1",
+      "box": [
+        1370,
+        1062,
+        1446,
+        1091
+      ],
+      "source_frame_sha256": "57dad56ec6007b8de4ca639c4da8f91548a75d4fd4a341a605b84cb8aef86e30"
+    }
   ]
 }

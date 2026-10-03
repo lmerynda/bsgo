@@ -107,10 +107,12 @@ class LargeHudReader:
             if previous_end is not None and not 3 <= left-previous_end <= 7:
                 return None, 'invalid_speed_spacing', 0.
             previous_end = right
-            # Narrow ones need their own measured anchored raster, not an
-            # inferred value from a clipped larger glyph. Until captured, reject.
             if right-left < 10:
-                return None, 'large_hud_speed_one_not_calibrated', 0.
+                expected = np.array(self.data['speed_one'], dtype=bool)
+                if top != 4 or g.shape != expected.shape or np.mean(g != expected) > .05:
+                    return None, 'incomplete_speed_one', 0.
+                digits.append('1')
+                continue
             if top != 4 or g.shape != (21, 13):
                 return None, 'incomplete_speed_glyph', 0.
             fractions = [float(g[y0:y1,x0:x1].mean()) for x0,y0,x1,y1 in regions]
