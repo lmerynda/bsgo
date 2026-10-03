@@ -16,7 +16,8 @@ PROFILE = "largehud-20261003"
 
 class Source:
     def __init__(self, *, effect=True, baseline_damage=False, invalid_after=False,
-                 change_target=False, stall_after=None):
+                 change_target=False, stall_after=None, cancel_at=None,
+                 cancel_path=None):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -24,6 +25,7 @@ class Source:
         self.invalid_after = invalid_after
         self.change_target = change_target
         self.stall_after = stall_after
+        self.cancel_at, self.cancel_path = cancel_at, cancel_path
         self.delivery_sequence = None
 
     def next_sample(self, stop):
@@ -33,6 +35,8 @@ class Source:
         if stop.wait(.025):
             return None
         self.sequence += 1
+        if self.sequence == self.cancel_at:
+            self.cancel_path.touch()
         after = (self.delivery_sequence is not None
                  and self.sequence > self.delivery_sequence)
         hp = 4500
@@ -62,8 +66,9 @@ def recognize(sample):
 
 
 class Dispatcher:
-    def __init__(self, backend, source, *, ignore=False):
+    def __init__(self, backend, source, *, ignore=False, cancel_on_G=None):
         self.backend, self.source, self.ignore = backend, source, ignore
+        self.cancel_on_G = cancel_on_G
         self._stop, self._lock = Event(), Lock()
         self._thread = None
         self._deliveries = []
@@ -87,6 +92,8 @@ class Dispatcher:
             elif permitted and request.kind == "key_up":
                 self._held.discard(request.key)
                 self.source.delivery_sequence = self.source.sequence
+                if self.cancel_on_G:
+                    self.cancel_on_G.touch()
             delivery = DeliveryRecord(request.sequence, time.monotonic(), request.kind,
                 outcome, 1, 1 if permitted else 0, 0)
             with self._lock:
@@ -105,10 +112,12 @@ class Dispatcher:
 
 
 class FiringProbeTests(unittest.TestCase):
-    def run_probe(self, directory, source, *, ignore=False, after_seconds=.3):
+    def run_probe(self, directory, source, *, ignore=False, after_seconds=.3,
+                  cancel_file=None, cancel_on_G=False):
         dispatchers = []
         def factory(backend, journal):
-            dispatcher = Dispatcher(backend, source, ignore=ignore)
+            dispatcher = Dispatcher(backend, source, ignore=ignore,
+                cancel_on_G=cancel_file if cancel_on_G else None)
             dispatchers.append(dispatcher)
             return dispatcher
         result = run_firing_probe(directory / "run", source_factory=lambda: source,
@@ -118,7 +127,7 @@ class FiringProbeTests(unittest.TestCase):
             safe_stopped_scene_assessed=True, wanted_resource_assessed="Tylium",
             no_preexisting_firing_assessed=True, scope="synthetic",
             baseline_seconds=.5, stable_seconds=.075,
-            after_seconds=after_seconds)
+            after_seconds=after_seconds, cancel_file=cancel_file)
         return result, dispatchers
 
     def test_two_distinct_post_delivery_declines_prove_narrow_effect(self):
@@ -178,6 +187,40 @@ class FiringProbeTests(unittest.TestCase):
             result, _ = self.run_probe(directory, Source(stall_after=5), after_seconds=.15)
             self.assertEqual(result["state"], "blocked")
             self.assertFalse(result["firing_effect_verified"])
+            self.assertTrue(all(result["shutdown"].values()))
+
+    def test_existing_cancel_marker_prevents_G(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            marker.touch()
+            result, dispatchers = self.run_probe(directory, Source(), cancel_file=marker)
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
+            self.assertTrue(result["cancel_requested"])
+            self.assertTrue(marker.exists())
+
+    def test_cancel_during_baseline_prevents_G(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            result, dispatchers = self.run_probe(directory,
+                Source(cancel_at=2, cancel_path=marker), cancel_file=marker)
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
+
+    def test_cancel_after_G_does_not_claim_firing_or_ceasefire(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            result, dispatchers = self.run_probe(directory, Source(),
+                cancel_file=marker, cancel_on_G=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(result["firing_state_after_probe"],
+                             "unverified_supervisor_retains_control")
+            self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
+                             ["injected"] * 2)
             self.assertTrue(all(result["shutdown"].values()))
 
 

@@ -328,6 +328,11 @@ requests, deliveries and shutdown; `firing-probe.json` explicitly leaves
 autofire state, inventory and resource reward unverified, with `mining_ready`
 false. Current HP OCR is validated only for measured complete four-digit
 rasters; a drop below 1000 will block proof until that raster is calibrated.
+Add `--cancel-file logs/mining/live-20261003/continuous-stop.request` when
+running under the continuous supervisor. An existing marker blocks G; a new
+marker ends the observation and releases any held input. It cannot establish
+that game autofire ended, so the supervisor must remain until a safe boundary.
+The marker persists for later probes.
 
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate

@@ -70,7 +70,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                      wanted_resource_assessed, no_preexisting_firing_assessed,
                      scope="native", baseline_seconds=6., stable_seconds=4.,
                      after_seconds=8., min_distance=480., max_distance=760.,
-                     max_distance_change=5.):
+                     max_distance_change=5., cancel_file=None):
     """Send one guarded G press and require two later, distinct falling HP reads."""
     if (safe_stopped_scene_assessed is not True
             or no_preexisting_firing_assessed is not True
@@ -78,6 +78,9 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         raise ValueError("fresh_supervisor_assessments_required")
     if scope not in ("native", "synthetic"):
         raise ValueError("scope")
+    if cancel_file is not None and not str(cancel_file).strip():
+        raise ValueError("cancel_file")
+    cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
     for name, value, low, high in (("baseline_seconds", baseline_seconds, .1, 8.),
         ("stable_seconds", stable_seconds, 0, 6.),
         ("after_seconds", after_seconds, .1, 20.),
@@ -94,7 +97,9 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
             "no_preexisting_firing": True}, "baseline_seconds": baseline_seconds,
             "stable_seconds": stable_seconds, "after_seconds": after_seconds,
             "min_distance": min_distance, "max_distance": max_distance,
-            "max_distance_change": max_distance_change, "mission_started": False},
+            "max_distance_change": max_distance_change,
+            "cancel_file": str(cancel_path) if cancel_path else None,
+            "mission_started": False},
         frame_capacity=32, max_frames=96)
     source = worker = backend = dispatcher = None
     store = SnapshotStore()
@@ -108,6 +113,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
     shutdown = {}
     error = None
     result = {"state": "blocked", "reason": "not_started", "mining_ready": False,
+        "cancel_requested": False,
         "firing_effect_verified": False, "firing_state_after_probe":
         "unverified_supervisor_retains_control",
         "warning": "autofire may continue beyond probe",
@@ -119,9 +125,26 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         "baseline": baseline, "after": after, "falling": falling,
         "requests": [], "deliveries": []}
 
+    cancel_seen = False
+
+    def canceled():
+        nonlocal cancel_seen
+        if cancel_path is None:
+            return False
+        try:
+            requested = cancel_path.exists()
+        except OSError:
+            requested = True
+        if requested and not cancel_seen:
+            cancel_seen = True
+            diagnostic.submit({"event": "firing_probe_cancel_requested",
+                               "at": time.monotonic(), "path": str(cancel_path)})
+        return requested
+
     def guard(record):
         if (record.kind != "key_down" or record.key != "G"
-                or requested_at is None or time.monotonic() - requested_at >= 1):
+                or requested_at is None or time.monotonic() - requested_at >= 1
+                or canceled()):
             return False
         snapshot = store.latest()
         if snapshot is None:
@@ -135,6 +158,8 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
             return False
 
     try:
+        if canceled():
+            raise RuntimeError("cancel_requested")
         source = source_factory()
         backend = RecordingInputBackend(session_id="fire-" + diagnostic.journal.run_id,
             layout_id=profile, width=frame_size[0], height=frame_size[1],
@@ -146,6 +171,8 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         worker.start()
         deadline = started + baseline_seconds
         while True:
+            if canceled():
+                raise RuntimeError("cancel_requested")
             now = time.monotonic()
             if now >= deadline:
                 if not requests:
@@ -171,6 +198,8 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                 baseline.append(row)
                 if len(baseline) < 2 or row["acquired_at"] - baseline[0]["acquired_at"] < stable_seconds:
                     continue
+                if canceled():
+                    raise RuntimeError("cancel_requested")
                 dispatcher = dispatcher_factory(backend, diagnostic.journal)
                 dispatcher.start()
                 requested_at = time.monotonic()
@@ -247,6 +276,9 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         shutdown["input_idle"] = not backend or (not backend.pending_requests and not backend.held_keys)
     if error and result["state"] == "proved":
         result.update(state="blocked", reason=error, firing_effect_verified=False)
+    if canceled():
+        result.update(state="blocked", reason="cancel_requested",
+                      firing_effect_verified=False, cancel_requested=True)
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if (not report["complete_diagnostics"] or not all(shutdown.values())
             or result.get("dispatcher_error")):
@@ -271,6 +303,7 @@ def main():
     parser.add_argument("--wanted-resource-assessed", choices=["Water", "Tylium"], required=True)
     parser.add_argument("--no-preexisting-firing-assessed", action="store_true", required=True)
     parser.add_argument("--after-seconds", type=float, default=8.)
+    parser.add_argument("--cancel-file", type=Path)
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
@@ -294,7 +327,7 @@ def main():
         safe_stopped_scene_assessed=args.safe_stopped_scene_assessed,
         wanted_resource_assessed=args.wanted_resource_assessed,
         no_preexisting_firing_assessed=args.no_preexisting_firing_assessed,
-        after_seconds=args.after_seconds)
+        after_seconds=args.after_seconds, cancel_file=args.cancel_file)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "proved" else 1
 
