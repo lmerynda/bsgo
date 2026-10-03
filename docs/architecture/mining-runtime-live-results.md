@@ -172,3 +172,32 @@ rejected. It cannot be dispatched on missing ownership evidence. The focused
 case and full suite passed (233 tests). The generic legacy executor still
 supports older snapshots only for its older harness; mining always requires
 explicit ownership. No live game input occurred in these tests.
+
+### Startup calibration command and paused verification
+
+At the user's request, a separate startup diagnostic command was added for a
+bounded, read-only calibration and control-readiness check. It composes the
+same application capture, recognition, trace and preflight components, verifies
+retained image hashes against their specific observations, and writes
+`startup-calibration.json`. Its read checks cover capture count, stable window
+identity, raw frame retention, recognition health, repeated speed/distance/
+selection readings and the configured calibration profile. Its control checks
+include ownership, selection continuity, revision, route, equipment, bindings,
+recognizer capabilities, worker shutdown and empty input queues. A repeated
+reading is marked available, not accurate or authorized for input.
+
+One startup run finished before the user paused live game verification. It
+captured six 3840×2160 frames from the expected game window, retained and
+verified all six, read speed 0.0 and distance 229 on each, classified asteroid
+selection false on each, and recorded no input requests. Its diagnostic trace
+and workers completed. Read checks passed; control checks did not, because
+ownership and selection revision were unknown, the selected target was not an
+asteroid, route and equipment were unset, scan/mining bindings were absent,
+and the 4K converted and mining recognizers remain unvalidated for control.
+The output stays local at
+`logs/mining/live-20261003/startup-calibration-4k/`.
+
+After the pause, no further game calls were made. Offline review tightened
+the frame-to-observation hash match and verified the six saved frames against
+the new check. The latest full suite passed 237 tests. Startup calibration is
+committed in `d7c6e585`, and the exact evidence match in `c0b31721`.
