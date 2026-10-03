@@ -349,3 +349,42 @@ reader calibration and avoids the experimental 4K BOX conversion. The current
 UI showed roughly 60 FPS, so there is no measured evidence that lowering
 graphics quality would fix these recognition failures. Neither setting has
 been changed yet.
+
+### Failed-image retention and offline contrast trial
+
+At the user's request, the shared bot diagnostic pipeline now queues every
+rejected image for persistent retention under `failed-recognition/`, bypassing
+the routine frame-count budget. Native RGB is saved as lossless PNG; replay
+sources are copied byte-for-byte. Each rejected image has a JSON sidecar with
+field rejection reasons, the immutable snapshot and OCR evidence, acquisition
+and window context, image SHA-256, run ID and runtime/reader source hashes.
+These local artifacts are not rotated or committed. Declared unimplemented
+recognizers and verified absent asteroid identity do not trigger retention.
+
+The background writer remains bounded so storage cannot block ship control.
+Queue overflow, byte-limit rejection, unavailable pixels and writer errors are
+visible; `frames.failed_recognition` reports observed/accepted/written/missing
+counts and cannot claim a complete archive when rejected images are missing.
+This applies to the shared diagnostics used by native startup/control probes
+and synthetic mining. It does not add the still-missing native mining runner.
+
+All 267 offline-bot tests passed, including retention of 20 rejected images
+beyond a one-frame routine budget, recognizer exceptions, sidecar disk failure,
+missing pixels and backpressure. An offline replay of Exrun retry frame 7
+preserved its `incomplete_speed_four` rejection and saved a byte-exact raw copy
+with matching SHA-256 and a complete failure archive. It sent zero inputs.
+
+A separate speed-only contrast experiment compared four manually labeled
+4K BOX development crops, four derived damage controls and 26 correlated
+native holdout frames. Baseline recognized three of the four BOX crops and all
+26 native labels. Contrast factors 1.5 and 2 recovered the rejected 0.4 but
+rejected the previously readable 1.3, leaving the BOX result at three of four.
+Both preserved the native labels and rejected all four damaged controls.
+Higher global white thresholds reduced coverage further. No wrong non-null
+reading appeared in this small sample; this is exploratory evidence, not a
+prospective accuracy result. The raw reader already uses a white mask and
+digit/decimal geometry checks. No production contrast or threshold change was
+made. Native HUD capture/resolution and controlled local-threshold candidates
+remain experiments to validate against retained failures and damage controls.
+The script and detailed results remain local in `logs/mining/live-20261003/`.
+No gameplay or graphics-setting changes occurred during these experiments.

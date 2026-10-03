@@ -132,6 +132,17 @@ The trace stores each published snapshot and observed event with acquisition
 identity, plus frame retention and action lifecycle events. Captured pixels go
 through a bounded background writer into `frames/`; the trace records their
 SHA-256 hashes. A missing frame, queue overflow or writer failure is explicit.
+Every rejected image read is queued into `failed-recognition/` instead of the
+routine frame folder, bypassing the routine `max_frames` count limit. These raw,
+unfiltered images are not rotated or deleted. Each has a JSON sidecar with field
+rejection reasons, acquisition/context identity, the full observation including
+OCR evidence, image SHA-256, run ID and source-code hashes. Native RGB frames are
+saved as lossless PNG; replay images are byte-exact source copies. Unimplemented
+recognizers and verified absent asteroid identity do not trigger this archive.
+The queue and per-frame byte limit still bound work outside the control loop;
+storage errors, overflow and unavailable pixels appear in
+`frames.failed_recognition.missing` and make its `complete` flag false. Images
+and sidecars remain local run artifacts and must not be committed.
 `report.json` records the final result, zero or more input requests, diagnostic
 completeness and each worker's shutdown outcome. A complete diagnostic record
 can still prove that the game control preflight failed. The diagnostic command

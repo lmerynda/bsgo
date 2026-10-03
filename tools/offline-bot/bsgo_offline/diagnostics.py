@@ -14,6 +14,22 @@ from .state import freeze
 from .trace import TraceJournal
 
 
+def recognition_failures(snapshot):
+    """Actual rejected image reads, excluding declared unimplemented fields."""
+    reasons = {name: field.reason or "invalid_image_read"
+               for name, field in snapshot.fields.items() if not field.valid
+               and not (field.reason or "").startswith("mining_recognizer_not_validated:")}
+    # An explicitly absent asteroid panel is a valid classification, not a
+    # failed attempt to recognize its identity/portrait/HP.
+    selected = snapshot.fields.get("asteroid_selected")
+    if selected and selected.valid and selected.value is False:
+        reasons = {name: reason for name, reason in reasons.items()
+                   if reason != "asteroid_title_not_verified"}
+    if not snapshot.healthy:
+        reasons["observation"] = snapshot.reason or "unhealthy_image_observation"
+    return reasons
+
+
 def _write_json(path, payload):
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(plain(payload), indent=2, allow_nan=False), encoding="utf-8")
@@ -66,6 +82,7 @@ class DiagnosticRun:
             "started_utc": datetime.now(timezone.utc).isoformat(),
             "configuration": plain(freeze(configuration)), **source_manifest(),
             "retention": {"frame_queue_capacity": frame_capacity, "max_frames": max_frames,
+                          "failed_recognition_frames": "all; no count budget; raw pixels and JSON sidecar",
                           "max_frame_bytes": max_frame_bytes, "status_interval_real_seconds": status_interval},
             "time_domains": {"observations": "component control clock", "worker_durations": "real monotonic",
                              "utc": "wall clock"},
@@ -77,6 +94,8 @@ class DiagnosticRun:
         self._queue = deque()
         self._closing = self._finished = False
         self._accepted = self._written = self._dropped = self._skipped = self._unavailable = 0
+        self._routine_accepted = 0
+        self._failed_observed = self._failed_accepted = self._failed_written = self._failed_dropped = 0
         self._frame_error = None
         self._status_errors = 0
         self._status_error = None
@@ -115,24 +134,35 @@ class DiagnosticRun:
                 "budget_skipped": self._skipped, "pixels_unavailable": self._unavailable,
                 "queue_capacity": self.frame_capacity, "max_frames": self.max_frames,
                 "error": self._frame_error, "writer_running": self._writer.is_alive(),
+                "failed_recognition": {"observed": self._failed_observed,
+                    "accepted": self._failed_accepted, "written": self._failed_written,
+                    "missing": self._failed_observed - self._failed_written,
+                    "dropped": self._failed_dropped, "count_budget": None,
+                    "complete": self._finished and self._failed_observed == self._failed_written
+                        and not self._frame_error},
                 "write_complete": self._finished and self._accepted == self._written
                     and not self._dropped and not self._skipped and not self._frame_error}
 
     def _retain_frame(self, snapshot, sample):
+        failures = recognition_failures(snapshot)
         reference = {"observation_sequence": snapshot.sequence,
-                     "acquisition_sequence": snapshot.acquisition_sequence, "context": plain(snapshot.context)}
+                     "acquisition_sequence": snapshot.acquisition_sequence, "context": plain(snapshot.context),
+                     "recognition_failures": failures}
+        with self._condition:
+            self._failed_observed += bool(failures)
         native = isinstance(getattr(sample, "rgb", None), bytes)
         path = getattr(sample, "path", None)
         if not native and path is None:
             with self._condition:
                 self._unavailable += 1
             return {**reference, "state": "unavailable", "reason": "source_has_no_pixels"}
-        relative = f"frames/observation-{snapshot.sequence:08d}." + ("png" if native else "source")
+        folder = "failed-recognition" if failures else "frames"
+        relative = f"{folder}/observation-{snapshot.sequence:08d}." + ("png" if native else "source")
         with self._condition:
             if self._closing or self._frame_error or len(self._queue) >= self.frame_capacity:
                 self._dropped += 1
                 state, reason = "dropped", "frame_writer_unavailable_or_queue_full"
-            elif self._accepted >= self.max_frames:
+            elif not failures and self._routine_accepted >= self.max_frames:
                 self._skipped += 1
                 state, reason = "skipped", "frame_retention_budget"
             elif native and len(sample.rgb) > self.max_frame_bytes:
@@ -140,10 +170,14 @@ class DiagnosticRun:
                 state, reason = "dropped", "frame_byte_limit"
             else:
                 self._accepted += 1
+                self._failed_accepted += bool(failures)
+                self._routine_accepted += not failures
                 reference.update(path=relative, provenance="native_rgb" if native else "saved_source_copy")
-                self._queue.append((reference, sample, native))
+                self._queue.append((reference, sample, native, snapshot))
                 self._condition.notify()
                 return {**reference, "state": "queued"}
+            if failures:
+                self._failed_dropped += 1
         return {**reference, "state": state, "reason": reason}
 
     def observation(self, snapshot, events, sample, timings):
@@ -159,12 +193,13 @@ class DiagnosticRun:
     def _write_frames(self):
         try:
             (self.directory / "frames").mkdir()
+            (self.directory / "failed-recognition").mkdir()
             while True:
                 with self._condition:
                     self._condition.wait_for(lambda: self._queue or self._closing)
                     if not self._queue:
                         break
-                    reference, sample, native = self._queue.popleft()
+                    reference, sample, native, snapshot = self._queue.popleft()
                 target = self.directory / reference["path"]
                 if native:
                     sample.to_image().save(target, format="PNG")
@@ -174,9 +209,18 @@ class DiagnosticRun:
                         raise ValueError("saved_frame_byte_limit")
                     shutil.copyfile(sample.path, target)
                 digest = hashlib.sha256(target.read_bytes()).hexdigest()
+                retained = {"event": "frame_retained", **reference, "sha256": digest}
+                if reference["recognition_failures"]:
+                    sidecar = target.with_suffix(".json")
+                    _write_json(sidecar, {"run_id": self.journal.run_id,
+                        "saved_utc": datetime.now(timezone.utc).isoformat(),
+                        **retained, "snapshot": plain(snapshot),
+                        "source_sha256": self.manifest["source_sha256"]})
+                    retained["sidecar"] = str(sidecar.relative_to(self.directory))
                 with self._condition:
                     self._written += 1
-                self.submit({"event": "frame_retained", **reference, "sha256": digest})
+                    self._failed_written += bool(reference["recognition_failures"])
+                self.submit(retained)
         except Exception as error:
             with self._condition:
                 self._frame_error = f"{type(error).__name__}: {error}"

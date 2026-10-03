@@ -6,7 +6,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from bsgo_offline.diagnostics import DiagnosticRun
+from bsgo_offline.diagnostics import DiagnosticRun, recognition_failures
 from bsgo_offline.diagnose import run_preflight
 from bsgo_offline.native_capture import NativeFrame, WindowGeometry
 from bsgo_offline.recognition import RecognitionResult, RecognitionWorker
@@ -35,6 +35,100 @@ def recognize_fixture(sample):
 
 
 class DiagnosticTests(unittest.TestCase):
+    def test_every_failed_image_survives_routine_budget_with_metadata(self):
+        with scratch_directory() as directory:
+            source = NativeFixtureSource(21)
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={},
+                                max_frames=1, frame_capacity=32)
+            run.observation(observation(), (), source.next_sample(Event()), {})
+            for sequence in range(2, 22):
+                snapshot = observation(sequence, fields={"speed":
+                    FieldValue(None, 1., False, "incomplete_speed_four")})
+                run.observation(snapshot, (), source.next_sample(Event()), {})
+            report = run.close(shutdown={})
+            self.assertTrue(report["complete_diagnostics"], report)
+            failed = report["frames"]["failed_recognition"]
+            self.assertEqual((failed["observed"], failed["written"], failed["missing"]), (20, 20, 0))
+            self.assertIsNone(failed["count_budget"])
+            self.assertTrue(failed["complete"])
+            for sequence in range(2, 22):
+                stem = directory / "run" / "failed-recognition" / f"observation-{sequence:08d}"
+                metadata = json.loads(stem.with_suffix(".json").read_text())
+                self.assertEqual(metadata["sha256"], hashlib.sha256(stem.with_suffix(".png").read_bytes()).hexdigest())
+                self.assertEqual(metadata["recognition_failures"], {"speed": "incomplete_speed_four"})
+                self.assertEqual(metadata["snapshot"]["sequence"], sequence)
+                self.assertEqual(metadata["run_id"], report["run_id"])
+                self.assertIn("hud-reader/hud_reader.py", metadata["source_sha256"])
+
+    def test_unimplemented_fields_and_absent_target_are_not_recognition_failures(self):
+        snapshot = observation(fields={
+            "scan_result": FieldValue(None, 1., False, "mining_recognizer_not_validated:scan_result"),
+            "asteroid_selected": FieldValue(False, 1.),
+            "target_identity": FieldValue(None, 1., False, "asteroid_title_not_verified")})
+        self.assertEqual(recognition_failures(snapshot), {})
+
+    def test_failure_image_backpressure_is_reported_without_blocking_capture(self):
+        with scratch_directory() as directory:
+            gate, entered = Event(), Event()
+            original = NativeFrame.to_image
+            def slow(frame):
+                entered.set()
+                gate.wait(2)
+                return original(frame)
+            source = NativeFixtureSource(5)
+            with patch.object(NativeFrame, "to_image", slow):
+                run = DiagnosticRun(directory / "run", mode="fixture", configuration={}, frame_capacity=1)
+                try:
+                    bad = {"speed": FieldValue(None, 1., False, "unreadable")}
+                    run.observation(observation(fields=bad), (), source.next_sample(Event()), {})
+                    self.assertTrue(entered.wait(1))
+                    for sequence in range(2, 6):
+                        run.observation(observation(sequence, fields=bad), (), source.next_sample(Event()), {})
+                finally:
+                    gate.set()
+                    report = run.close(shutdown={})
+            self.assertFalse(report["complete_diagnostics"])
+            self.assertEqual(report["frames"]["failed_recognition"]["observed"], 5)
+            self.assertEqual(report["frames"]["failed_recognition"]["dropped"], 3)
+            self.assertEqual(report["frames"]["failed_recognition"]["missing"], 3)
+
+    def test_failure_sidecar_write_error_cannot_claim_complete_archive(self):
+        with scratch_directory() as directory:
+            source = NativeFixtureSource(1)
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={})
+            with patch("bsgo_offline.diagnostics._write_json", side_effect=OSError("sidecar disk failure")):
+                run.observation(observation(fields={"speed": FieldValue(None, 1., False, "unreadable")}),
+                                (), source.next_sample(Event()), {})
+                run._writer.join(1)
+                self.assertFalse(run._writer.is_alive())
+            report = run.close(shutdown={})
+            self.assertFalse(report["complete_diagnostics"])
+            self.assertEqual(report["frames"]["failed_recognition"]["missing"], 1)
+            self.assertIn("sidecar disk failure", report["frames"]["error"])
+
+    def test_recognizer_exception_retains_its_native_image(self):
+        with scratch_directory() as directory:
+            def fail(sample):
+                raise ValueError("fixture recognizer error")
+            report = run_preflight(directory / "run", source_factory=NativeFixtureSource,
+                recognizer_factory=lambda: fail, configuration={}, snapshot_limit=3)
+            failed = report["frames"]["failed_recognition"]
+            self.assertEqual((failed["observed"], failed["written"]), (1, 1))
+            self.assertTrue(failed["complete"])
+            metadata = json.loads((directory / "run" / "failed-recognition" /
+                                   "observation-00000001.json").read_text())
+            self.assertIn("fixture recognizer error", metadata["recognition_failures"]["observation"])
+
+    def test_failed_observation_without_pixels_has_incomplete_image_archive(self):
+        with scratch_directory() as directory:
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={})
+            run.observation(observation(fields={"speed": FieldValue(None, 1., False, "unreadable")}),
+                            (), None, {})
+            report = run.close(shutdown={})
+            failed = report["frames"]["failed_recognition"]
+            self.assertEqual(failed["missing"], 1)
+            self.assertFalse(failed["complete"])
+
     def test_native_observation_history_pixels_and_live_status_are_retained(self):
         with scratch_directory() as directory:
             run_directory = directory / "run"
