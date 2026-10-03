@@ -210,7 +210,10 @@ class HudRecognizer:
         source_size = image.size
         converted = self.source_frame_size == source_size
         if converted:
-            image = image.resize((2560, 1440), Image.Resampling.LANCZOS)
+            # The 4K HUD's thin decimal dot loses one pixel with Lanczos.
+            # Area averaging preserved the complete 3x3 dot on all six
+            # retained stationary frames from the first 4K run.
+            image = image.resize((2560, 1440), Image.Resampling.BOX)
         # HudReader captured_at uses a wall clock. Keep monotonic freshness in
         # the shared-state layer, instead of feeding it a different time domain.
         raw = self._reader.read(image)
@@ -237,7 +240,7 @@ class HudRecognizer:
             "calibration_profile": self.profile,
             "source_frame_size": source_size,
             "recognition_frame_size": image.size,
-            "resampling": "lanczos_3840_to_2560" if converted else "none",
+            "resampling": "box_3840_to_2560" if converted else "none",
             "resampling_validation": "experimental_unvalidated" if converted else "native_profile_size",
         }, sample.acquired_at)
         return RecognitionResult(source_size, fields, size_ok,

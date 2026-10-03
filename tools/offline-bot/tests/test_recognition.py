@@ -237,7 +237,7 @@ class RecognitionTests(unittest.TestCase):
         self.assertEqual(result.frame_size, (3840, 2160))
         self.assertTrue(result.fields["speed"].valid)
         evidence = result.fields["ocr_evidence"].value
-        self.assertEqual(evidence["resampling"], "lanczos_3840_to_2560")
+        self.assertEqual(evidence["resampling"], "box_3840_to_2560")
         self.assertEqual(evidence["resampling_validation"], "experimental_unvalidated")
         self.assertFalse(MiningHudRecognizer("restart-20261001",
             source_frame_size=(3840, 2160)).capabilities["speed"])
