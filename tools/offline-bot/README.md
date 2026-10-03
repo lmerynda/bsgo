@@ -242,6 +242,9 @@ Input insertion alone is insufficient, and post-click invalid speed or context
 blocks the result. `selection-probe.json` includes the baseline retries,
 before/after observations, delivery, shutdown and blockers. It neither moves
 the ship nor sets `mining_ready`.
+Under a continuous supervisor, pass `selection_probe --cancel-file <persistent-stop-marker>`.
+An existing or newly created marker blocks a pending click or ends the
+post-click observation with a blocked result. The marker stays on disk.
 
 The next narrow experiment records a stationary asteroid scan:
 

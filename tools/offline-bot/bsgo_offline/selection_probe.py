@@ -44,18 +44,22 @@ def baseline_speed_unreadable(snapshot, now):
 def run_selection_probe(output, *, source_factory, recognizer_factory, dispatcher_factory,
                         configuration, profile, window_id, frame_size, x, y,
                         safe_scene_assessed, seconds=4, baseline_seconds=4,
-                        scope='native'):
+                        scope='native', cancel_file=None):
     if safe_scene_assessed is not True:
         raise ValueError('fresh_safe_scene_assessment_required')
     if (type(seconds) not in (int,float) or not 0 < seconds <= 8
             or type(baseline_seconds) not in (int,float) or not 0 < baseline_seconds <= 8
             or scope not in ('native','synthetic')):
         raise ValueError('invalid_probe_bounds')
+    if cancel_file is not None and not str(cancel_file).strip():
+        raise ValueError('cancel_file')
+    cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
     if any(type(v) is not int or not 0 <= v < limit for v,limit in zip((x,y),frame_size)):
         raise ValueError('invalid_frame_click')
     diagnostic = DiagnosticRun(output, mode=scope+'_stationary_selection_probe',
         configuration={**configuration, 'x':x, 'y':y, 'seconds':seconds,
                        'baseline_seconds':baseline_seconds,
+                       'cancel_file':str(cancel_path) if cancel_path else None,
                        'safe_scene_assessed':True, 'mission_started':False}, max_frames=32)
     store = SnapshotStore()
     source = worker = backend = dispatcher = None
@@ -65,11 +69,28 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
     context = None
     shutdown = {}
     result = {'state':'blocked', 'reason':'not_started', 'mining_ready':False,
+              'cancel_requested':False,
               'selection_effect_verified':False, 'baseline':baseline, 'after':after,
               'baseline_rejections':baseline_rejections}
     error = None
+    cancel_seen = False
+    def canceled():
+        nonlocal cancel_seen
+        if cancel_path is None:
+            return False
+        try:
+            requested = cancel_path.exists()
+        except OSError:
+            requested = True
+        if requested and not cancel_seen:
+            cancel_seen = True
+            diagnostic.submit({'event':'selection_probe_cancel_requested',
+                               'at':time.monotonic(), 'path':str(cancel_path)})
+        return requested
     def guard(record):
         try:
+            if canceled():
+                return False
             latest = store.latest()
             reading(latest, time.monotonic(), window_id, frame_size, context)
             return (record.kind == 'mouse_click' and requested_at is not None
@@ -77,6 +98,8 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
         except Exception:
             return False
     try:
+        if canceled():
+            raise RuntimeError('cancel_requested')
         source = source_factory()
         backend = RecordingInputBackend(session_id='select-'+diagnostic.journal.run_id,
             layout_id=profile, width=frame_size[0], height=frame_size[1], journal=diagnostic.journal)
@@ -86,6 +109,8 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
         worker.start()
         deadline, sequence = time.monotonic()+baseline_seconds, 0
         while time.monotonic() < deadline:
+            if canceled():
+                raise RuntimeError('cancel_requested')
             snapshot = store.wait_for_sequence(sequence, .025)
             if not snapshot:
                 if worker.end_reason:
@@ -115,6 +140,8 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
             if request is None:
                 baseline.append(row)
                 if len(baseline) == 2:
+                    if canceled():
+                        raise RuntimeError('cancel_requested')
                     dispatcher = dispatcher_factory(backend, diagnostic.journal)
                     dispatcher.start()
                     requested_at = time.monotonic()
@@ -186,6 +213,9 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
     result.update(request=plain(request), deliveries=deliveries,
                   matched_sequences=[r['sequence'] for r in matched],
                   dispatcher_error=dispatcher_error)
+    if canceled():
+        result.update(state='blocked',reason='cancel_requested',
+                      selection_effect_verified=False,cancel_requested=True)
     report = diagnostic.close(shutdown=shutdown,result=result,error=error)
     if not report['complete_diagnostics'] or not all(shutdown.values()) or result['dispatcher_error']:
         result.update(state='blocked',reason='incomplete_probe_evidence',selection_effect_verified=False)
@@ -202,6 +232,7 @@ def main():
     parser.add_argument('--profile',required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--safe-scene-assessed',action='store_true',required=True)
+    parser.add_argument('--cancel-file',type=Path)
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
@@ -217,7 +248,7 @@ def main():
             minimum_mouse_hold_seconds=.05, minimum_mouse_settle_seconds=.05),
         configuration={'hwnd':args.hwnd,'pid':args.pid,'profile':args.profile,'mouse_hold_ms':50,'mouse_settle_ms':50},
         profile=args.profile,window_id=f'{args.pid}:{args.hwnd}',frame_size=geometry.client_size,
-        x=args.x,y=args.y,safe_scene_assessed=True)
+        x=args.x,y=args.y,safe_scene_assessed=True,cancel_file=args.cancel_file)
     print(json.dumps(plain(result),indent=2))
     return 0 if result['state']=='proved' else 1
 

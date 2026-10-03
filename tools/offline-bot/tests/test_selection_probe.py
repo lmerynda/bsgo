@@ -11,13 +11,14 @@ from test_trace import scratch_directory
 
 class SelectionProbeTests(unittest.TestCase):
     def run_probe(self, directory, source, ignore=False, baseline_seconds=.25,
-                  recognizer=recognize):
+                  recognizer=recognize, cancel_file=None):
         return run_selection_probe(directory/'run',source_factory=lambda:source,
             recognizer_factory=lambda:recognizer,
             dispatcher_factory=lambda backend,journal:FakeDispatcher(backend,ignore=ignore),
             configuration={'fixture':True},profile=PROFILE,window_id='42:17',frame_size=(4,3),
             x=1,y=1,safe_scene_assessed=True,seconds=.25,
-            baseline_seconds=baseline_seconds,scope='synthetic')
+            baseline_seconds=baseline_seconds,scope='synthetic',
+            cancel_file=cancel_file)
 
     def changed_source(self, **options):
         return PixelSource(change_after=4,changed={'target_max_hp':3500,
@@ -156,6 +157,34 @@ class SelectionProbeTests(unittest.TestCase):
             self.assertFalse(result['shutdown']['dispatcher'])
             self.assertTrue(result['shutdown']['recognition'])
             self.assertTrue(source.closed)
+
+    def test_existing_cancel_marker_prevents_click(self):
+        with scratch_directory() as directory:
+            marker = directory/'stop.request'
+            marker.touch()
+            result = self.run_probe(directory,self.changed_source(),cancel_file=marker)
+            self.assertEqual(result['reason'],'cancel_requested')
+            self.assertIsNone(result['request'])
+            self.assertTrue(result['cancel_requested'])
+            self.assertTrue(marker.exists())
+
+    def test_cancel_during_baseline_prevents_click(self):
+        with scratch_directory() as directory:
+            marker = directory/'stop.request'
+            source = self.changed_source(cancel_at=2,cancel_path=marker)
+            result = self.run_probe(directory,source,cancel_file=marker)
+            self.assertEqual(result['reason'],'cancel_requested')
+            self.assertIsNone(result['request'])
+
+    def test_cancel_after_click_blocks_selection_proof(self):
+        with scratch_directory() as directory:
+            marker = directory/'stop.request'
+            source = self.changed_source(cancel_at=4,cancel_path=marker)
+            result = self.run_probe(directory,source,cancel_file=marker)
+            self.assertEqual(result['reason'],'cancel_requested')
+            self.assertFalse(result['selection_effect_verified'])
+            self.assertIsNotNone(result['request'])
+            self.assertTrue(all(result['shutdown'].values()))
 
 
 if __name__ == '__main__':
