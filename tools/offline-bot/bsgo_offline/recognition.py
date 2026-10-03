@@ -186,6 +186,8 @@ class HudRecognizer:
                  *, source_frame_size: tuple[int, int] | None = None) -> None:
         if source_frame_size not in (None, (3840, 2160)):
             raise ValueError("unsupported_source_frame_size")
+        if profile == 'largehud-20261003' and source_frame_size is not None:
+            raise ValueError('large_hud_requires_native_pixels')
         path = Path(reader_path) if reader_path else Path(__file__).resolve().parents[2] / "hud-reader" / "hud_reader.py"
         spec = importlib.util.spec_from_file_location("bsgo_offline_hud_reader", path)
         if spec is None or spec.loader is None:
@@ -240,6 +242,7 @@ class HudRecognizer:
             "speed_confidence": raw.get("speed_confidence"),
             "target_hp_confidence": raw.get("target_hp_confidence"),
             "calibration_profile": self.profile,
+            "calibration_validation": raw.get("calibration_validation", "existing_profile"),
             "source_frame_size": source_size,
             "recognition_frame_size": image.size,
             "resampling": "box_3840_to_2560" if converted else "none",

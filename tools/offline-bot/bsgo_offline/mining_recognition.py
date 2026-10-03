@@ -18,7 +18,7 @@ class MiningHudRecognizer:
         self.hud = HudRecognizer(profile, source_frame_size=source_frame_size)
         self.capabilities = freeze({name: name in (
             "distance", "speed", "asteroid_selected", "target_identity", "target_portrait")
-            and source_frame_size is None for name in CYCLE_FIELDS})
+            and source_frame_size is None and profile != 'largehud-20261003' for name in CYCLE_FIELDS})
 
     def __call__(self, sample):
         result = self.hud(sample)

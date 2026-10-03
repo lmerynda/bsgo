@@ -174,7 +174,7 @@ def main(argv=None):
     parser.add_argument("--reassess", type=Path, help="Verify a saved startup package without game access")
     parser.add_argument("--hwnd", type=int)
     parser.add_argument("--pid", type=int)
-    parser.add_argument("--profile", choices=("original", "restart-20261001"))
+    parser.add_argument("--profile", choices=("original", "restart-20261001", "largehud-20261003"))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--seconds", type=float, default=6)
     parser.add_argument("--frames", type=int, default=6)

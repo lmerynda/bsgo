@@ -173,6 +173,13 @@ they do not establish accuracy or native control. Use a fresh empty output
 directory for each attempt. A 4K BOX conversion is experimental, so its
 recognizer capability checks remain blocked for control.
 
+For the enlarged HUD at native 2560×1440, explicitly select
+`--profile largehud-20261003 --source-size native-2560`. This development
+profile uses labeled HUD crops and fixed digit, decimal and separator geometry;
+it rejects resampled sources. Its current calibration covers stationary
+readings, including the measured tall distance six. Motion and full mining
+capabilities remain unvalidated and are not granted by selecting this profile.
+
 Recheck a saved startup package entirely offline, including the current hashes
 of its retained frames:
 

@@ -86,6 +86,17 @@ def build_templates():
 
 class HudReader:
     def __init__(self, profile='original', *, speed_raster='native'):
+        self._large = None
+        if profile == 'largehud-20261003':
+            if speed_raster != 'native':
+                raise ValueError('Large HUD requires native pixels')
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('bsgo_large_hud', ROOT/'large_hud_reader.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            self._large = module.LargeHudReader()
+            self.profile = profile
+            return
         if profile not in ('original','restart-20261001'):
             raise ValueError('Unknown HUD calibration profile')
         if speed_raster not in ('native','box_3840_to_2560') or (speed_raster!='native' and profile!='restart-20261001'):
@@ -367,6 +378,8 @@ class HudReader:
         return info
 
     def read(self,image,captured_at=None):
+        if self._large is not None:
+            return self._large.read(image,captured_at)
         started=time.perf_counter()
         result={'utc':datetime.now(timezone.utc).isoformat(),'distance':None,'speed':None,
                 'valid':False,'reasons':[],'calibrated_size':[2560,1440], 'calibration_profile':self.profile}
@@ -409,7 +422,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('image',nargs='?',type=Path)
     p.add_argument('--calibrate',action='store_true');p.add_argument('--serve',action='store_true')
     p.add_argument('--watch-directory',type=Path);p.add_argument('--max-seconds',type=float,default=120)
-    p.add_argument('--profile',choices=['original','restart-20261001'],default='original')
+    p.add_argument('--profile',choices=['original','restart-20261001','largehud-20261003'],default='original')
     args=p.parse_args()
     if args.calibrate:build_templates();print('Calibrated digit templates from sample.png');return
     reader=HudReader(args.profile)

@@ -42,7 +42,7 @@ def source_manifest():
                for path in sorted(package.glob("*.py"))}
     reader = package.parents[1] / "hud-reader" / "hud_reader.py"
     sources["hud-reader/hud_reader.py"] = hashlib.sha256(reader.read_bytes()).hexdigest()
-    for name in ("templates.json", "restart-calibration.json"):
+    for name in ("templates.json", "restart-calibration.json", "largehud-calibration.json", "large_hud_reader.py"):
         calibration = reader.parent / name
         sources["hud-reader/" + name] = hashlib.sha256(calibration.read_bytes()).hexdigest()
     try:
