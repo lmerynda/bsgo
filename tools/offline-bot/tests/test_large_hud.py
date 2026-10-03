@@ -33,7 +33,7 @@ def native(im, layout=PROFILE):
 class LargeHudTests(unittest.TestCase):
     def test_measured_motion_crops_and_clipped_one(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
-        for label in ('1p0', '1p9', '1p1', '0p1', '1p3'):
+        for label in ('1p0', '1p9', '1p1', '0p1', '1p3', '0p7'):
             im = fixture_image()
             with Image.open(FIXTURES/('speed-'+label+'.png')) as crop:
                 im.paste(crop, tuple(data['speed_box'][:2]))
@@ -52,6 +52,14 @@ class LargeHudTests(unittest.TestCase):
                 im.paste(crop, tuple(data['speed_box'][:2]))
             ImageDraw.Draw(im).rectangle(box, fill='black')
             self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
+    def test_missing_top_bar_cannot_turn_seven_into_one(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'speed-0p7.png') as crop:
+            im.paste(crop, tuple(data['speed_box'][:2]))
+        ImageDraw.Draw(im).rectangle((1431,1066,1442,1068), fill='black')
+        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
 
     def test_measured_tall_distance_six_and_clipped_variant(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
