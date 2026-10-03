@@ -54,6 +54,10 @@ class LargeHudReader:
                 expected = np.array(self.data['distance_six'], dtype=bool)
                 if top != 3 or g.shape != expected.shape or np.mean(g != expected) > .10:
                     return None, 'incomplete_numeric_glyph', 0.
+            elif field == 'hp' and digit == '6' and g.shape[0] == 12:
+                expected = np.array(self.data['hp_six'], dtype=bool)
+                if top != 3 or g.shape != expected.shape or np.mean(g != expected) > .05:
+                    return None, 'incomplete_numeric_glyph', 0.
             elif g.shape[0] != 11:
                 return None, 'incomplete_numeric_glyph', 0.
             text += digit

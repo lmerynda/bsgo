@@ -31,6 +31,15 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_tall_hp_six_and_removed_endpoint(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'hp-4166-4166.png') as crop:
+            im.paste(crop, tuple(data['hp_box'][:2]))
+        self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['target_max_hp'].value, 4166)
+        ImageDraw.Draw(im).rectangle((1057,91,1068,91),fill='black')
+        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['target_max_hp'].valid)
+
     def test_complete_two_digit_speed_and_clipped_fraction(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()
