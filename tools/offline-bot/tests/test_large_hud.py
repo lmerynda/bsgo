@@ -31,6 +31,21 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_complete_trailing_four_leaves_six_pixel_slash_gap(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'hp-4384-4384.png') as crop:
+            im.paste(crop, tuple(data['hp_box'][:2]))
+        fields = HudRecognizer(PROFILE)(native(im)).fields
+        self.assertEqual(fields['target_current_hp'].value, 4384)
+        self.assertEqual(fields['target_max_hp'].value, 4384)
+        # Remove the final 4's leading column; its remainder must stay unknown.
+        x, y = data['hp_box'][:2]
+        ImageDraw.Draw(im).rectangle((x+52,y+4,x+52,y+14), fill='black')
+        damaged = HudRecognizer(PROFILE)(native(im)).fields
+        self.assertEqual(damaged['target_max_hp'].value, 4384)
+        self.assertFalse(damaged['target_current_hp'].valid)
+
     def test_measured_tall_hp_six_and_removed_endpoint(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()

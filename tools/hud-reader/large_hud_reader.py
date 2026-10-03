@@ -113,8 +113,16 @@ class LargeHudReader:
             and current[0][2] == 4 and current[0][3].shape == (11, 14)
             and min(float(np.mean(normalized(current[0][3]) != template))
                     for template in self.bank['4']) <= .02)
+        # In the native 4384/4384 label, a complete trailing 4 is one pixel
+        # wider than a trailing 0 and leaves a six-pixel pre-slash gap.
+        # Require its measured full raster; do not admit a clipped edge.
+        trailing_six_pixel_four = (separator[0]-current[-1][1] == 6
+            and current[-1][2] == 4 and current[-1][3].shape == (11, 14)
+            and min(float(np.mean(normalized(current[-1][3]) != template))
+                    for template in self.bank['4']) <= .02)
         if ((current[0][0] < 2 and not leading_one_pixel_four)
-                or not 7 <= separator[0]-current[-1][1] <= 8
+                or (not 7 <= separator[0]-current[-1][1] <= 8
+                    and not trailing_six_pixel_four)
                 or any(not 2 <= right[0]-left[1] <= 8
                        for left, right in zip(current, current[1:]))
                 or any(not ((top == 4 and glyph.shape[0] == 11)
