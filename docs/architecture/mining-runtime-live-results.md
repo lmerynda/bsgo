@@ -418,3 +418,42 @@ No mining action or harvest occurred. Post-run Computer Use at game clock
 outpost at 396 m. This clean run supports using native-resolution captures for
 the next experiments; it does not establish general OCR accuracy or mining
 readiness.
+
+### Enlarged HUD and lower-quality settings, October 3
+
+The user lowered resolution and graphics quality and enlarged the HUD. Fresh
+native capture verified a 2560×1440 client at screen origin (0, 0). The old
+restart profile rejected all six startup speed/distance readings because the
+HUD had moved. The new explicit `largehud-20261003` profile uses fixed native
+geometry and labeled HUD-only development crops. It rejects converted sources;
+full frames and their private chat content remain local. A fresh Water target
+exposed a complete twelve-row distance six, now accepted with a regression
+that rejects its clipped variant. `exrun-largehud-startup-3` then passed all six
+read checks: speed 0.0, distance 1,677 m and maximum asteroid HP 3,587, matching
+independent visual inspection. Full mining readiness remained false.
+
+Three bounded motion probes withheld certificates because complete speed
+glyphs were not yet calibrated: narrow ones, a twelve-column three, and a
+twelve-column seven. All rejected images were retained. Each run observed a
+final stop, joined its workers and retained complete diagnostics. Measured
+native rasters were added with clipping/segment-damage regressions; 286
+offline-bot tests passed after the final correction. These development examples
+do not establish general OCR accuracy.
+
+After stationary orientation toward clear space, `exrun-largehud-control-4`
+(run `741e5a8c0acc443f9fde4b69412189ae`) passed image-observed motion and stop.
+The baseline was 0.0 twice, observed motion was 0.9, and the final stop was
+0.0 twice. Configured 50 ms virtual-key holds measured 63 ms for acceleration
+and 62 ms for idle. Braking was requested on observed motion. All eight frames
+were retained with zero rejected readings, no diagnostic loss and complete
+worker shutdown; input was idle. Post-run supervision at game clock 21:45:43
+confirmed speed 0.0, hull 5005/5005, energy 800/800 and friendly outpost at
+370 m. The short-lived certificate proves this session's motion/braking only.
+
+The enlarged HUD/native capture combination is usable for these checks after
+explicit calibration. Current displayed FPS remained about 59–60; there is no
+isolated measurement proving a performance gain from lowest graphics quality.
+Radar, semantic scan results, inventory rewards and a native mining mission
+remain separate unfinished steps. The mining agent scanned a Tylium candidate
+at 1,274 m and Water at 1,677 m while stopped, then released UI ownership.
+Neither was within firing range, and no harvest occurred in these experiments.
