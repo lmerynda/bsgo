@@ -31,7 +31,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                        expected_window_id, frame_size, clear_corridor_assessed,
                        aligned_heading_assessed, safe_stopped_scene_assessed,
                        scope="native", brake_at=900., max_thrust_seconds=12.,
-                       baseline_seconds=4., stop_seconds=12.,
+                       baseline_seconds=4., stop_seconds=35.,
                        decision_interval=2.):
     """Injectable supervised probe with an independent PageDown watchdog."""
     if (clear_corridor_assessed, aligned_heading_assessed,
@@ -42,7 +42,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     for name, value, low, high in (("brake_at", brake_at, 600, 1400),
         ("max_thrust_seconds", max_thrust_seconds, .1, 30),
         ("baseline_seconds", baseline_seconds, .1, 8),
-        ("stop_seconds", stop_seconds, .1, 20),
+        ("stop_seconds", stop_seconds, .1, 45),
         ("decision_interval", decision_interval, .01, 2)):
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(name)
@@ -54,7 +54,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             "max_thrust_seconds": max_thrust_seconds,
             "baseline_seconds": baseline_seconds, "stop_seconds": stop_seconds,
             "gun_optimal_range": 760, "gun_max_range": 800,
-            "mission_started": False}, frame_capacity=32, max_frames=160)
+            "mission_started": False}, frame_capacity=32, max_frames=224)
     store = SnapshotStore()
     source = worker = backend = dispatcher = watchdog = None
     watchdog_stop = Event()
@@ -373,6 +373,7 @@ def main():
     parser.add_argument("--aligned-heading-assessed", action="store_true", required=True)
     parser.add_argument("--safe-stopped-scene-assessed", action="store_true", required=True)
     parser.add_argument("--max-thrust-seconds", type=float, default=12.)
+    parser.add_argument("--stop-seconds", type=float, default=35.)
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
@@ -396,7 +397,8 @@ def main():
         profile=args.profile, expected_window_id=f"{geometry.pid}:{geometry.hwnd}",
         frame_size=geometry.client_size, clear_corridor_assessed=True,
         aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
-        max_thrust_seconds=args.max_thrust_seconds)
+        max_thrust_seconds=args.max_thrust_seconds,
+        stop_seconds=args.stop_seconds)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "proved" and result["complete_diagnostics"] else 1
 

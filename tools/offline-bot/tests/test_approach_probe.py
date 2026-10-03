@@ -1,5 +1,6 @@
 """Supervised approach seam tests; no native window or game calls."""
 from threading import Event, Lock, Thread
+import inspect
 import time
 import unittest
 from unittest.mock import patch
@@ -18,20 +19,28 @@ PROFILE = "largehud-20261003"
 
 
 class Ship:
-    def __init__(self):
+    def __init__(self, brake_decay_seconds=0.):
         self.lock = Lock()
         self.speed = 0.
         self.distance = 1155.
+        self.brake_decay_seconds = brake_decay_seconds
+        self.brake_due = None
 
     def sample(self):
         with self.lock:
+            if self.brake_due is not None and time.monotonic() >= self.brake_due:
+                self.speed = 0.
+                self.brake_due = None
             if self.speed > 0:
                 self.distance -= 5.
             return self.speed, self.distance
 
     def set_speed(self, value):
         with self.lock:
-            self.speed = value
+            if value == 0 and self.speed > 0 and self.brake_decay_seconds:
+                self.brake_due = time.monotonic() + self.brake_decay_seconds
+            else:
+                self.speed = value
 
 
 class PixelSample:
@@ -135,8 +144,9 @@ class FakeDispatcher:
 
 class ApproachProbeTests(unittest.TestCase):
     def run_fixture(self, directory, *, source_options=None, ignore_acceleration=False,
-                    max_thrust_seconds=3., stop_seconds=.8):
-        ship = Ship()
+                    max_thrust_seconds=3., stop_seconds=.8,
+                    brake_decay_seconds=0.):
+        ship = Ship(brake_decay_seconds)
         source = PixelSource(ship, **(source_options or {}))
         dispatchers = []
         def dispatcher_factory(backend, journal):
@@ -212,6 +222,36 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertEqual(ship.speed, 0)
             self.assertTrue(source.closed)
             self.assertTrue(all(result["shutdown"].values()))
+
+    def test_delayed_coastdown_is_observed_with_sufficient_stop_budget(self):
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                max_thrust_seconds=.3, stop_seconds=.9, brake_decay_seconds=.55)
+            self.assertEqual(result["brake_reason"], "thrust_limit")
+            self.assertTrue(result["final_stop_observed"], result)
+            self.assertEqual(len(result["stop_observation_sequences"]), 2)
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+        with scratch_directory() as directory:
+            result, _, source, _ = self.run_fixture(directory,
+                max_thrust_seconds=.3, stop_seconds=.2, brake_decay_seconds=.55)
+            self.assertFalse(result["final_stop_observed"])
+            self.assertIn("stop_not_freshly_observed", result["reason"])
+            self.assertTrue(source.closed)
+
+    def test_native_stop_budget_defaults_and_bounds(self):
+        signature = inspect.signature(run_approach_probe)
+        self.assertEqual(signature.parameters["stop_seconds"].default, 35.)
+        self.assertEqual(signature.parameters["max_thrust_seconds"].default, 12.)
+        with scratch_directory() as directory:
+            with self.assertRaisesRegex(ValueError, "stop_seconds"):
+                run_approach_probe(directory / "unused", source_factory=lambda: None,
+                    recognizer_factory=lambda: None,
+                    dispatcher_factory=lambda backend, journal: None,
+                    configuration={}, profile=PROFILE, expected_window_id="42:17",
+                    frame_size=(4, 3), clear_corridor_assessed=True,
+                    aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
+                    stop_seconds=45.1)
 
     def test_dispatcher_shutdown_failure_still_joins_capture_worker(self):
         def fail_stop(dispatcher, timeout):
