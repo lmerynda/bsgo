@@ -35,6 +35,27 @@ def recognize_fixture(sample):
 
 
 class DiagnosticTests(unittest.TestCase):
+    def test_explicit_unbounded_routine_frame_count_retains_all_frames(self):
+        with scratch_directory() as directory:
+            source = NativeFixtureSource(80)
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={},
+                                max_frames=None, frame_capacity=96)
+            for sequence in range(1, 81):
+                run.observation(observation(sequence), (), source.next_sample(Event()), {})
+            report = run.close(shutdown={}, timeout=5)
+            self.assertTrue(report["complete_diagnostics"], report)
+            self.assertIsNone(report["frames"]["max_frames"])
+            self.assertEqual(report["frames"]["written"], 80)
+            self.assertEqual(report["frames"]["budget_skipped"], 0)
+            self.assertEqual(len(list((directory / "run" / "frames").glob("*.png"))), 80)
+
+    def test_finite_frame_budget_still_requires_positive_integer(self):
+        with scratch_directory() as directory:
+            for value in (0, -1, True, 1.5):
+                with self.assertRaisesRegex(ValueError, "max_frames"):
+                    DiagnosticRun(directory / "run", mode="fixture", configuration={},
+                                  max_frames=value)
+
     def test_every_failed_image_survives_routine_budget_with_metadata(self):
         with scratch_directory() as directory:
             source = NativeFixtureSource(21)

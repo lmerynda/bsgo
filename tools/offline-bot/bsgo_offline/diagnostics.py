@@ -80,10 +80,12 @@ class DiagnosticRun:
     def __init__(self, directory, *, mode, configuration, frame_capacity=3,
                  max_frames=64, max_frame_bytes=32*1024*1024, status_interval=.5,
                  report_filename="report.json"):
-        for name, value in (("frame_capacity", frame_capacity), ("max_frames", max_frames),
+        for name, value in (("frame_capacity", frame_capacity),
                             ("max_frame_bytes", max_frame_bytes)):
             if type(value) is not int or value < 1:
                 raise ValueError(name)
+        if max_frames is not None and (type(max_frames) is not int or max_frames < 1):
+            raise ValueError("max_frames")
         if type(status_interval) not in (int, float) or not 0 < status_interval <= 60:
             raise ValueError("status_interval")
         if report_filename not in ("report.json", "diagnostics-report.json"):
@@ -177,7 +179,8 @@ class DiagnosticRun:
             if self._closing or self._frame_error or len(self._queue) >= self.frame_capacity:
                 self._dropped += 1
                 state, reason = "dropped", "frame_writer_unavailable_or_queue_full"
-            elif not failures and self._routine_accepted >= self.max_frames:
+            elif (not failures and self.max_frames is not None
+                  and self._routine_accepted >= self.max_frames):
                 self._skipped += 1
                 state, reason = "skipped", "frame_retention_budget"
             elif native and len(sample.rgb) > self.max_frame_bytes:

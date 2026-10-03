@@ -143,6 +143,9 @@ The queue and per-frame byte limit still bound work outside the control loop;
 storage errors, overflow and unavailable pixels appear in
 `frames.failed_recognition.missing` and make its `complete` flag false. Images
 and sidecars remain local run artifacts and must not be committed.
+`DiagnosticRun(max_frames=None)` explicitly removes the routine frame count
+limit for continuous observation; the writer queue and per-frame byte bound
+still apply, and `budget_skipped` remains zero unless a finite limit is set.
 `report.json` records the final result, zero or more input requests, diagnostic
 completeness and each worker's shutdown outcome. A complete diagnostic record
 can still prove that the game control preflight failed. The diagnostic command
