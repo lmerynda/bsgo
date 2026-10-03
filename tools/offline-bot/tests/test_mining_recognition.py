@@ -14,6 +14,8 @@ class MiningRecognitionTests(unittest.TestCase):
         source = ReplaySource(root / "test-data/vision/v1/manifest.json",
                               source_run="sol-tylium-live-2321", interval=0, limit=3)
         recognizer, detector = MiningHudRecognizer(), EventDetector()
+        for name in (*MINING_FIELDS, "owned", "selection_revision"):
+            self.assertIs(recognizer.capabilities[name], False)
         for index in range(1, 4):
             sample = source.next_sample(Event())
             result = recognizer(sample)

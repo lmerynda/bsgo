@@ -107,6 +107,15 @@ Cancellation discards pending ordinary acceleration and clicks while preserving 
 
 ## Validation boundary
 
+`MiningCoordinator.read_preflight(capabilities)` returns every readiness blocker
+in one read-only assessment: observations, ownership, stopped speed, selection,
+distance, revision, route, equipment, bindings and explicitly declared recognizer
+capabilities. It never queues input or changes tracking. `MiningHudRecognizer`
+declares the unimplemented ownership, revision and mining fields as unsupported.
+`read_status()` separates fresh observation health from usable control fields;
+unknown or stale ownership is `null`, while observed lost ownership is `false`.
+These diagnostics do not override the existing execution guards.
+
 The tests cover concurrent publication, defensive immutability, per-field timestamps, rejected OCR fields, source/recognizer faults, target/session/layout changes, delayed planning, queued input cancellation, backlog overflow cleanup, ignored braking, and fresh stop acknowledgement. Rolling history and journal failure cases distinguish telemetry loss from control failure. Worker joins report whether shutdown finished; a blocked recognizer is not falsely reported stopped.
 
 An optional browser smoke test checks the HTML receiver with Playwright and an isolated headless Chromium browser. With Playwright available to Node, run `node tools/offline-bot/verify_receiver.cjs logs/offline-bot/nominal "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`. It saves received events, screenshots, and a verification report alongside the simulation report. It loads the local HTML file directly and closes its browser afterward.

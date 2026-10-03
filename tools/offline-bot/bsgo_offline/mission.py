@@ -13,6 +13,7 @@ from .routines import (RoutineContext, ApproachRoutine, ScanRoutine, StopRoutine
                        MineRoutine, OutcomeRoutine)
 from .state import ObservationContext, freeze
 from .tracking import SelectionTracker
+from .readiness import assess_preflight, observation_health
 
 
 @dataclass(frozen=True)
@@ -38,11 +39,17 @@ class RuntimeStatus:
     generation: int
     observation_age: float | None
     recognition_healthy: bool
-    owned: bool
+    owned: bool | None
     reason: str
     pending_action_ids: tuple[str, ...]
     cleanup: str
     track_id: int | None
+    observation_healthy: bool
+    usable_fields: tuple[str, ...]
+    field_rejections: Mapping
+
+    def __post_init__(self):
+        object.__setattr__(self, "field_rejections", freeze(self.field_rejections))
 
 
 @dataclass(frozen=True)
@@ -123,15 +130,20 @@ class MiningCoordinator:
         with self._lock:
             snapshot = self.store.latest()
             age = self.clock() - snapshot.acquired_at if snapshot else None
-            try:
-                owned = current_field(snapshot, "owned", self.clock()) is True
-            except ValueError:
-                owned = False
+            observation_ok, recognition_ok, owned, usable, rejections = observation_health(snapshot, self.clock())
             return RuntimeStatus(self.phase,
                 self.routine.policy.phase if isinstance(self.routine, ApproachRoutine) else self.phase,
-                self.executor.generation, age, bool(snapshot and snapshot.healthy), owned,
+                self.executor.generation, age, recognition_ok, owned,
                 self.reason, tuple(s.action_id for s in self.executor.statuses() if s.state == "requested"),
-                self.cleanup, self.tracker.track.track_id if self.tracker.track else None)
+                self.cleanup, self.tracker.track.track_id if self.tracker.track else None,
+                observation_ok, usable, rejections)
+
+    def read_preflight(self, capabilities=None):
+        with self._lock:
+            view = self.store.read(self.phase_cursor)
+            return assess_preflight(view.snapshot, self.clock(), route=self.route,
+                equipment=self.equipment, bindings=self.executor.bindings, track=self.tracker.track,
+                capabilities=capabilities, event_gap=view.events.gap)
 
     def cancel(self, reason="cancelled"):
         with self._lock:

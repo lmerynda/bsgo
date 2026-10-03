@@ -6,7 +6,8 @@ gaps as unknown fields so a consumer cannot mistake their absence for a zero,
 an empty asteroid, inactive weapons, or a successful mining result.
 """
 from .recognition import HudRecognizer, RecognitionResult
-from .state import FieldValue
+from .state import FieldValue, freeze
+from .readiness import CYCLE_FIELDS
 
 
 MINING_FIELDS = ("scan_result", "mining_active", "inventory", "inventory_conflict")
@@ -15,6 +16,9 @@ MINING_FIELDS = ("scan_result", "mining_active", "inventory", "inventory_conflic
 class MiningHudRecognizer:
     def __init__(self, profile="original"):
         self.hud = HudRecognizer(profile)
+        self.capabilities = freeze({name: name in (
+            "distance", "speed", "asteroid_selected", "target_identity", "target_portrait")
+            for name in CYCLE_FIELDS})
 
     def __call__(self, sample):
         result = self.hud(sample)
