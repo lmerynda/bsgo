@@ -543,3 +543,59 @@ components joined with input idle. Independent supervision at game clock
 supports the 900 m brake setting for this observed clear aligned approach, and
 leaves the scanned Water candidate within the user's 760 m optimal gun range.
 It does not establish a universal stopping distance or mining readiness.
+
+By game clock 22:59:35 the selected Water target had disappeared while stopped.
+No G command had been issued in these restart experiments; its disappearance
+has no established cause and is not credited as our harvest. The application
+then acquired another asteroid through selection 8
+(`6a0550243c0d481894594f17c19d1b0b`): two fresh images proved HP 4,500 at 677 m.
+Scan 6 (`af440124aca6483d8f765b54497d754e`) independently changed the gray result
+to yellow Tylium, leaving a wanted candidate already within firing range. No
+flight was needed. The scanner still records semantic result verification as
+unfinished.
+
+The new current-HP reader passed 319 integrated tests on the existing measured
+four-digit examples, but this live 4500/4500 label exposed another geometry
+rejection: its complete leading four begins one pixel from the crop boundary.
+All 21 scan images were retained with `target_current_hp` failure sidecars;
+selection, maximum HP, range and speed remained valid. This is live evidence of
+a current-HP calibration gap, rather than a failed scan command. The rejected
+native frame supplies the next HUD-only development regression.
+
+The leading-four correction accepts its exact measured complete raster with
+one blank boundary column, while rejecting first-row damage. It leaves the
+maximum-HP and slash guards intact. The correction passed 18 focused HUD tests
+and all 320 integrated tests before being committed. These four-digit current
+readings are development evidence; lower digit-count HP transitions remain
+unsupported until measured in the live pipeline.
+
+### First application-commanded firing effect and verified harvest, October 3
+
+The new supervised `firing_probe` requires four seconds of stable current HP
+before issuing one guarded 50 ms G command. The supervisor supplies the wanted
+resource and safe-scene assessment; native image evidence must independently
+establish zero speed, range 480–760 m, stable context, target identity, portrait
+and maximum HP. Proof requires two distinct lower current-HP readings acquired
+after the actual G key-up delivery. It neither repeats G nor invents a ceasefire
+command. The supervisor remains with the game because assigned autofire can
+continue beyond the observation window. Readiness, resource classification,
+inventory and autofire-state recognition remain unverified. Seven focused
+firing tests and all 327 integrated tests passed before the committed live run.
+
+`exrun-loop-restart-firing-1` (`0c966513e2db4ade9da28aee6d085c8f`) proved the
+narrow firing effect on the app-selected and scanned Tylium candidate. Baseline
+HP was 4500/4500 at 677 m and zero speed. The application inserted one G pair,
+with an actual 78 ms hold, then read HP 3,206 on sequence 12 and HP 2,459 on
+sequence 22. Distance remained 677 m and speed remained zero. All 22 images
+were retained with no rejected readings, complete diagnostics, joined workers
+and no held input. The application correctly keeps `mining_ready` false.
+
+Independent Computer Use supervision continued after the probe. At game clock
+23:09:22 the target was destroyed and the game visibly awarded
+`+ 6158 X TYLIUM` and 112 experience. Hull was 5005/5005, speed 0.0 and energy
+417/800. No supervisor G, thrust or subsequent target selection was issued
+between the application's command and this reward. This establishes a real
+supervised application-commanded mining harvest. The reward was read by the
+supervisor; the application itself has not yet validated destruction or
+inventory/reward pixels, nor connected these probes into an autonomous native
+mission. The ship was left at this natural stopped boundary in Exrun.
