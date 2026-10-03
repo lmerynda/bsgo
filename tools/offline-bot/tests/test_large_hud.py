@@ -31,6 +31,15 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_complete_two_digit_speed_and_clipped_fraction(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'speed-10p7.png') as crop:
+            im.paste(crop, tuple(data['speed_box'][:2]))
+        self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['speed'].value, 10.7)
+        ImageDraw.Draw(im).rectangle((1446,1062,1467,1091), fill='black')
+        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
     def test_measured_hp_label_recentered_by_narrow_final_one(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()
