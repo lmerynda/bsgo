@@ -37,6 +37,7 @@ class StartupDiagnosticsTests(unittest.TestCase):
             self.assertTrue({"ownership", "selection", "route", "equipment", "binding:scan",
                              "recognizer:scan_result"} <= blockers)
             self.assertEqual(assessment["fields"]["speed"]["observed_values"], [0., 0., 0.])
+            self.assertTrue(assessment["fields"]["speed"]["same_value_on_every_frame"])
             self.assertIn("hud-reader/restart-calibration.json",
                           assessment["source_identity"]["calibration_sha256"])
             self.assertEqual(json.loads((output / "startup-calibration.json").read_text()), assessment)

@@ -56,6 +56,8 @@ def assess_startup(report, manifest, observations, frame_events, *, expected_fra
                         "rejection_reasons": dict(rejected)}
         if values:
             fields[name]["observed_values"] = values
+            fields[name]["distinct_values"] = len({json.dumps(value, sort_keys=True) for value in values})
+            fields[name]["same_value_on_every_frame"] = valid == len(snapshots) and fields[name]["distinct_values"] == 1
 
     reads = []
     count = len(snapshots)

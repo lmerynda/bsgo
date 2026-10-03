@@ -157,7 +157,7 @@ The report counts valid and rejected readings across the captured frame sequence
 checks window identity and hashed frame retention, and lists each current
 preflight blocker plus worker and queue status. It includes SHA-256 hashes of
 the HUD reader, templates and calibration file used at startup. The command
-sends no game input. Repeated OCR values show availability and consistency;
+sends no game input. Repeated OCR values show availability and variation;
 they do not establish accuracy or native control. Use a fresh empty output
 directory for each attempt. A 4K BOX conversion is experimental, so its
 recognizer capability checks remain blocked for control.
