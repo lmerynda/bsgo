@@ -2,6 +2,8 @@
 from contextlib import contextmanager
 import ctypes
 from dataclasses import FrozenInstanceError, replace
+import math
+from threading import Thread
 import time
 import unittest
 
@@ -21,6 +23,7 @@ class FakeNativeApi:
         self.desktop = (-1920, 0, 3840, 1080)
         self.physical_modifiers = ()
         self.sent = []
+        self.sent_at = []
         self.send_counts = []
         self.inspections = 0
         self.on_inspect = None
@@ -55,6 +58,7 @@ class FakeNativeApi:
 
     def send(self, events):
         # Byte copies make these fake native records independent of ctypes objects.
+        self.sent_at.append(time.monotonic())
         self.sent.append(tuple(INPUT.from_buffer_copy(bytes(event)) for event in events))
         if self.send_counts:
             count = self.send_counts.pop(0)
@@ -155,6 +159,56 @@ class NativeInputTests(unittest.TestCase):
                          [input_tag(down.sequence), input_tag(up.sequence)])
         self.assertEqual(dispatcher.injected_held_keys, ())
         self.assertEqual(first.evidence, "windows_input_stream_insertion")
+
+    def test_configured_key_dwell_starts_at_insertion_for_pageup_and_cleanup_pagedown(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_key_hold_seconds=.05)
+        backend.press_key("PageUp")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertGreaterEqual(api.sent_at[1] - api.sent_at[0], .045)
+        backend.request_cleanup_stop()
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertGreaterEqual(api.sent_at[3] - api.sent_at[2], .045)
+        self.assertEqual(dispatcher.injected_held_keys, ())
+
+    def test_key_dwell_validation(self):
+        for value in (-.01, .501, math.nan, math.inf, True, "0.05"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.setup_dispatcher(minimum_key_hold_seconds=value)
+        _, _, dispatcher = self.setup_dispatcher(minimum_key_hold_seconds=.05)
+        self.assertEqual(dispatcher.minimum_key_hold_seconds, .05)
+
+    def test_stop_interrupts_dwell_and_releases_injected_key(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_key_hold_seconds=.5)
+        dispatcher.start()
+        backend.press_key("PageUp")
+        deadline = time.monotonic() + 1
+        while len(dispatcher.deliveries()) < 1 and time.monotonic() < deadline:
+            time.sleep(.002)
+        self.assertEqual(dispatcher.deliveries()[0].outcome, "injected")
+        started = time.monotonic()
+        self.assertTrue(dispatcher.stop(timeout=1))
+        self.assertLess(time.monotonic() - started, .45)
+        self.assertEqual(dispatcher.injected_held_keys, ())
+        self.assertTrue(api.sent[-1][0].ki.dwFlags & KEYEVENTF_KEYUP)
+
+    def test_focus_change_during_dwell_rechecks_and_emergency_releases(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_key_hold_seconds=.2)
+        backend.press_key("PageUp")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        up = backend.get_action(timeout=0)
+        deliveries = []
+        thread = Thread(target=lambda: deliveries.append(dispatcher.dispatch(up)), daemon=True)
+        thread.start()
+        time.sleep(.04)
+        api.status = replace(api.status, foreground=101)
+        thread.join(1)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(deliveries[0].outcome, "failed")
+        self.assertEqual(dispatcher.injected_held_keys, ())
+        self.assertTrue(api.sent[-1][0].ki.dwFlags & KEYEVENTF_KEYUP)
+        self.assertTrue(backend.canceled)
 
     def test_mouse_click_is_one_batch_and_maps_virtual_desktop(self):
         backend, api, dispatcher = self.setup_dispatcher()

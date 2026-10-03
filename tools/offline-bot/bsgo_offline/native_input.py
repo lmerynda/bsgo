@@ -242,7 +242,12 @@ class NativeInputDispatcher:
 
     def __init__(self, backend: RecordingInputBackend, hwnd: int, pid: int, *,
                  expected_size: tuple[int, int], expected_origin: tuple[int, int],
-                 history_capacity: int | None = None, journal=None, _api=None):
+                 history_capacity: int | None = None, journal=None, _api=None,
+                 minimum_key_hold_seconds: float = 0.):
+        if (type(minimum_key_hold_seconds) not in (int, float)
+                or not math.isfinite(minimum_key_hold_seconds)
+                or not 0 <= minimum_key_hold_seconds <= .5):
+            raise ValueError("minimum_key_hold_seconds must be between zero and .5")
         if type(hwnd) is not int or hwnd <= 0 or type(pid) is not int or pid <= 0:
             raise ValueError("hwnd and pid must be positive integers")
         if (len(expected_size) != 2 or any(type(v) is not int or v <= 0 for v in expected_size)
@@ -269,6 +274,8 @@ class NativeInputDispatcher:
         self._logging_gaps = 0
         self._journal = journal
         self._keys: dict[str, tuple[int, bool]] = {}
+        self._key_down_at: dict[str, float] = {}
+        self.minimum_key_hold_seconds = minimum_key_hold_seconds
         self._buttons: set[str] = set()
 
     @property
@@ -352,6 +359,7 @@ class NativeInputDispatcher:
                 for index in range(inserted):
                     if index < len(keys):
                         self._keys.pop(keys[index], None)
+                        self._key_down_at.pop(keys[index], None)
                     else:
                         self._buttons.discard(buttons[index - len(keys)])
                 self._delivery(None, "injected" if inserted == len(events) else "partial",
@@ -384,6 +392,13 @@ class NativeInputDispatcher:
         with self._lock, self._api.dpi_context():
             cleanup = dict(record.metadata).get("cleanup") is True
             try:
+                # Dwell starts at confirmed insertion, not request enqueue.
+                # Shutdown interrupts the wait; emergency releases never wait.
+                if record.kind == "key_up" and record.key in self._key_down_at:
+                    until = self._key_down_at[record.key] + self.minimum_key_hold_seconds
+                    while (remaining := until - time.monotonic()) > 0:
+                        if self._stop_event.wait(remaining):
+                            break
                 if type(record.sequence) is not int or not 0 < record.sequence <= MAX_INPUT_SEQUENCE:
                     raise NativeDispatchError("request sequence outside supported tag range")
                 if record.sequence <= self._last_processed_sequence:
@@ -473,8 +488,10 @@ class NativeInputDispatcher:
                     raise NativeDispatchError("invalid SendInput insertion count")
                 if record.kind == "key_down" and inserted:
                     self._keys[record.key] = scan
+                    self._key_down_at[record.key] = time.monotonic()
                 elif record.kind == "key_up" and inserted:
                     self._keys.pop(record.key, None)
+                    self._key_down_at.pop(record.key, None)
                 elif button is not None and inserted >= 2:
                     self._buttons.add(button)
                     if inserted == 3:
@@ -482,6 +499,8 @@ class NativeInputDispatcher:
                 error_code = self._api.last_error() if inserted != len(events) else 0
                 result = self._delivery(record, "injected" if inserted == len(events) else "partial",
                                         len(events), inserted, error_code=error_code)
+                if record.kind == "key_down" and inserted == len(events):
+                    self._key_down_at[record.key] = result.at
                 if inserted != len(events):
                     self._fail(f"SendInput inserted {inserted}/{len(events)} events (error {error_code})")
                 return result

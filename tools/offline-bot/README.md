@@ -188,6 +188,10 @@ at delivery. `control-calibration.json` records the outcome, linked commands,
 observation sequences, source hashes and worker shutdown. Its short-lived
 certificate proves only motion/braking feedback in that session; targeting,
 scanning, inventory and mining still need their own calibration probes.
+The native probe holds each key for at least 50 ms from confirmed insertion,
+including the reserved idle press. Use `--key-hold-ms` to choose another bounded
+duration (0–500 ms). Delivery timestamps record the actual dwell; shutdown and
+emergency key release can interrupt it.
 
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate

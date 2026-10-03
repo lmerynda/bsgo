@@ -248,7 +248,12 @@ def main():
     parser.add_argument("--clear-heading-assessed", action="store_true", required=True)
     parser.add_argument("--source-size", choices=["native-2560", "3840x2160"], default="native-2560")
     parser.add_argument("--pulse-seconds", type=float, default=1.5)
+    parser.add_argument("--key-hold-ms", type=float, default=50.)
     args = parser.parse_args()
+    if not math.isfinite(args.key_hold_ms) or not 0 <= args.key_hold_ms <= 500:
+        parser.error("--key-hold-ms must be between zero and 500")
+    if args.key_hold_ms / 1000 >= args.pulse_seconds:
+        parser.error("key hold must be shorter than the maximum throttle pulse")
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
     from .mining_recognition import MiningHudRecognizer
@@ -264,9 +269,9 @@ def main():
             source_frame_size=configured_size if args.source_size == "3840x2160" else None),
         dispatcher_factory=lambda backend, journal: NativeInputDispatcher(backend, geometry.hwnd,
             geometry.pid, expected_size=geometry.client_size, expected_origin=geometry.screen_origin,
-            journal=journal),
+            journal=journal, minimum_key_hold_seconds=args.key_hold_ms / 1000),
         configuration={"hwnd": args.hwnd, "pid": args.pid, "profile": args.profile,
-                       "source_size": args.source_size},
+                       "source_size": args.source_size, "minimum_key_hold_ms": args.key_hold_ms},
         profile=args.profile, expected_window_id=f"{geometry.pid}:{geometry.hwnd}",
         frame_size=geometry.client_size, clear_heading=args.clear_heading_assessed,
         pulse_seconds=args.pulse_seconds)
