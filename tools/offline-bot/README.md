@@ -283,8 +283,9 @@ The native client must be exactly 2560×1440. The probe requires two fresh,
 consistent stopped target readings before one PageUp press. It validates target
 identity, portrait, maximum HP, context, distance and speed on every new image.
 At 900 m it requests a reserved PageDown brake. An independent watchdog also
-requests PageDown on stale or invalid images and after at most 12 seconds of
-thrust; `--max-thrust-seconds` can lower that bound. After PageDown, the probe
+requests PageDown on stale or invalid images and after 12 seconds of thrust by
+default; `--max-thrust-seconds` accepts an explicit bound from 0.1 to 45 seconds
+for a longer supervised threshold trial. After PageDown, the probe
 watches deceleration for up to 35 seconds by default; `--stop-seconds` accepts
 a bounded value up to 45 seconds. This extends observation only, not thrust.
 The frame budget retains the full 0.4-second capture sequence through the
