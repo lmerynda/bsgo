@@ -13,7 +13,8 @@ from .planning import AdvicePlanner
 from .recognition import RecognitionWorker
 from .simulation import SimulationClock, recognize_synthetic
 from .state import SnapshotStore
-from .trace import TraceJournal
+from .diagnostics import DiagnosticRun
+from .readiness import CYCLE_FIELDS
 
 
 def simulate_mining(output, *, ignore_brake=False, stall_after=None, fault_after=None,
@@ -22,16 +23,25 @@ def simulate_mining(output, *, ignore_brake=False, stall_after=None, fault_after
     """Only fake surfaces are constructed here. No fallback to native adapters."""
     clock = SimulationClock(speedup)
     store = SnapshotStore()
-    journal = TraceJournal(Path(output) / "trace")
+    configuration = {"speedup": speedup, "planner_delay_real_seconds": planner_delay,
+        "ignore_brake": ignore_brake, "stall_after": stall_after, "fault_after": fault_after,
+        "scan_missing": scan_missing, "eligible": eligible, "mining_ignored": mining_ignored,
+        "reward_missing": reward_missing, "inventory_conflict": inventory_conflict}
+    diagnostics = DiagnosticRun(output, mode="synthetic_mining", configuration=configuration,
+                                report_filename="diagnostics-report.json")
+    journal = diagnostics.journal
     backend = RecordingInputBackend(session_id="synthetic-mining-1",
                                     layout_id="synthetic-original", clock=clock, journal=journal)
     receiver = MiningReceiver(backend, clock, ignore_brake=ignore_brake, scan_missing=scan_missing,
         eligible=eligible, mining_ignored=mining_ignored, reward_missing=reward_missing,
         inventory_conflict=inventory_conflict, journal=journal)
     source = MiningSource(receiver, stall_after=stall_after, fault_after=fault_after)
-    worker = RecognitionWorker(source, recognize_synthetic, store, clock=clock)
+    worker = RecognitionWorker(source, recognize_synthetic, store, clock=clock,
+                               diagnostics=diagnostics)
     planner = AdvicePlanner(planner_delay) if planner_delay is not None else None
     coordinator = None
+    result = None
+    failure = None
     receiver.start()
     try:
         worker.start()
@@ -42,7 +52,11 @@ def simulate_mining(output, *, ignore_brake=False, stall_after=None, fault_after
         coordinator = MiningCoordinator(store, backend, clock=clock, route=route,
             equipment={"configured": True, "resource": "Water"}, bindings=SYNTHETIC_BINDINGS,
             planner=planner, journal=journal)
+        diagnostics.attach(worker=worker, store=store, coordinator=coordinator, backend=backend,
+                           capabilities=dict.fromkeys(CYCLE_FIELDS, True))
         result = coordinator.run(real_timeout=12)
+    except Exception as error:
+        failure = error
     finally:
         backend.cancel(reason="harness_shutdown")
         # Allow the independent receiver to consume reserved release requests.
@@ -54,7 +68,13 @@ def simulate_mining(output, *, ignore_brake=False, stall_after=None, fault_after
         receiver_stopped = receiver.stop(2)
         planner_stopped = planner.close() if planner else True
         backend.flush_journal()
-        journal_stopped = journal.close()
+        diagnostic_report = diagnostics.close(shutdown={"recognition": recognition_stopped,
+            "receiver": receiver_stopped, "planner": planner_stopped,
+            "input_idle": not backend.pending_requests and not backend.held_keys},
+            result=result, error=f"{type(failure).__name__}: {failure}" if failure else None)
+        journal_stopped = diagnostic_report["shutdown"]["trace_writer"]
+    if failure:
+        raise failure
     try:
         revision = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
                                   timeout=2, check=True).stdout.strip()
@@ -67,10 +87,7 @@ def simulate_mining(output, *, ignore_brake=False, stall_after=None, fault_after
     report = {"mode": "synthetic_mining", "physics": "invented; not measured BSGO dynamics",
         "runtime_source_sha256": source_digest.hexdigest(),
         "code_revision": revision, "working_tree": "source edits may be uncommitted",
-        "configuration": {"speedup": speedup, "planner_delay_real_seconds": planner_delay,
-            "ignore_brake": ignore_brake, "stall_after": stall_after, "fault_after": fault_after,
-            "scan_missing": scan_missing, "eligible": eligible, "mining_ignored": mining_ignored,
-            "reward_missing": reward_missing, "inventory_conflict": inventory_conflict},
+        "configuration": configuration,
         "result": result, "status": coordinator.read_status(),
         "transitions": tuple(coordinator.transitions), "transitions_total": coordinator.transitions_total,
         "transitions_evicted": coordinator.transitions_total - len(coordinator.transitions),
@@ -82,11 +99,14 @@ def simulate_mining(output, *, ignore_brake=False, stall_after=None, fault_after
         "discarded_sequences": backend.discarded_sequences, "receiver_effects": receiver.observed_effects(),
         "input_history_stats": backend.history_stats(), "receiver_telemetry_stats": receiver.telemetry_stats(),
         "trace_stats": journal.stats(), "journal_dropped": coordinator.journal_dropped,
+        "diagnostics_report": "diagnostics-report.json",
+        "diagnostics_complete": diagnostic_report["complete_diagnostics"],
         "shutdown": {"recognition": recognition_stopped, "receiver": receiver_stopped,
                      "planner": planner_stopped, "trace_writer": journal_stopped}}
     report["complete_event_trace"] = (all(report["shutdown"].values())
         and report["trace_stats"]["write_complete"] and not coordinator.journal_dropped
-        and not backend.history_stats()["logging_gaps"] and not receiver.journal_dropped)
+        and not backend.history_stats()["logging_gaps"] and not receiver.journal_dropped
+        and report["diagnostics_complete"])
     save_report(output, report)
     backend.export_jsonl(Path(output) / "input.jsonl")
     return report

@@ -137,6 +137,14 @@ completeness and each worker's shutdown outcome. A complete diagnostic record
 can still prove that the game control preflight failed. The diagnostic command
 never starts a native input dispatcher or the mining mission.
 
+`simulate-mining` also creates this package for its complete synthetic cycle.
+Its `manifest.json`, `status.json`, `diagnostics-report.json`, frame references
+and trace sit beside the existing `report.json`. Synthetic samples contain no
+pixels; `pixels_unavailable` counts them explicitly. A complete event trace
+requires the diagnostic writer, action history and input history to finish
+without loss. Read `diagnostics-report.json` for worker and queue statistics
+and each worker's shutdown result when a scenario fails.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw

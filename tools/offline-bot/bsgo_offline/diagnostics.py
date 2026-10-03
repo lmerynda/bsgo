@@ -44,13 +44,17 @@ class DiagnosticRun:
     backpressure and writer errors are distinct and visible. Use a new directory.
     """
     def __init__(self, directory, *, mode, configuration, frame_capacity=3,
-                 max_frames=64, max_frame_bytes=32*1024*1024, status_interval=.5):
+                 max_frames=64, max_frame_bytes=32*1024*1024, status_interval=.5,
+                 report_filename="report.json"):
         for name, value in (("frame_capacity", frame_capacity), ("max_frames", max_frames),
                             ("max_frame_bytes", max_frame_bytes)):
             if type(value) is not int or value < 1:
                 raise ValueError(name)
         if type(status_interval) not in (int, float) or not 0 < status_interval <= 60:
             raise ValueError("status_interval")
+        if report_filename not in ("report.json", "diagnostics-report.json"):
+            raise ValueError("report_filename")
+        self.report_filename = report_filename
         self.directory = Path(directory).resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
         if any(self.directory.iterdir()):
@@ -233,6 +237,6 @@ class DiagnosticRun:
                   "complete_diagnostics": telemetry_complete,
                   "input_requests": plain(self._backend.records()) if self._backend else [],
                   "lifecycle": "finalized", "ended_utc": datetime.now(timezone.utc).isoformat()}
-        _write_json(self.directory / "report.json", report)
+        _write_json(self.directory / self.report_filename, report)
         _write_json(self.directory / "status.json", report)
         return report
