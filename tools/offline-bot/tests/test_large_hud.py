@@ -78,6 +78,21 @@ class LargeHudTests(unittest.TestCase):
         self.assertIn('unvalidated_current_hp_digit_count',
                       result.fields['target_current_hp'].reason)
 
+    def test_measured_one_pixel_leading_four_is_complete_current_hp(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'hp-4500-4500.png') as crop:
+            im.paste(crop, tuple(data['hp_box'][:2]))
+        fields = HudRecognizer(PROFILE)(native(im)).fields
+        self.assertEqual(fields['target_current_hp'].value, 4500)
+        self.assertEqual(fields['target_max_hp'].value, 4500)
+        # Removing its top row is a partial raster, even though max HP stays valid.
+        x, y = data['hp_box'][:2]
+        ImageDraw.Draw(im).rectangle((x+1,y+4,x+14,y+4), fill='black')
+        damaged = HudRecognizer(PROFILE)(native(im)).fields
+        self.assertEqual(damaged['target_max_hp'].value, 4500)
+        self.assertFalse(damaged['target_current_hp'].valid)
+
     def test_current_hp_clipping_and_exceeding_maximum_reject(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         x, y = data['hp_box'][:2]

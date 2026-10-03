@@ -106,7 +106,15 @@ class LargeHudReader:
         if len(gs) != 9:
             return None, 'unvalidated_current_hp_digit_count', 0.
         current, separator = gs[:4], gs[-5]
-        if (current[0][0] < 2 or not 7 <= separator[0]-current[-1][1] <= 8
+        # The measured complete leading 4 in 4500/4500 begins at column 1.
+        # Admit that exact anchored raster, retaining the wider margin guard
+        # for other digits and the existing glyph/spacing/slash checks.
+        leading_one_pixel_four = (current[0][0] == 1
+            and current[0][2] == 4 and current[0][3].shape == (11, 14)
+            and min(float(np.mean(normalized(current[0][3]) != template))
+                    for template in self.bank['4']) <= .02)
+        if ((current[0][0] < 2 and not leading_one_pixel_four)
+                or not 7 <= separator[0]-current[-1][1] <= 8
                 or any(not 2 <= right[0]-left[1] <= 8
                        for left, right in zip(current, current[1:]))
                 or any(not ((top == 4 and glyph.shape[0] == 11)
