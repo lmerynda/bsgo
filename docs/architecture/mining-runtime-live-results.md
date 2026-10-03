@@ -457,3 +457,17 @@ Radar, semantic scan results, inventory rewards and a native mining mission
 remain separate unfinished steps. The mining agent scanned a Tylium candidate
 at 1,274 m and Water at 1,677 m while stopped, then released UI ownership.
 Neither was within firing range, and no harvest occurred in these experiments.
+
+The subsequent Computer Use selection attempts did not change the selected
+Water asteroid; the cause is unresolved. No input-duration explanation is
+proved. `exrun-largehud-scan-1` (run `ff72f7d7cf154daca8dab13622de4429`)
+therefore recorded a repeat scan of that existing selection. The application's
+single Z down/up pair measured 63 ms and was inserted by Windows. All 21 frames
+were retained without rejected HUD readings or diagnostic loss: speed stayed
+0.0, distance 1,673 m and maximum HP 3,587. All workers joined and input was
+idle. The already-scanned Water display does not establish a new scan effect;
+the result correctly remains `scan_effect_unverified`, with mining readiness
+false. Post-run supervision at game clock 21:48:46 confirmed full hull/energy,
+zero speed and outpost 370 m. No thrust, mining or reward occurred in this
+scan probe. The next basic experiment is reliable target selection followed by
+a first scan with independently visible before/after resource evidence.
