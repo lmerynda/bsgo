@@ -192,7 +192,9 @@ class HudRecognizer:
             raise ImportError(f"Cannot load HUD reader from {path}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        self._reader = module.HudReader(profile=profile)
+        self._reader = module.HudReader(profile=profile,
+            speed_raster=("box_3840_to_2560" if profile == "restart-20261001"
+                and source_frame_size == (3840, 2160) else "native"))
         self.profile = profile
         self.source_frame_size = source_frame_size
 

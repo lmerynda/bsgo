@@ -85,10 +85,13 @@ def build_templates():
     return result
 
 class HudReader:
-    def __init__(self, profile='original'):
+    def __init__(self, profile='original', *, speed_raster='native'):
         if profile not in ('original','restart-20261001'):
             raise ValueError('Unknown HUD calibration profile')
+        if speed_raster not in ('native','box_3840_to_2560') or (speed_raster!='native' and profile!='restart-20261001'):
+            raise ValueError('Unsupported speed raster calibration')
         self.profile=profile
+        self.speed_raster=speed_raster
         self.distance_box=DISTANCE if profile=='original' else (710,137,804,153)
         self.speed_box=SPEED if profile=='original' else (1360,1113,1440,1139)
         # Complete restart title occupies x729..824, y56..65. Crop exactly that
@@ -226,17 +229,19 @@ class HudReader:
                 # short/clipped/noisy strokes must not become a default 1.
                 narrow=a[:,x:end]
                 widths=(2,3) if self.profile=='original' else (3,)
-                heights=(16,17) if self.profile=='original' else (18,)
-                first_row,last_row=(5,21) if self.profile=='original' else (4,22)
-                lower_rows=(14,) if self.profile=='original' else (13,14)
-                # Complete moving 15.6 has a two-row dark middle gap; the
-                # earlier 21.7 raster has one. Both retain anchored full bars.
-                complete_lower=any(not narrow[12:lower].any() and
-                    narrow[lower:last_row].any(axis=1).all() for lower in lower_rows)
-                if (end-x not in widths or component.shape[0] not in heights
-                        or narrow[:first_row].any() or narrow[22:].any()
-                        or not complete_lower
-                        or not narrow[first_row:12].any(axis=1).all()
+                # Explicit 4K BOX conversion can lose one raster row at each
+                # end of a narrow 1. Keep the native restart extent strict;
+                # accept only the complete, anchored 16-row BOX variant.
+                variants = (((16,5,21,14),(17,5,22,14)) if self.profile=='original' else
+                    ((18,4,22,13),(18,4,22,14)) +
+                    (((16,5,21,14),) if self.speed_raster=='box_3840_to_2560' else ()))
+                complete=any(component.shape[0]==height and
+                    not narrow[:first_row].any() and not narrow[last_row:].any() and
+                    narrow[first_row:12].any(axis=1).all() and
+                    not narrow[12:lower].any() and
+                    narrow[lower:last_row].any(axis=1).all()
+                    for height,first_row,last_row,lower in variants)
+                if (end-x not in widths or not complete
                         or min(narrow[7:11].mean(),narrow[15:19].mean())<.66):
                     return None,'incomplete_or_ambiguous_speed_one',0.0
                 confidence=min(confidence,float(min(narrow[7:11].mean(),narrow[15:19].mean())))
@@ -257,8 +262,18 @@ class HudReader:
             if digit=='4':
                 heights=(16,17) if self.profile=='original' else (18,)
                 first_row,last_row=(5,20) if self.profile=='original' else (4,21)
-                if (component.shape[0] not in heights or a[:first_row,x:end].any()
-                        or not a[first_row,x:end].any() or not a[last_row,x:end].any()):
+                native_four=(component.shape[0] in heights and not a[:first_row,x:end].any()
+                    and a[first_row,x:end].any() and a[last_row,x:end].any())
+                # One measured BOX-converted 4 has a single upper-left pixel
+                # at row 4 and two lower-right pixels at row 20. Both side
+                # bars and the middle segment must still classify as a 4.
+                box_four=(self.speed_raster=='box_3840_to_2560' and
+                    component.shape[0]==17 and a[4,x:end].sum()==1 and a[4,x] and
+                    a[20,x:end].sum()==2 and a[20,end-2:end].all() and
+                    not a[:4,x:end].any() and not a[21:,x:end].any() and
+                    a[6:11,x:x+3].any(axis=1).all() and
+                    a[14:20,end-3:end].any(axis=1).all())
+                if not (native_four or box_four):
                     return None,'incomplete_speed_four',0.0
             elif component.shape[0] not in (17,18):
                 return None,'incomplete_speed_glyph',0.0

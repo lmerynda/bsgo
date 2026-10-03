@@ -231,6 +231,10 @@ class RecognitionTests(unittest.TestCase):
             acquired_at = 12.
             def to_image(self): return Image.new("RGB", (3840, 2160))
         hud = HudRecognizer("restart-20261001", source_frame_size=(3840, 2160))
+        self.assertEqual(hud._reader.speed_raster, "box_3840_to_2560")
+        self.assertEqual(HudRecognizer("restart-20261001")._reader.speed_raster, "native")
+        self.assertEqual(HudRecognizer("original", source_frame_size=(3840, 2160))._reader.speed_raster,
+                         "native")
         hud._reader.read = Mock(return_value={"speed": 0., "asteroid_selected": False})
         result = hud(Sample())
         self.assertEqual(hud._reader.read.call_args.args[0].size, (2560, 1440))
