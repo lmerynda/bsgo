@@ -388,3 +388,33 @@ made. Native HUD capture/resolution and controlled local-threshold candidates
 remain experiments to validate against retained failures and damage controls.
 The script and detailed results remain local in `logs/mining/live-20261003/`.
 No gameplay or graphics-setting changes occurred during these experiments.
+
+### Native-resolution Exrun retry
+
+The manual mining agent relinquished UI ownership before thrust: its prepared
+reader rejected the selected Tylium asteroid at 1,261 m. No manual harvest
+occurred. The stopped, full-hull ship was then used for an application retry.
+Game Video settings offered fullscreen but no resolution selector. Disabling
+fullscreen produced a native 2560×1440 client, verified by `inspect_window`.
+Ultra quality, 8x anti-aliasing and 100% UI scale remained unchanged. The
+window's new screen origin was (640, 377); no OS display setting was changed.
+
+`exrun-native2560-startup-1` passed all six image-reading checks with six
+healthy hashed native frames. Full control/mining readiness remained false
+because ownership, selection revision, route/equipment, native scan/mining
+bindings and resource/mining/inventory recognizers are not integrated.
+
+After stationary orientation toward clear space, the bounded application probe
+`exrun-native2560-control-1` (run `8b2dab15af7d41309de16d1a4ee69385`)
+proved image-observed motion and stop. Speeds were 0.0, 0.0, 0.0, 0.4, 1.9,
+1.5, 0.4, 0.0, 0.0; target ranges were 1,261 to 1,259 m. Configured 50 ms
+virtual-key holds measured 63 ms for both commands. Braking was requested on
+observed motion, all components joined, input was idle and all nine frames
+were retained with complete diagnostics. Eight frames also had invalid
+non-speed fields and were archived with failure sidecars, without image loss.
+The scoped certificate establishes this run's motion/braking feedback only.
+No mining action or harvest occurred. Post-run Computer Use at game clock
+20:01:34 confirmed 0.0 speed, hull 5005/5005, energy 800/800 and friendly
+outpost at 396 m. This clean run supports using native-resolution captures for
+the next experiments; it does not establish general OCR accuracy or mining
+readiness.
