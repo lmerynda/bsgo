@@ -32,13 +32,16 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                        aligned_heading_assessed, safe_stopped_scene_assessed,
                        scope="native", brake_at=900., max_thrust_seconds=12.,
                        baseline_seconds=4., stop_seconds=35.,
-                       decision_interval=2.):
+                       decision_interval=2., cancel_file=None):
     """Injectable supervised probe with an independent PageDown watchdog."""
     if (clear_corridor_assessed, aligned_heading_assessed,
             safe_stopped_scene_assessed) != (True, True, True):
         raise ValueError("fresh_supervisor_scene_assessments_required")
     if scope not in ("native", "synthetic"):
         raise ValueError("scope")
+    if cancel_file is not None and not str(cancel_file).strip():
+        raise ValueError("cancel_file")
+    cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
     for name, value, low, high in (("brake_at", brake_at, 600, 1400),
         ("max_thrust_seconds", max_thrust_seconds, .1, 180),
         ("baseline_seconds", baseline_seconds, .1, 8),
@@ -58,10 +61,12 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             "max_thrust_seconds": max_thrust_seconds,
             "baseline_seconds": baseline_seconds, "stop_seconds": stop_seconds,
             "gun_optimal_range": 760, "gun_max_range": 800,
+            "cancel_file": str(cancel_path) if cancel_path else None,
             "mission_started": False}, frame_capacity=32, max_frames=frame_budget)
     store = SnapshotStore()
     source = worker = backend = dispatcher = watchdog = None
     watchdog_stop = Event()
+    cancel_seen = Event()
     stop_lock = Lock()
     started = time.monotonic()
     baseline, motion, stop_images = [], [], []
@@ -79,8 +84,22 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         "acceleration_requests": [], "brake_requests": [], "deliveries": [],
         "post_acceleration_motion_sequences": [],
         "final_stop_observed": False,
+        "cancel_requested": False,
         "unverified": ["hull_health", "combat_detection", "exclusive_input_ownership",
                        "scan_result", "resources", "mining", "inventory"]}
+
+    def canceled():
+        if cancel_path is None:
+            return False
+        try:
+            requested = cancel_path.exists()
+        except OSError:
+            requested = True  # A broken cancel channel cannot authorize thrust.
+        if requested and not cancel_seen.is_set():
+            cancel_seen.set()
+            diagnostic.submit({"event": "approach_cancel_requested",
+                               "at": time.monotonic(), "path": str(cancel_path)})
+        return requested
 
     def stop_ship(reason):
         nonlocal brake_at_time, brake_reason, stop_attempts, stop_failure, brake_records
@@ -128,6 +147,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     def input_guard(record):
         if record.key != "PageUp" or record.kind != "key_down" or acceleration_at is None:
             return False
+        if canceled():
+            return False
         now = time.monotonic()
         snapshot = store.latest()
         if (brake_at_time is not None or stop_failure is not None or snapshot is None
@@ -141,6 +162,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
 
     def watchdog_run():
         while not watchdog_stop.wait(.05):
+            if canceled():
+                stop_ship("cancel_requested")
+                continue
             if acceleration_at is None or brake_at_time is not None:
                 continue
             now = time.monotonic()
@@ -159,6 +183,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 stop_ship("thrust_limit")
 
     try:
+        if canceled():
+            raise RuntimeError("cancel_requested_before_input")
         source = source_factory()
         recognizer = recognizer_factory()
         backend = RecordingInputBackend(session_id="approach-" + diagnostic.journal.run_id,
@@ -171,6 +197,11 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         baseline_deadline = started + baseline_seconds
         overall_deadline = started + baseline_seconds + max_thrust_seconds + stop_seconds + 2
         while time.monotonic() < overall_deadline:
+            if canceled():
+                if acceleration_at is None:
+                    blocker = "cancel_requested_before_input"
+                    break
+                stop_ship("cancel_requested")
             snapshot = store.wait_for_sequence(observed_sequence, .025)
             now = time.monotonic()
             if snapshot:
@@ -195,6 +226,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                             raise PolicyError("Stopped baseline distance changed")
                         baseline.append(reading)
                         if len(baseline) >= 2:
+                            if canceled():
+                                blocker = "cancel_requested_before_input"
+                                break
                             action = policy.decide(snapshot, now)
                             if action != "accelerate":
                                 raise PolicyError("Initial policy did not authorize acceleration")
@@ -271,6 +305,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             blocker = blocker or "approach_probe_timeout"
         if acceleration_at is not None and brake_at_time is None:
             stop_ship("shutdown")
+        if cancel_seen.is_set():
+            blocker = "cancel_requested"
         if not blocker:
             if brake_reason not in ("threshold", "threshold_watchdog"):
                 blocker = "thrust_limit_before_brake_threshold"
@@ -335,7 +371,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 error = error or f"input_cancel_failure: {type(exc).__name__}: {exc}"
         shutdown["input_idle"] = not backend or (not backend.pending_requests and not backend.held_keys)
         result.update(brake_reason=brake_reason, cleanup_attempts=stop_attempts,
-                      cleanup_failure=stop_failure)
+                      cleanup_failure=stop_failure,
+                      cancel_requested=cancel_seen.is_set())
         if stop_failure:
             result.update(state="blocked", reason=stop_failure)
             error = error or stop_failure
@@ -358,6 +395,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             result.update(state="blocked", reason="control_delivery_evidence_unavailable")
     elif acceleration_at is not None:
         result.update(state="blocked", reason="control_input_not_delivered")
+    if cancel_seen.is_set():
+        result.update(state="blocked", reason="cancel_requested",
+                      cancel_requested=True)
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if not report["complete_diagnostics"] or not all(shutdown.values()) or result.get("dispatcher_error"):
         result.update(state="blocked", reason="incomplete_diagnostic_evidence")
@@ -378,6 +418,7 @@ def main():
     parser.add_argument("--safe-stopped-scene-assessed", action="store_true", required=True)
     parser.add_argument("--max-thrust-seconds", type=float, default=12.)
     parser.add_argument("--stop-seconds", type=float, default=35.)
+    parser.add_argument("--cancel-file", type=Path)
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
@@ -402,7 +443,7 @@ def main():
         frame_size=geometry.client_size, clear_corridor_assessed=True,
         aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
         max_thrust_seconds=args.max_thrust_seconds,
-        stop_seconds=args.stop_seconds)
+        stop_seconds=args.stop_seconds, cancel_file=args.cancel_file)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "proved" and result["complete_diagnostics"] else 1
 

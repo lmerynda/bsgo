@@ -275,6 +275,12 @@ workers, plus the existing pure `ApproachPolicy`:
 & $offlinePython -m bsgo_offline.approach_probe --hwnd <current-game-window-handle> --pid <current-game-pid> --profile largehud-20261003 --clear-corridor-assessed --aligned-heading-assessed --safe-stopped-scene-assessed --output logs/mining/<new-approach-run>
 ```
 
+For continuous supervised runs, add `--cancel-file logs/mining/live-20261003/continuous-stop.request`.
+Creating that marker blocks launch if it already exists; while thrust is active,
+the independent 50 ms watchdog requests reserved PageDown, then the probe
+continues observing for two fresh zero-speed images. A canceled run remains
+blocked even after a verified stop. The marker is never removed by the probe.
+
 The supervisor must inspect the fresh scene and confirm full hull, no combat,
 an unobstructed corridor, a heading aligned toward one already selected
 asteroid, and a stopped ship. These assertions are recorded separately from

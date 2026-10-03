@@ -64,9 +64,11 @@ class PixelSample:
 
 
 class PixelSource:
-    def __init__(self, ship, *, stall_after=None, change_at=None, invalid_first=False):
+    def __init__(self, ship, *, stall_after=None, change_at=None, invalid_first=False,
+                 cancel_at=None, cancel_path=None):
         self.ship, self.stall_after = ship, stall_after
         self.change_at, self.invalid_first = change_at, invalid_first
+        self.cancel_at, self.cancel_path = cancel_at, cancel_path
         self.sequence = 0
         self.closed = False
 
@@ -77,6 +79,8 @@ class PixelSource:
         if stop.wait(.025):
             return None
         self.sequence += 1
+        if self.cancel_at == self.sequence:
+            self.cancel_path.touch()
         speed, distance = self.ship.sample()
         if self.invalid_first and self.sequence == 1:
             speed = None
@@ -98,9 +102,11 @@ def recognize(sample):
 
 
 class FakeDispatcher:
-    def __init__(self, backend, ship, *, ignore_acceleration=False):
+    def __init__(self, backend, ship, *, ignore_acceleration=False,
+                 cancel_on_acceleration=None):
         self.backend, self.ship = backend, ship
         self.ignore_acceleration = ignore_acceleration
+        self.cancel_on_acceleration = cancel_on_acceleration
         self.stop_event, self.lock = Event(), Lock()
         self.thread = None
         self.rows = []
@@ -123,6 +129,8 @@ class FakeDispatcher:
                 self.held.add(record.key)
                 if record.key == "PageUp" and not self.ignore_acceleration:
                     self.ship.set_speed(20.)
+                    if self.cancel_on_acceleration:
+                        self.cancel_on_acceleration.touch()
                 elif record.key == "PageDown":
                     self.ship.set_speed(0.)
             elif permitted and record.kind == "key_up":
@@ -147,13 +155,15 @@ class FakeDispatcher:
 class ApproachProbeTests(unittest.TestCase):
     def run_fixture(self, directory, *, source_options=None, ignore_acceleration=False,
                     max_thrust_seconds=3., stop_seconds=.8,
-                    brake_decay_seconds=0.):
+                    brake_decay_seconds=0., cancel_file=None,
+                    cancel_on_acceleration=False):
         ship = Ship(brake_decay_seconds)
         source = PixelSource(ship, **(source_options or {}))
         dispatchers = []
         def dispatcher_factory(backend, journal):
             dispatcher = FakeDispatcher(backend, ship,
-                ignore_acceleration=ignore_acceleration)
+                ignore_acceleration=ignore_acceleration,
+                cancel_on_acceleration=cancel_file if cancel_on_acceleration else None)
             dispatchers.append(dispatcher)
             return dispatcher
         result = run_approach_probe(directory / "run", source_factory=lambda: source,
@@ -164,7 +174,8 @@ class ApproachProbeTests(unittest.TestCase):
             clear_corridor_assessed=True, aligned_heading_assessed=True,
             safe_stopped_scene_assessed=True, scope="synthetic",
             baseline_seconds=.3, max_thrust_seconds=max_thrust_seconds,
-            stop_seconds=stop_seconds, decision_interval=.1)
+            stop_seconds=stop_seconds, decision_interval=.1,
+            cancel_file=cancel_file)
         return result, ship, source, dispatchers
 
     def test_threshold_approach_requires_image_closure_and_fresh_stop(self):
@@ -278,6 +289,55 @@ class ApproachProbeTests(unittest.TestCase):
             report = json.loads((directory / "run" / "report.json").read_text())
             self.assertGreaterEqual(report["frames"]["max_frames"],
                 math.ceil((.3 + 180 + .8 + 8) / .4))
+
+    def test_existing_cancel_marker_prevents_all_input(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            marker.touch()
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                cancel_file=marker)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertTrue(result["cancel_requested"])
+            self.assertEqual(result["acceleration_requests"], [])
+            self.assertEqual(result["brake_requests"], [])
+            self.assertEqual(dispatchers, [])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(marker.exists())  # A stop request persists.
+            self.assertTrue(all(result["shutdown"].values()))
+
+    def test_cancel_marker_during_baseline_prevents_acceleration(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            result, ship, _, dispatchers = self.run_fixture(directory,
+                cancel_file=marker,
+                source_options={"cancel_at": 2, "cancel_path": marker})
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertEqual(result["acceleration_requests"], [])
+            self.assertEqual(dispatchers, [])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(marker.exists())
+
+    def test_cancel_during_long_thrust_brakes_and_observes_stop_without_proof(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            started = time.monotonic()
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                max_thrust_seconds=180., cancel_file=marker,
+                cancel_on_acceleration=True)
+            self.assertLess(time.monotonic() - started, 1.)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertEqual(result["brake_reason"], "cancel_requested")
+            self.assertTrue(result["final_stop_observed"])
+            self.assertGreaterEqual(len(result["stop_observation_sequences"]), 2)
+            self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
+                             ["injected"] * 4)
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(marker.exists())
+            self.assertTrue(source.closed)
+            self.assertTrue(result["complete_diagnostics"])
+            self.assertTrue(all(result["shutdown"].values()))
 
     def test_dispatcher_shutdown_failure_still_joins_capture_worker(self):
         def fail_stop(dispatcher, timeout):
