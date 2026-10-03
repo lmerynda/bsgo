@@ -80,7 +80,12 @@ class LargeHudReader:
             return None, 'invalid_target_hp_format', 0.
         left, right, top, slash = gs[-5]
         ys, xs = np.where(slash)
-        if (left != 72 or right != 79 or top != 3 or slash.shape != (12, 7)
+        # A measured narrow final one recenters the complete HP label by 5px.
+        narrow_one_layout = ((left, right) == (77, 84) and len(gs) == 9
+                             and gs[-1][3].shape == (11, 4)
+                             and abs((gs[0][0]+gs[-1][1])/2-76) <= .5)
+        if (((left, right) != (72, 79) and not narrow_one_layout)
+                or top != 3 or slash.shape != (12, 7)
                 or not slash[0, -1] or not slash[-1, 0] or not 11 <= len(ys) <= 18
                 or float(np.abs(xs/6+ys/11-1).max()) > .20):
             return None, 'invalid_target_hp_separator', 0.
