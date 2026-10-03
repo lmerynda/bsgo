@@ -112,3 +112,42 @@ Asteroid preselection was attempted through Computer Use but remained unconfirme
 Zero input requests were recorded before and after diagnostic shutdown. Native input delivery was not started. Recognition joined and capture closed successfully; no diagnostic worker remains running. No scan, mining, thrust or application fixes occurred during this retry. A later game frame at 15:56:02 still showed the connected belt scene, full hull/energy and 0.0 speed.
 
 Evidence remains local: `logs/mining/live-20261003/application-retry-1554.py`, `application-retry-1554/report.json`, its three original frames and `retry-final-hud.png`. Earlier evidence was preserved. The next application blocker to address is verified ownership publication into the coordinator's live observation contract; a complete mining cycle remains unaccepted.
+
+### Application experiment 1: live capture, readiness and retained diagnostics
+
+On October 3, after the user confirmed the game was running on another screen,
+the new `bsgo_offline.diagnose` command ran against the freshly identified game
+window. This is an application experiment using its native capture, recognition
+worker, state store, coordinator readiness reader and recording backend. It did
+not start a mining mission or a native input dispatcher. Each run wrote a
+startup manifest, live status, observation trace, raw frame hashes and a final
+shutdown result. All three runs processed and retained six 3840×2160 frames,
+had complete diagnostic traces, joined their workers and recorded zero input
+requests. The screenshots and trace remain local under
+`logs/mining/live-20261003/diagnostics-*`; they contain game chat and are not
+committed.
+
+| Experiment | Speed observations | Distance observations | Finding |
+| --- | --- | --- | --- |
+| Native profile only, `diagnostics-1648` | Six invalid | Six invalid | Reader rejected the 4K client dimensions against its 2560×1440 calibration. |
+| Explicit 4K conversion with Lanczos, `diagnostics-4k-explicit` | Six invalid, `invalid_speed_decimal_position` | Six reads of 229 | Conversion retained distance but removed one pixel of the speed decimal. |
+| Explicit 4K conversion with area averaging, `diagnostics-4k-box` | Six reads of 0.0 | Six reads of 229 | A fresh live run reproduced the displayed stationary speed and target distance. |
+
+The original 4K pixels remain attached to observation identities in each run.
+The converted reader marks its resampling as experimental because six stationary
+frames do not validate moving speeds, other targets, changing HUD states or
+OCR error rates. The final preflight still blocks control: `owned` and
+`selection_revision` are absent, asteroid selection is false, route/equipment
+evidence is absent, scan and mining bindings are missing, and scan, firing and
+inventory recognition are unvalidated. The current 229 m target was a ship,
+not a selected asteroid. This is proof of capture and a stationary HUD reading
+in the running client, not proof that the mining app can control or mine it.
+
+The implementation was committed incrementally: `63fcf551` (validated offline
+runtime), `fa98dd93` (readiness), `943d35f0` (action histories), `d7a6eb3e`
+(diagnostic package), `1d1c493b` (explicit 4K conversion) and `599d78cb`
+(decimal-preserving conversion). The tests passed after each completed code
+change; the last full suite had 232 passing tests. The next experiment should
+establish validated ownership and a harmless reversible input with observed
+effect before target selection or motion. This report does not count any
+synthetic receipt or manual piloting as application control evidence.
