@@ -26,6 +26,9 @@ def source_manifest():
                for path in sorted(package.glob("*.py"))}
     reader = package.parents[1] / "hud-reader" / "hud_reader.py"
     sources["hud-reader/hud_reader.py"] = hashlib.sha256(reader.read_bytes()).hexdigest()
+    for name in ("templates.json", "restart-calibration.json"):
+        calibration = reader.parent / name
+        sources["hud-reader/" + name] = hashlib.sha256(calibration.read_bytes()).hexdigest()
     try:
         revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=package,
             capture_output=True, text=True, timeout=2, check=True).stdout.strip()
@@ -190,7 +193,7 @@ class DiagnosticRun:
             "preflight": self._coordinator.read_preflight(self._capabilities) if self._coordinator else None,
             "worker": self._worker.metrics() if self._worker else None,
             "latest_observation_sequence": snapshot.sequence if snapshot else None,
-            "input_pending": self._backend.pending_requests if self._backend else 0,
+            "input_pending": len(self._backend.pending_requests) if self._backend else 0,
             "input_history": self._backend.history_stats() if self._backend else None,
             "actions": self._coordinator.executor.telemetry_stats() if self._coordinator else None,
             "frames": self.frame_stats(), "trace": self.journal.stats(),

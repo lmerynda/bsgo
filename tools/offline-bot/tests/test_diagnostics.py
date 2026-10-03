@@ -47,6 +47,9 @@ class DiagnosticTests(unittest.TestCase):
             self.assertFalse(report["preflight"]["ready"])
             manifest = json.loads((run_directory / "manifest.json").read_text())
             self.assertIn("bsgo_offline/diagnose.py", manifest["source_sha256"])
+            self.assertIn("hud-reader/restart-calibration.json", manifest["source_sha256"])
+            self.assertIn("hud-reader/templates.json", manifest["source_sha256"])
+            self.assertEqual(report["input_pending"], 0)
             events = list(iter_trace_events(run_directory / "trace", report["run_id"]))
             observations = [event["payload"] for event in events if event["payload"]["event"] == "observation"]
             self.assertEqual([event["snapshot"]["sequence"] for event in observations], [1, 2, 3])
