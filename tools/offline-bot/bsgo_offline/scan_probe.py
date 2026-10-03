@@ -60,12 +60,15 @@ def _reading(snapshot, *, now, expected_window_id, frame_size, context=None,
 def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_factory,
                    configuration, profile, expected_window_id, frame_size,
                    safe_scene_assessed, scope="native", baseline_seconds=4.,
-                   after_seconds=8., max_distance_change=5):
+                   after_seconds=8., max_distance_change=5, cancel_file=None):
     """Run one image-gated Z press with injected seams for pixel-only tests."""
     if safe_scene_assessed is not True:
         raise ValueError("fresh_safe_scene_assessment_required")
     if scope not in ("native", "synthetic"):
         raise ValueError("scope")
+    if cancel_file is not None and not str(cancel_file).strip():
+        raise ValueError("cancel_file")
+    cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
     for name, value, limit in (("baseline_seconds", baseline_seconds, 8.),
                                ("after_seconds", after_seconds, 10.),
                                ("max_distance_change", max_distance_change, 20.)):
@@ -74,7 +77,9 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
     diagnostic = DiagnosticRun(output, mode=scope + "_stationary_scan_probe",
         configuration={**configuration, "safe_scene_assessed": True,
             "baseline_seconds": baseline_seconds, "after_seconds": after_seconds,
-            "max_distance_change": max_distance_change, "mission_started": False},
+            "max_distance_change": max_distance_change,
+            "cancel_file": str(cancel_path) if cancel_path else None,
+            "mission_started": False},
         frame_capacity=32, max_frames=64)
     source = worker = backend = dispatcher = None
     store = SnapshotStore()
@@ -85,14 +90,31 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
     requests = ()
     observed_sequence = 0
     shutdown, error = {}, None
+    cancel_seen = False
     result = {"state": "blocked", "reason": "not_started", "mining_ready": False,
+              "cancel_requested": False,
               "scan_effect_verified": False, "baseline": baseline, "after": after,
               "scan_requests": [], "scan_deliveries": [], "post_delivery_sequences": [],
               "unverified": ["scan_result", "resource_classification", "mining",
                              "inventory", "combat_detection", "hull_health"]}
 
+    def canceled():
+        nonlocal cancel_seen
+        if cancel_path is None:
+            return False
+        try:
+            requested = cancel_path.exists()
+        except OSError:
+            requested = True
+        if requested and not cancel_seen:
+            cancel_seen = True
+            diagnostic.submit({"event": "scan_probe_cancel_requested",
+                               "at": time.monotonic(), "path": str(cancel_path)})
+        return requested
+
     def input_guard(record):
-        if record.key != "Z" or record.kind != "key_down" or request_at is None:
+        if (record.key != "Z" or record.kind != "key_down" or request_at is None
+                or canceled()):
             return False
         now = time.monotonic()
         snapshot = store.latest()
@@ -104,6 +126,8 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
         return reason is None and reading is not None
 
     try:
+        if canceled():
+            raise RuntimeError("cancel_requested")
         source = source_factory()
         recognizer = recognizer_factory()
         backend = RecordingInputBackend(session_id="scan-" + diagnostic.journal.run_id,
@@ -116,6 +140,8 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
         baseline_deadline = started + baseline_seconds
         overall_deadline = started + baseline_seconds + after_seconds + 2
         while time.monotonic() < overall_deadline:
+            if canceled():
+                raise RuntimeError("cancel_requested")
             snapshot = store.wait_for_sequence(observed_sequence, .025)
             now = time.monotonic()
             if snapshot:
@@ -136,6 +162,8 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
                 if request_at is None:
                     baseline.append(reading)
                     if len(baseline) >= 2:
+                        if canceled():
+                            raise RuntimeError("cancel_requested")
                         dispatcher = dispatcher_factory(backend, diagnostic.journal)
                         dispatcher.start()
                         request_at = time.monotonic()
@@ -171,14 +199,22 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
         result.update(state="blocked", reason=error)
     finally:
         if dispatcher:
-            shutdown["dispatcher"] = dispatcher.stop(2)
-            result["scan_deliveries"] = plain(dispatcher.deliveries())
-            result["dispatcher_error"] = dispatcher.error
+            try:
+                shutdown["dispatcher"] = dispatcher.stop(2)
+                result["scan_deliveries"] = plain(dispatcher.deliveries())
+                result["dispatcher_error"] = dispatcher.error
+            except Exception as exc:
+                shutdown["dispatcher"] = False
+                error = error or f"dispatcher_stop_failure: {type(exc).__name__}: {exc}"
         else:
             shutdown["dispatcher"] = True
         if worker:
-            worker.stop()
-            shutdown["recognition"] = worker.join(2)
+            try:
+                worker.stop()
+                shutdown["recognition"] = worker.join(2)
+            except Exception as exc:
+                shutdown["recognition"] = False
+                error = error or f"recognition_stop_failure: {type(exc).__name__}: {exc}"
         else:
             shutdown["recognition"] = True
         shutdown["source"] = shutdown["recognition"]
@@ -189,13 +225,20 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
                 shutdown["source"] = False
                 error = error or f"source_close_failure: {type(exc).__name__}: {exc}"
         if backend:
-            backend.cancel(reason="scan_probe_finished")
-            backend.flush_journal()
+            try:
+                backend.cancel(reason="scan_probe_finished")
+                backend.flush_journal()
+            except Exception as exc:
+                error = error or f"input_cancel_failure: {type(exc).__name__}: {exc}"
         shutdown["input_idle"] = not backend or (not backend.pending_requests and not backend.held_keys)
+    if canceled():
+        result.update(state="blocked", reason="cancel_requested", cancel_requested=True)
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if (not report["complete_diagnostics"] or not all(shutdown.values())
             or result.get("dispatcher_error")):
         result.update(state="blocked", reason="incomplete_diagnostic_evidence")
+    report["result"] = plain(result)
+    _write_json(diagnostic.directory / "report.json", report)
     _write_json(diagnostic.directory / "scan-probe.json", {"run_id": diagnostic.journal.run_id,
         "complete_diagnostics": report["complete_diagnostics"], "shutdown": shutdown, **result})
     return {"run_id": diagnostic.journal.run_id,
@@ -210,6 +253,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--safe-scene-assessed", action="store_true", required=True)
     parser.add_argument("--source-size", choices=["native-2560", "3840x2160"], default="native-2560")
+    parser.add_argument("--cancel-file", type=Path)
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
@@ -233,7 +277,8 @@ def main():
             "source_size": args.source_size, "minimum_key_hold_ms": 50,
             "keyboard_mode": "virtual_key"},
         profile=args.profile, expected_window_id=f"{geometry.pid}:{geometry.hwnd}",
-        frame_size=geometry.client_size, safe_scene_assessed=True)
+        frame_size=geometry.client_size, safe_scene_assessed=True,
+        cancel_file=args.cancel_file)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "recorded" and result["complete_diagnostics"] else 1
 

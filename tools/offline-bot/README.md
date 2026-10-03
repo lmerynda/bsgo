@@ -268,6 +268,11 @@ does not yet classify scan-result pixels or resources. Inspect the retained
 frames independently before adding a semantic scan recognizer. This probe
 never sets `mining_ready`.
 
+For a continuous supervised loop, `scan_probe --cancel-file <persistent-stop-marker>`
+blocks Z when the marker already exists or appears during the baseline, and
+ends post-Z observation with a blocked result if it appears later. The probe
+does not remove the marker.
+
 The supervised approach experiment uses the same independent capture and input
 workers, plus the existing pure `ApproachPolicy`:
 

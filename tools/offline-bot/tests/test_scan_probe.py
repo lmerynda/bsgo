@@ -36,7 +36,8 @@ class PixelSample:
 
 class PixelSource:
     def __init__(self, *, change_after=None, changed=None, stall_after=None,
-                 invalid_first=False, epoch_after=None):
+                 invalid_first=False, epoch_after=None, cancel_at=None,
+                 cancel_path=None):
         self.sequence = 0
         self.closed = False
         self.change_after = change_after
@@ -44,6 +45,7 @@ class PixelSource:
         self.stall_after = stall_after
         self.invalid_first = invalid_first
         self.epoch_after = epoch_after
+        self.cancel_at, self.cancel_path = cancel_at, cancel_path
         self.values = {"speed": 0., "asteroid_selected": True, "distance": 500,
                        "target_max_hp": 3900, "target_identity": "asteroid:hp:3900"}
 
@@ -54,6 +56,8 @@ class PixelSource:
         if stop.wait(.025):
             return None
         self.sequence += 1
+        if self.sequence == self.cancel_at:
+            self.cancel_path.touch()
         values = dict(self.values)
         if self.change_after is not None and self.sequence >= self.change_after:
             values.update(self.changed)
@@ -74,8 +78,9 @@ def recognize(sample):
 
 
 class FakeDispatcher:
-    def __init__(self, backend, *, ignore=False):
+    def __init__(self, backend, *, ignore=False, cancel_on_scan=None):
         self.backend, self.ignore = backend, ignore
+        self.cancel_on_scan = cancel_on_scan
         self._stop, self._lock = Event(), Lock()
         self._thread = None
         self._deliveries = []
@@ -99,6 +104,8 @@ class FakeDispatcher:
                 self._held.add(request.key)
             elif permitted and request.kind == "key_up":
                 self._held.discard(request.key)
+                if self.cancel_on_scan:
+                    self.cancel_on_scan.touch()
             record = DeliveryRecord(request.sequence, time.monotonic(), request.kind,
                 outcome, 1, 1 if permitted else 0, 0)
             with self._lock:
@@ -117,10 +124,12 @@ class FakeDispatcher:
 
 
 class ScanProbeTests(unittest.TestCase):
-    def run_probe(self, directory, source, *, ignore=False):
+    def run_probe(self, directory, source, *, ignore=False,
+                  cancel_file=None, cancel_on_scan=False):
         dispatchers = []
         def dispatcher_factory(backend, journal):
-            dispatcher = FakeDispatcher(backend, ignore=ignore)
+            dispatcher = FakeDispatcher(backend, ignore=ignore,
+                cancel_on_scan=cancel_file if cancel_on_scan else None)
             dispatchers.append(dispatcher)
             return dispatcher
         result = run_scan_probe(directory / "run", source_factory=lambda: source,
@@ -128,7 +137,7 @@ class ScanProbeTests(unittest.TestCase):
             configuration={"fixture": True}, profile=PROFILE,
             expected_window_id="42:17", frame_size=(4, 3),
             safe_scene_assessed=True, scope="synthetic", baseline_seconds=.3,
-            after_seconds=.17)
+            after_seconds=.17, cancel_file=cancel_file)
         return result, dispatchers
 
     def test_complete_package_records_one_scan_but_never_claims_effect(self):
@@ -210,6 +219,38 @@ class ScanProbeTests(unittest.TestCase):
             self.assertEqual(len(dispatchers), 1)
             self.assertTrue(all(result["shutdown"].values()))
             self.assertTrue(source.closed)
+
+    def test_existing_cancel_marker_prevents_Z(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            marker.touch()
+            result, dispatchers = self.run_probe(directory, PixelSource(),
+                cancel_file=marker)
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertTrue(result["cancel_requested"])
+            self.assertEqual(result["scan_requests"], [])
+            self.assertEqual(dispatchers, [])
+            self.assertTrue(marker.exists())
+
+    def test_cancel_during_baseline_prevents_Z(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            result, dispatchers = self.run_probe(directory,
+                PixelSource(cancel_at=2, cancel_path=marker), cancel_file=marker)
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertEqual(result["scan_requests"], [])
+            self.assertEqual(dispatchers, [])
+
+    def test_cancel_after_Z_reports_blocked_and_releases_input(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            result, dispatchers = self.run_probe(directory, PixelSource(),
+                cancel_file=marker, cancel_on_scan=True)
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertEqual(result["state"], "blocked")
+            self.assertTrue(all(result["shutdown"].values()))
+            self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
+                             ["injected"] * 2)
 
 
 if __name__ == "__main__":
