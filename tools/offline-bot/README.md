@@ -145,6 +145,23 @@ requires the diagnostic writer, action history and input history to finish
 without loss. Read `diagnostics-report.json` for worker and queue statistics
 and each worker's shutdown result when a scenario fails.
 
+For a repeatable startup check, run the calibration command with the current
+window handle and process ID:
+
+```powershell
+& $offlinePython -m bsgo_offline.startup_diagnostics --hwnd <current-game-window-handle> --pid <current-game-pid> --profile restart-20261001 --source-size 3840x2160 --seconds 8 --frames 6 --output logs/mining/<new-startup-run>
+```
+
+It writes `startup-calibration.json` alongside the diagnostic run package.
+The report counts valid and rejected readings across the captured frame sequence,
+checks window identity and hashed frame retention, and lists each current
+preflight blocker plus worker and queue status. It includes SHA-256 hashes of
+the HUD reader, templates and calibration file used at startup. The command
+sends no game input. Repeated OCR values show availability and consistency;
+they do not establish accuracy or native control. Use a fresh empty output
+directory for each attempt. A 4K BOX conversion is experimental, so its
+recognizer capability checks remain blocked for control.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw
