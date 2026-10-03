@@ -173,6 +173,22 @@ This reads the recorded manifest, observations and frame files without opening
 the game. It reports a changed or missing frame as an evidence failure and
 leaves the original `startup-calibration.json` untouched.
 
+The active command-response probe is a separate, supervised command:
+
+```powershell
+& $offlinePython -m bsgo_offline.calibrate --hwnd <current-game-window-handle> --pid <current-game-pid> --profile restart-20261001 --source-size 3840x2160 --clear-heading-assessed --output logs/mining/<new-control-run>
+```
+
+First inspect the live game, establish a clear heading and a stopped ship, and
+keep other controllers idle. This probe reads two stopped images, sends PageUp,
+then sends PageDown after image-observed motion or its independent 1.5-second
+deadline. It requires fresh images of motion and a sustained stop to certify
+speed feedback. Window/process, foreground and geometry checks remain active
+at delivery. `control-calibration.json` records the outcome, linked commands,
+observation sequences, source hashes and worker shutdown. Its short-lived
+certificate proves only motion/braking feedback in that session; targeting,
+scanning, inventory and mining still need their own calibration probes.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw
