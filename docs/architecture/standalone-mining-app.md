@@ -87,6 +87,13 @@ A change in snapshot sequence alone does not invalidate a plan: continuous recog
 
 Keep speed monitoring, braking, cancellation, and normal routine transitions local. Broader scene interpretation remains a separate problem: neither OCR nor a general object detector proves a clear three-dimensional corridor from one image. Candidate acquisition, route assessment, and outcome detection need their own measured acceptance before claiming autonomous mining.
 
+HUD radar is another route-evidence source to validate. The current reader does
+not use it. [Radar calibration experiments](radar-calibration-plan.md) will
+establish ship/camera-relative bearing, contact association and available
+range/height evidence before integrating a forward-path interpretation.
+Publish uncertain or hidden radar readings as unknown; absent detections alone
+cannot establish a clear route.
+
 ## Persistence and debugging
 
 The in-memory snapshot is the live source of observations. A recorder can mirror state and events to files and retain the original frames used by recognition and decisions, including rejected inputs, matching the established image-retention requirement. Recording must not gate normal snapshot publication.

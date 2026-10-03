@@ -235,6 +235,14 @@ Acceptance: independently observed complete cycle and cleanup under the stated c
 
 ## Later improvements
 
+The user requested HUD radar interpretation on October 3, 2026. Treat this as
+a separate perception and route-evidence experiment, specified in
+[the radar calibration plan](radar-calibration-plan.md). Radar is currently
+unused by the recognizer. Calibrate heading/contact semantics on the enlarged
+HUD, validate forward-path cases, and preserve unknown results before allowing
+radar evidence to participate in native route decisions. Current live progress
+and its partial acceptance boundaries are in [the live report](mining-runtime-live-results.md).
+
 After the first accepted cycle, measure progress over elapsed time to remove the approach policy's fixed decision-cadence dependency. Keep this change separate from extraction: compare the old and proposed policies on timestamped traces, observation gaps and variable sampling before changing live defaults.
 
 Then consider candidate discovery, repeated mining, route interpretation, and optional AI advice against explicit evidence sets. A behavior tree may become useful if nested interruptions and reusable behaviors make ordinary state objects difficult to maintain. Process isolation is justified if blocking capture/inference or crash containment becomes a demonstrated problem.
