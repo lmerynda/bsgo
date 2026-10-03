@@ -95,6 +95,31 @@ class LargeHudReader:
             return None, 'invalid_target_hp_separator', 0.
         return self.number(gs[-4:])
 
+    def current_hp(self, image, maximum_hp):
+        """Read only the measured complete four-digit current side of HP."""
+        if maximum_hp is None:
+            return None, 'maximum_hp_context_unverified', 0.
+        gs = pieces(mask(image, self.data['hp_box']))
+        # The development crops cover four-digit current values. A digit-count
+        # transition below 1000 needs its own raster evidence; removing a glyph
+        # from a four-digit value must not silently become a valid lower HP.
+        if len(gs) != 9:
+            return None, 'unvalidated_current_hp_digit_count', 0.
+        current, separator = gs[:4], gs[-5]
+        if (current[0][0] < 2 or not 7 <= separator[0]-current[-1][1] <= 8
+                or any(not 2 <= right[0]-left[1] <= 8
+                       for left, right in zip(current, current[1:]))
+                or any(not ((top == 4 and glyph.shape[0] == 11)
+                            or (top == 3 and glyph.shape[0] == 12))
+                       for _, _, top, glyph in current)):
+            return None, 'current_hp_geometry_incomplete', 0.
+        value, reason, confidence = self.number(current)
+        if reason:
+            return None, 'current_hp_' + reason, confidence
+        if value > maximum_hp:
+            return None, 'current_hp_exceeds_maximum', confidence
+        return value, None, confidence
+
     def speed(self, image):
         a = mask(image, self.data['speed_box'])
         if a[:4].any() or a[25:].any() or a[:, :2].any() or a[:, -2:].any():
@@ -160,13 +185,19 @@ class LargeHudReader:
         asteroid = bool(title.shape == self.title.shape and np.mean(title != self.title) < .13
                         and len(pieces(title)) == 8)
         hp, he, hc = self.maximum_hp(image) if asteroid else (None, None, 0.)
+        current_hp, current_reason, current_confidence = (
+            self.current_hp(image, hp) if asteroid else (None, None, 0.))
         portrait = np.asarray(image.crop(self.data['portrait_box']).convert('L').resize((12,12)))//32
-        reasons = [e for e in (de, se, he, None if asteroid else 'asteroid_title_not_verified') if e]
+        reasons = [e for e in (de, se, he, current_reason,
+                              None if asteroid else 'asteroid_title_not_verified') if e]
         result.update(distance=distance, speed=speed, distance_confidence=dc, speed_confidence=sc,
                       asteroid_selected=asteroid, target_max_hp=hp, target_hp_confidence=hc,
+                      target_current_hp=current_hp,
+                      target_current_hp_confidence=current_confidence,
                       target_identity=f'asteroid:hp:{hp}' if hp is not None else None,
                       target_portrait=portrait.flatten().tolist() if asteroid else None,
                       reasons=reasons, ocr_uncertainty={name: {'reason': reason}
-                          for name, reason in [('distance',de), ('speed',se), ('target_max_hp',he)] if reason},
+                          for name, reason in [('distance',de), ('speed',se),
+                              ('target_max_hp',he), ('target_current_hp',current_reason)] if reason},
                       valid=not reasons, captured_at=time.time() if captured_at is None else captured_at)
         return result

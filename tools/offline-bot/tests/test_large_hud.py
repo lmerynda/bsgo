@@ -36,9 +36,13 @@ class LargeHudTests(unittest.TestCase):
         im = fixture_image()
         with Image.open(FIXTURES/'hp-4166-4166.png') as crop:
             im.paste(crop, tuple(data['hp_box'][:2]))
-        self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['target_max_hp'].value, 4166)
+        full = HudRecognizer(PROFILE)(native(im))
+        self.assertEqual(full.fields['target_current_hp'].value, 4166)
+        self.assertEqual(full.fields['target_max_hp'].value, 4166)
         ImageDraw.Draw(im).rectangle((1057,91,1068,91),fill='black')
-        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['target_max_hp'].valid)
+        clipped = HudRecognizer(PROFILE)(native(im))
+        self.assertFalse(clipped.fields['target_max_hp'].valid)
+        self.assertFalse(clipped.fields['target_current_hp'].valid)
 
     def test_complete_two_digit_speed_and_clipped_fraction(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
@@ -55,10 +59,45 @@ class LargeHudTests(unittest.TestCase):
         with Image.open(FIXTURES/'hp-3743-3781.png') as crop:
             im.paste(crop, tuple(data['hp_box'][:2]))
         result = HudRecognizer(PROFILE)(native(im))
+        self.assertEqual(result.fields['target_current_hp'].value, 3743)
         self.assertEqual(result.fields['target_max_hp'].value, 3781)
         self.assertTrue(result.fields['target_identity'].valid)
         ImageDraw.Draw(im).rectangle((1006,91,1012,102), fill='black')
         self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['target_identity'].valid)
+
+    def test_missing_current_hp_glyph_rejects_current_without_changing_maximum(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'hp-4166-4166.png') as crop:
+            im.paste(crop, tuple(data['hp_box'][:2]))
+        x, y = data['hp_box'][:2]
+        ImageDraw.Draw(im).rectangle((x+10,y+4,x+23,y+14), fill='black')
+        result = HudRecognizer(PROFILE)(native(im))
+        self.assertEqual(result.fields['target_max_hp'].value, 4166)
+        self.assertFalse(result.fields['target_current_hp'].valid)
+        self.assertIn('unvalidated_current_hp_digit_count',
+                      result.fields['target_current_hp'].reason)
+
+    def test_current_hp_clipping_and_exceeding_maximum_reject(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        x, y = data['hp_box'][:2]
+        im = fixture_image()
+        with Image.open(FIXTURES/'hp-4166-4166.png') as crop:
+            im.paste(crop, (x, y))
+        ImageDraw.Draw(im).rectangle((x+10,y+4,x+23,y+4), fill='black')
+        clipped = HudRecognizer(PROFILE)(native(im))
+        self.assertEqual(clipped.fields['target_max_hp'].value, 4166)
+        self.assertFalse(clipped.fields['target_current_hp'].valid)
+
+        im = fixture_image()  # 3335/3335
+        with Image.open(FIXTURES/'hp-4166-4166.png') as crop:
+            ImageDraw.Draw(im).rectangle((x,y,x+71,y+17), fill='black')
+            im.paste(crop.crop((0,0,72,18)), (x,y))
+        impossible = HudRecognizer(PROFILE)(native(im))
+        self.assertEqual(impossible.fields['target_max_hp'].value, 3335)
+        self.assertFalse(impossible.fields['target_current_hp'].valid)
+        self.assertEqual(impossible.fields['target_current_hp'].reason,
+                         'current_hp_exceeds_maximum')
 
     def test_measured_motion_crops_and_clipped_one(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
@@ -137,6 +176,8 @@ class LargeHudTests(unittest.TestCase):
         old = HudRecognizer('restart-20261001')(native(fixture_image(), 'restart-20261001'))
         self.assertFalse(old.fields['speed'].valid)
         self.assertFalse(old.fields['distance'].valid)
+        self.assertEqual(old.fields['target_current_hp'].reason,
+                         'mining_recognizer_not_validated:target_current_hp')
 
     def test_wrong_size_and_converted_source_reject(self):
         result = HudRecognizer(PROFILE)(native(Image.new('RGB',(1920,1080))))

@@ -14,7 +14,7 @@ from .events import EventDetector
 
 
 HUD_FIELDS = ("distance", "speed", "asteroid_selected", "target_identity",
-              "target_portrait", "target_max_hp")
+              "target_portrait", "target_max_hp", "target_current_hp")
 
 
 @dataclass(frozen=True)
@@ -226,11 +226,15 @@ class HudRecognizer:
         size_ok = (image.size == (2560, 1440) and
                    source_size == (self.source_frame_size or (2560, 1440)))
         for name in HUD_FIELDS:
+            if name == "target_current_hp" and self.profile != "largehud-20261003":
+                fields[name] = FieldValue(None, sample.acquired_at, False,
+                    "mining_recognizer_not_validated:target_current_hp")
+                continue
             value = raw.get(name)
             valid = size_ok and value is not None
             reason = None if valid else ("layout_size_mismatch" if not size_ok else
                 uncertainty.get(name, {}).get("reason") or
-                ("asteroid_title_not_verified" if name in ("target_identity", "target_portrait", "target_max_hp")
+                ("asteroid_title_not_verified" if name in ("target_identity", "target_portrait", "target_max_hp", "target_current_hp")
                  and not raw.get("asteroid_selected") else "unreadable_or_absent"))
             fields[name] = FieldValue(value, sample.acquired_at, valid, reason)
         # False asteroid_selected is a valid classification, not an OCR fault.
