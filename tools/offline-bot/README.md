@@ -162,6 +162,17 @@ they do not establish accuracy or native control. Use a fresh empty output
 directory for each attempt. A 4K BOX conversion is experimental, so its
 recognizer capability checks remain blocked for control.
 
+Recheck a saved startup package entirely offline, including the current hashes
+of its retained frames:
+
+```powershell
+& $offlinePython -m bsgo_offline.startup_diagnostics --reassess logs/mining/<saved-startup-run>
+```
+
+This reads the recorded manifest, observations and frame files without opening
+the game. It reports a changed or missing frame as an evidence failure and
+leaves the original `startup-calibration.json` untouched.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw

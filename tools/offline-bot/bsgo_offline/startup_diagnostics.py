@@ -132,9 +132,27 @@ def run_startup(output, *, source_factory, recognizer_factory, configuration,
                 duration=6, snapshot_limit=6, expected_window_id=None):
     output = Path(output)
     report = run_preflight(output, source_factory=source_factory,
-        recognizer_factory=recognizer_factory, configuration=configuration,
+        recognizer_factory=recognizer_factory,
+        configuration={**configuration, "expected_window_id": expected_window_id},
         mode="startup_calibration", duration=duration, snapshot_limit=snapshot_limit)
+    assessment = reassess_saved_run(output)
+    (output / "startup-calibration.json").write_text(
+        json.dumps(assessment, indent=2, allow_nan=False), encoding="utf-8")
+    return assessment
+
+
+def reassess_saved_run(directory):
+    """Verify a completed package again from disk without opening the game."""
+    output = Path(directory)
+    report = json.loads((output / "report.json").read_text(encoding="utf-8"))
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    if manifest.get("mode") != "startup_calibration":
+        raise ValueError("not_a_startup_calibration_run")
+    configuration = manifest.get("configuration") or {}
+    expected_frames = configuration.get("snapshot_limit")
+    pid, hwnd = configuration.get("expected_pid"), configuration.get("hwnd")
+    expected_window_id = configuration.get("expected_window_id") or (
+        f"{pid}:{hwnd}" if type(pid) is int and type(hwnd) is int else None)
     observations, frames = [], []
     for event in iter_trace_events(output / "trace", report["run_id"]):
         payload = event["payload"]
@@ -145,23 +163,33 @@ def run_startup(output, *, source_factory, recognizer_factory, configuration,
             if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == payload["sha256"]:
                 frames.append(payload)
     assessment = assess_startup(report, manifest, observations, frames,
-        expected_frames=snapshot_limit, expected_window_id=expected_window_id)
-    (output / "startup-calibration.json").write_text(
-        json.dumps(assessment, indent=2, allow_nan=False), encoding="utf-8")
+        expected_frames=expected_frames, expected_window_id=expected_window_id)
     return assessment
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--hwnd", type=int, required=True)
-    parser.add_argument("--pid", type=int, required=True)
-    parser.add_argument("--profile", choices=("original", "restart-20261001"), required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--reassess", type=Path, help="Verify a saved startup package without game access")
+    parser.add_argument("--hwnd", type=int)
+    parser.add_argument("--pid", type=int)
+    parser.add_argument("--profile", choices=("original", "restart-20261001"))
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--seconds", type=float, default=6)
     parser.add_argument("--frames", type=int, default=6)
     parser.add_argument("--interval", type=float, default=.5)
     parser.add_argument("--source-size", choices=("native-2560", "3840x2160"), default="native-2560")
     args = parser.parse_args(argv)
+    if args.reassess:
+        assessment = reassess_saved_run(args.reassess)
+        print(json.dumps({"source": str(args.reassess.resolve()),
+            "read_checks_pass": assessment["read_checks_pass"],
+            "control_checks_pass": assessment["control_checks_pass"],
+            "capture": assessment["capture"],
+            "blockers": [check for check in (*assessment["read_checks"], *assessment["control_checks"])
+                         if check["state"] != "ready"]}, indent=2))
+        return 0 if assessment["read_checks_pass"] else 1
+    if args.hwnd is None or args.pid is None or args.profile is None or args.output is None:
+        parser.error("--hwnd, --pid, --profile and --output are required for live capture")
     def source_factory():
         geometry = inspect_window(args.hwnd, expected_pid=args.pid)
         if geometry.title != "Battlestar Galactica Online":

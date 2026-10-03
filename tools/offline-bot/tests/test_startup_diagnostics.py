@@ -2,7 +2,7 @@ import json
 import unittest
 
 from bsgo_offline.recognition import RecognitionResult
-from bsgo_offline.startup_diagnostics import assess_startup, run_startup
+from bsgo_offline.startup_diagnostics import assess_startup, run_startup, reassess_saved_run
 from bsgo_offline.state import FieldValue
 from test_diagnostics import NativeFixtureSource
 from test_trace import scratch_directory
@@ -41,6 +41,16 @@ class StartupDiagnosticsTests(unittest.TestCase):
                           assessment["source_identity"]["calibration_sha256"])
             self.assertEqual(json.loads((output / "startup-calibration.json").read_text()), assessment)
             self.assertEqual(json.loads((output / "report.json").read_text())["input_requests"], [])
+            self.assertEqual(reassess_saved_run(output), assessment)
+
+            original = (output / "startup-calibration.json").read_bytes()
+            first_frame = output / "frames" / "observation-00000001.png"
+            with first_frame.open("ab") as stream:
+                stream.write(b"tampered")
+            rechecked = reassess_saved_run(output)
+            self.assertEqual(rechecked["capture"]["retained_hashed_frames"], 2)
+            self.assertFalse(rechecked["read_checks_pass"])
+            self.assertEqual((output / "startup-calibration.json").read_bytes(), original)
 
     def test_startup_capture_failure_is_reported_without_input(self):
         with scratch_directory() as directory:
