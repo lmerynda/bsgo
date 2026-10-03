@@ -307,3 +307,45 @@ The arrival screenshot at game clock 19:14:24 confirmed 276 Exrun, hull
 5005/5005, speed 0.0 and the friendly Fortified Cylon Outpost at approximately
 397 m. No combat alerts appeared in that view. This was supervised relocation,
 not another application calibration or mining acceptance run.
+
+### Exrun application restart attempt
+
+The user requested the auto-miner again. Supervision confirmed full hull,
+0.0 speed and no combat alerts at the friendly Exrun outpost, then oriented
+the stopped ship toward open space for the bounded application control probe.
+An initial sandbox launch failed window inspection before capture or input;
+native window inspection succeeded outside that desktop restriction. Its
+stdout/stderr are retained separately from subsequent empty run directories.
+
+`exrun-control-calibration-2` (run `24098831a28c403fa423d519352bb212`)
+read speeds 0.0, 0.0, 0.0, 0.2, unknown, 1.5, 0.5, 0.0, 0.0. The rejected
+frame visibly showed 1.3: its complete BOX-converted narrow 1 starts the lower
+bar at row 13 rather than row 14. The scoped correction in `1f050b70` accepts
+that complete anchored variant only in explicit BOX mode. Its HUD-only
+regression crop and damage-rejection tests passed, along with 44 HUD checks
+and 261 offline-bot tests. Native restart rules remain strict.
+
+One corrected live retry, `exrun-control-calibration-3` (run
+`9635d627bc5a4c188014a5a7b068db67`), read 0.0, 0.0, 0.0, 0.6, 1.7, 1.4,
+unknown, 0.0, 0.0. Frame 7 visibly showed 0.4, rejected as
+`incomplete_speed_four`. Both runs inserted four input events, requested
+braking on observed motion, verified two stopped images, retained complete
+diagnostics and joined all components. Both withheld the certificate because
+of invalid speed evidence. No further live retries were issued.
+
+`exrun-startup-readiness-1` retained six healthy, hashed native frames, but
+read/control checks did not pass. No asteroid was selected, so missing target
+distance was expected. Independent integration gaps remained: unknown input
+ownership and selection revision, no route/equipment evidence, missing native
+scan/mining bindings in this assessment, and unsupported scan, mining and
+inventory recognizers. The application's mining-cycle CLI remains synthetic;
+its native control probe is not a real mining runner. No mining mission or
+harvest occurred in this attempt. The last supervision at game clock 19:27:28
+confirmed hull 5005/5005, speed 0.0 and the friendly outpost at about 394 m.
+
+The user suggested reducing graphics quality and resolution. The next proposed
+experiment is native 2560×1440 with graphics quality unchanged: it matches the
+reader calibration and avoids the experimental 4K BOX conversion. The current
+UI showed roughly 60 FPS, so there is no measured evidence that lowering
+graphics quality would fix these recognition failures. Neither setting has
+been changed yet.
