@@ -201,3 +201,14 @@ After the pause, no further game calls were made. Offline review tightened
 the frame-to-observation hash match and verified the six saved frames against
 the new check. The latest full suite passed 237 tests. Startup calibration is
 committed in `d7c6e585`, and the exact evidence match in `c0b31721`.
+
+The startup package can now be reassessed offline with
+`python -m bsgo_offline.startup_diagnostics --reassess <saved-run>`; it rereads
+the recorded trace and verifies each frame hash without opening the game or
+rewriting the original assessment. An offline tamper test detects a changed
+frame, and the saved live package still passes all six exact frame matches.
+The report now exposes distinct values and whether each repeatedly read field
+was constant: speed 0.0, distance 229 and asteroid selection false were each
+constant across the six frames. This is repeatability, not accuracy across
+other situations. The reassessment and variation features passed the full
+237-test suite, and are committed in `a9f891da` and `94ad946e`.
