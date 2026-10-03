@@ -249,6 +249,7 @@ def main():
     parser.add_argument("--source-size", choices=["native-2560", "3840x2160"], default="native-2560")
     parser.add_argument("--pulse-seconds", type=float, default=1.5)
     parser.add_argument("--key-hold-ms", type=float, default=50.)
+    parser.add_argument("--keyboard-mode", choices=["scan_code", "virtual_key"], default="virtual_key")
     args = parser.parse_args()
     if not math.isfinite(args.key_hold_ms) or not 0 <= args.key_hold_ms <= 500:
         parser.error("--key-hold-ms must be between zero and 500")
@@ -269,9 +270,11 @@ def main():
             source_frame_size=configured_size if args.source_size == "3840x2160" else None),
         dispatcher_factory=lambda backend, journal: NativeInputDispatcher(backend, geometry.hwnd,
             geometry.pid, expected_size=geometry.client_size, expected_origin=geometry.screen_origin,
-            journal=journal, minimum_key_hold_seconds=args.key_hold_ms / 1000),
+            journal=journal, minimum_key_hold_seconds=args.key_hold_ms / 1000,
+            keyboard_mode=args.keyboard_mode),
         configuration={"hwnd": args.hwnd, "pid": args.pid, "profile": args.profile,
-                       "source_size": args.source_size, "minimum_key_hold_ms": args.key_hold_ms},
+                       "source_size": args.source_size, "minimum_key_hold_ms": args.key_hold_ms,
+                       "keyboard_mode": args.keyboard_mode},
         profile=args.profile, expected_window_id=f"{geometry.pid}:{geometry.hwnd}",
         frame_size=geometry.client_size, clear_heading=args.clear_heading_assessed,
         pulse_seconds=args.pulse_seconds)

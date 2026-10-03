@@ -192,6 +192,12 @@ The native probe holds each key for at least 50 ms from confirmed insertion,
 including the reserved idle press. Use `--key-hold-ms` to choose another bounded
 duration (0–500 ms). Delivery timestamps record the actual dwell; shutdown and
 emergency key release can interrupt it.
+The game probe defaults to virtual-key encoding. `--keyboard-mode scan_code`
+is available for comparison; live scan-code attempts with immediate, 50 ms and
+150 ms holds inserted Windows events but produced no image-observed motion.
+Virtual-key input with 50 ms holds did move and stop the ship. Its first probe
+still rejected the certificate because intermediate speed readings were
+ambiguous; this distinction is retained in the report.
 
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
@@ -204,4 +210,10 @@ The tests cover concurrent publication, defensive immutability, per-field timest
 
 An optional browser smoke test checks the HTML receiver with Playwright and an isolated headless Chromium browser. With Playwright available to Node, run `node tools/offline-bot/verify_receiver.cjs logs/offline-bot/nominal "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`. It saves received events, screenshots, and a verification report alongside the simulation report. It loads the local HTML file directly and closes its browser afterward.
 
-The native test validates only its owned receiver; BSGO capture/input compatibility remains unverified. No mode establishes real braking distances, asteroid acquisition, scanner/resources/rewards, three-dimensional navigation, or model decisions. Saved-pixel OCR and the synthetic control loop are complementary experiments; synthetic motion does not certify OCR accuracy or gameplay safety. [Recorded offline results](../../docs/architecture/offline-bot-experiments.md).
+The native receiver test validates only its owned receiver. The separate live
+game calibration records bounded motion/braking and current recognition
+limitations. These experiments do not establish mining approach braking
+distances, asteroid acquisition, scanner/resources/rewards, three-dimensional
+navigation, or model decisions. Saved-pixel OCR and the synthetic control loop
+are complementary experiments; synthetic motion does not certify OCR accuracy
+or gameplay safety. [Recorded offline results](../../docs/architecture/offline-bot-experiments.md).
