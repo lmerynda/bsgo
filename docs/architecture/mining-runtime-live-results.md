@@ -151,3 +151,24 @@ change; the last full suite had 232 passing tests. The next experiment should
 establish validated ownership and a harmless reversible input with observed
 effect before target selection or motion. This report does not count any
 synthetic receipt or manual piloting as application control evidence.
+
+### Observability integration and control guard
+
+The same diagnostic package now runs throughout complete synthetic mining
+cycles. In the nominal smoke run it retained 92 observations, 19 action
+lifecycle events and 16 mission transitions; all eight requested input records
+were accounted for, all workers joined and no trace events were dropped.
+Synthetic samples have no pixels, so the package explicitly recorded 92
+`source_has_no_pixels` entries. All 11 fault and nominal acceptance scenarios
+passed with complete event traces after integration. These are synthetic
+control experiments, not live-game mining acceptance. The package can expose
+worker stage and elapsed time, live queue depth, observation age, per-field
+rejection, preflight blockers, input lifecycle and shutdown completeness.
+
+An additional delivery regression removed an unsafe legacy compatibility path
+from the mining coordinator: if ownership is present when an action is
+requested but disappears from the snapshot before delivery, that action is
+rejected. It cannot be dispatched on missing ownership evidence. The focused
+case and full suite passed (233 tests). The generic legacy executor still
+supports older snapshots only for its older harness; mining always requires
+explicit ownership. No live game input occurred in these tests.
