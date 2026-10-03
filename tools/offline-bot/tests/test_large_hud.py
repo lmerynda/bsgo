@@ -33,7 +33,7 @@ def native(im, layout=PROFILE):
 class LargeHudTests(unittest.TestCase):
     def test_measured_motion_crops_and_clipped_one(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
-        for label in ('1p0', '1p9', '1p1', '0p1'):
+        for label in ('1p0', '1p9', '1p1', '0p1', '1p3'):
             im = fixture_image()
             with Image.open(FIXTURES/('speed-'+label+'.png')) as crop:
                 im.paste(crop, tuple(data['speed_box'][:2]))
@@ -42,6 +42,15 @@ class LargeHudTests(unittest.TestCase):
             # Remove the top endpoint of a measured one, in either position.
             x = 1408 if label.startswith('1') else 1431
             ImageDraw.Draw(im).rectangle((x,1066,x+2,1068), fill='black')
+            self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
+    def test_damaged_twelve_column_three_is_unknown(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for box in [(1423,1066,1432,1066), (1423,1075,1432,1077)]:
+            im = fixture_image()
+            with Image.open(FIXTURES/'speed-1p3.png') as crop:
+                im.paste(crop, tuple(data['speed_box'][:2]))
+            ImageDraw.Draw(im).rectangle(box, fill='black')
             self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
 
     def test_measured_tall_distance_six_and_clipped_variant(self):

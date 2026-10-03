@@ -113,6 +113,15 @@ class LargeHudReader:
                     return None, 'incomplete_speed_one', 0.
                 digits.append('1')
                 continue
+            if top == 4 and g.shape == (21, 12):
+                candidates = [(float(np.mean(g != np.array(t, dtype=bool))), digit)
+                              for digit, t in self.data.get('speed_complete_variants', {}).items()
+                              if np.array(t).shape == g.shape]
+                if candidates and min(candidates)[0] <= .02:
+                    digits.append(min(candidates)[1])
+                    confidence = min(confidence, 1-min(candidates)[0])
+                    continue
+                return None, 'unverified_speed_raster', 0.
             if top != 4 or g.shape != (21, 13):
                 return None, 'incomplete_speed_glyph', 0.
             fractions = [float(g[y0:y1,x0:x1].mean()) for x0,y0,x1,y1 in regions]
