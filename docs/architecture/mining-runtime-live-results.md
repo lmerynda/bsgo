@@ -212,3 +212,87 @@ was constant: speed 0.0, distance 229 and asteroid selection false were each
 constant across the six frames. This is repeatability, not accuracy across
 other situations. The reassessment and variation features passed the full
 237-test suite, and are committed in `a9f891da` and `94ad946e`.
+
+### Active motion and braking calibration
+
+The user resumed game verification and requested Computer Use supervision.
+The new `bsgo_offline.calibrate` command runs the application's native capture,
+recognition, input dispatcher and diagnostic journal. It requires two fresh
+stopped images and a manually assessed clear heading, sends PageUp, requests
+reserved PageDown on observed motion or an independent 1.5-second deadline,
+and requires two fresh stopped images afterward. Input insertion alone cannot
+issue its scoped, expiring motion/braking certificate. Each run retains raw
+frames, source hashes, request/delivery records and worker shutdown outcomes.
+No mining mission runs during this probe.
+
+The running game window was pinned to HWND 33296742, PID 40148 and a
+3840×2160 client area. Computer Use inspected full hull, 0.0 speed and the
+heading, then oriented the stopped ship away from the belt before the first
+probe. The experiments used the explicit restart profile and 4K BOX conversion.
+
+| Local run | Input encoding and duration | Image feedback | Result |
+| --- | --- | --- | --- |
+| `control-calibration-1` | Scan code, immediate pair | Eight readings of 0.0 | No motion proof; deadline idle; stop verified |
+| `control-calibration-50ms` | Scan code, configured 50 ms | Eight readings of 0.0 | No motion proof; deadline idle; stop verified |
+| `control-calibration-150ms` | Scan code, configured 150 ms; measured pairs 171/156 ms | Eight readings of 0.0 | No motion proof; deadline idle; stop verified |
+| `control-calibration-vk50ms` | Virtual key, configured 50 ms; measured pairs 63/62 ms | 0.0, 0.0, 0.0, 0.6, unknown, unknown, 0.3, 0.0, 0.0 | Motion and stop observed; certificate rejected for two unreadable intermediate images |
+
+Every run above retained complete diagnostics, inserted four Windows input
+events, verified a final stop, and joined its watchdog, dispatcher, recognition
+worker and capture source. The first three runs demonstrate why delivery
+receipts cannot establish control. A separate Computer Use comparison of the
+same bindings showed movement with PageUp and a return to 0.0 after PageDown;
+that comparison is not counted as application acceptance. Longer scan-code
+holds did not fix the failure, while virtual-key input did produce application
+motion feedback. The game calibration CLI now defaults to virtual keys with a
+50 ms minimum hold; generic receiver tests retain their scan-code default.
+
+Offline inspection of the rejected virtual-key frames identified visible
+speeds 1.6 and 1.4. Their complete narrow digit 1 has a different raster extent
+after 4K conversion. The reader rejected it as
+`incomplete_or_ambiguous_speed_one`; those unknown values were never treated as
+zero or replaced with expected speed. This exposed a second calibration issue
+after the input encoding issue. All images and transcripts remain local under
+`logs/mining/live-20261003/`; only this summarized evidence is committed.
+
+The active runner is committed in `73807402`, bounded key dwell in `82bffdd9`,
+virtual-key dispatcher support in `b47ca444`, and the game-specific default in
+`799022b9`. The latest suite at that point passed 261 offline tests. These
+checks cover ignored commands, stale or changing image context, recognition
+stall, cleanup request failure/retry, focus loss, emergency release and matching
+key encoding. Heading, targeting, scanner output, mining and inventory feedback
+remain unverified by the startup control tool.
+
+The explicit 4K BOX reader correction is committed in `7421100e`. It accepts
+the measured complete narrow 1 and four rasters only in the configured restart
+BOX mode. Native restart recognition remains strict, and original-profile 4K
+construction remains supported. Tests passed for 43 HUD speed/restart/background
+cases, 261 offline-bot cases and 26 held-out native speed labels. Two tiny
+80×26 HUD crops preserve the regression evidence without private full frames.
+Re-reading the earlier nine saved frames now produces
+0.0, 0.0, 0.0, 0.6, 1.6, 1.4, 0.3, 0.0, 0.0; the original failed run report
+is preserved.
+
+The fresh `control-calibration-vk50ms-corrected` run retained nine frames and
+read 0.0, 0.0, 0.0, 0.3, 1.4, 1.7, 0.6, 0.0, 0.0. It issued its narrow
+motion/braking certificate, inserted four events, observed the stop and joined
+all components with complete diagnostics. The measured key holds were 62 and
+78 ms with the configured 50 ms minimum.
+
+**This final run is excluded from clean calibration acceptance.** The
+pre-launch Computer Use screenshot already showed hull 4855/5005, blue ships,
+missile alerts and electronic warfare. The operator incorrectly launched the
+probe in the same tool batch before inspecting the returned screenshot. That
+was an execution mistake; the scene no longer met the intended quiet test
+conditions. After the probe ended, the ship was destroyed. Recovery at Muninn
+returned the client to its interior/NPC scene; further control experiments were
+suspended. The original component certificate remains as historical evidence,
+and local `acceptance-review.json` records the exclusion.
+
+This exposed missing hull-health, combat and exclusive-input-ownership
+observations in the active startup tool. Its result now lists those explicitly
+as unverified alongside targeting, scanning, mining and inventory. It continues
+to return `mining_ready: false`. The motion/input and scoped OCR changes are
+checked in; a clean supervised acceptance run and the remaining startup probes
+are still required before real mining. No calibration program remained running
+after recovery.
