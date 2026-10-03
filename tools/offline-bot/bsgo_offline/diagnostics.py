@@ -193,7 +193,7 @@ class DiagnosticRun:
             "preflight": self._coordinator.read_preflight(self._capabilities) if self._coordinator else None,
             "worker": self._worker.metrics() if self._worker else None,
             "latest_observation_sequence": snapshot.sequence if snapshot else None,
-            "input_pending": len(self._backend.pending_requests) if self._backend else 0,
+            "input_pending": self._backend.pending_requests if self._backend else 0,
             "input_history": self._backend.history_stats() if self._backend else None,
             "actions": self._coordinator.executor.telemetry_stats() if self._coordinator else None,
             "frames": self.frame_stats(), "trace": self.journal.stats(),
