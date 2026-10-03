@@ -298,6 +298,30 @@ optimal and 800 m maximum, but this experiment does not fire, scan or mine.
 image sidecars, requests, deliveries, observations, shutdown and blockers.
 `mining_ready` remains false even after a successful approach stop.
 
+For a single supervised mining-gun feedback experiment on an already scanned
+Water or Tylium asteroid, run:
+
+```powershell
+& $offlinePython -m bsgo_offline.firing_probe --hwnd <current-game-window-handle> --pid <current-game-pid> --safe-stopped-scene-assessed --wanted-resource-assessed Tylium --no-preexisting-firing-assessed --output logs/mining/<new-firing-run>
+```
+
+The supervisor must verify the resource independently, a stopped safe scene,
+and no preexisting fire or HP loss. Stay with the game after the command:
+**G may leave autofire active beyond the probe**, and the application has no
+validated ceasefire control. The native client must be 2560×1440. The probe
+requires a stable four-second image baseline with unchanged four-digit current
+HP, target identity/portrait/maximum HP, and distance between 480 and 760 m.
+It then sends one guarded G down/up pair with a 50 ms virtual-key hold. After
+confirmed delivery, two fresh images with distinct falling current HP are
+required for the narrow `firing_effect_verified` result. `--after-seconds`
+can extend the observation from eight to at most 20 seconds; it does not
+limit the game's firing duration. Invalid speed, HP, target or capture context
+blocks the result. The diagnostic package retains frames, rejected reads,
+requests, deliveries and shutdown; `firing-probe.json` explicitly leaves
+autofire state, inventory and resource reward unverified, with `mining_ready`
+false. Current HP OCR is validated only for measured complete four-digit
+rasters; a drop below 1000 will block proof until that raster is calibrated.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw
