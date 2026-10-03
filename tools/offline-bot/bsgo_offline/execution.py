@@ -58,7 +58,7 @@ SYNTHETIC_BINDINGS = {**DEFAULT_BINDINGS, "scan": Binding("S", synthetic_only=Tr
 
 class InputExecutor:
     def __init__(self, store, backend, tracker, clock, *, bindings=None, capacity=256, permission=None,
-                 journal=None, history_capacity=1024):
+                 journal=None, history_capacity=1024, require_owned=False):
         if type(capacity) is not int or capacity < 1:
             raise ValueError("executor_capacity")
         if type(history_capacity) is not int or history_capacity < 1:
@@ -67,6 +67,7 @@ class InputExecutor:
         self.bindings = dict(DEFAULT_BINDINGS if bindings is None else bindings)
         self.capacity, self.generation = capacity, 1
         self.permission = permission
+        self.require_owned = require_owned
         self.journal = journal
         self._history = deque(maxlen=history_capacity)
         self._history_total = self.journal_dropped = 0
@@ -142,7 +143,8 @@ class InputExecutor:
         except ValueError as error:
             # Legacy snapshots do not carry explicit ownership; backend guards
             # still apply. New runtime preflight requires the owned field.
-            if "owned" in snapshot.fields or str(error) != "field_unavailable:owned":
+            if (self.require_owned or "owned" in snapshot.fields
+                    or str(error) != "field_unavailable:owned"):
                 return "rejected", str(error)
         if intent.track_id is not None:
             track = self.tracker.track

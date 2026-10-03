@@ -64,6 +64,23 @@ class ActionTelemetryTests(unittest.TestCase):
         self.assertEqual(executor.history()[-1]["status"]["reason"], "action_id_collision")
         self.assertGreater(executor.telemetry_stats()["history_evicted"], 0)
 
+    def test_mining_delivery_rejects_missing_ownership_after_request(self):
+        h = MissionFixture()
+        h.tick(deliver=False)
+        h.tick(deliver=False)
+        self.assertGreater(h.backend.pending_requests, 0)
+        previous = h.store.latest()
+        fields = dict(previous.fields)
+        fields.pop("owned")
+        h.clock.now += .1
+        h.store.publish(replace(previous, sequence=previous.sequence + 1,
+            acquisition_sequence=previous.acquisition_sequence + 1,
+            acquired_at=h.clock(), published_at=h.clock(), fields=fields))
+        h.deliver()
+        self.assertEqual(h.coordinator.executor.statuses()[0].reason, "field_unavailable:owned")
+        self.assertEqual(h.receiver.scan_id, 0)
+        self.assertFalse(h.backend.held_keys)
+
 
 if __name__ == "__main__":
     unittest.main()

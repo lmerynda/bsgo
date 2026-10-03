@@ -81,7 +81,7 @@ class MiningCoordinator:
         self.planner, self.journal = planner, journal
         self.tracker = SelectionTracker()
         self.executor = InputExecutor(store, backend, self.tracker, clock, bindings=bindings,
-                                      permission=self._permission, journal=journal)
+                                      permission=self._permission, journal=journal, require_owned=True)
         self._lock, self._wake = RLock(), Event()
         self.transitions = deque(maxlen=history_capacity)
         self.transitions_total = self.journal_dropped = 0
