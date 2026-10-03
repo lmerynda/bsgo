@@ -14,11 +14,11 @@ MINING_FIELDS = ("scan_result", "mining_active", "inventory", "inventory_conflic
 
 
 class MiningHudRecognizer:
-    def __init__(self, profile="original"):
-        self.hud = HudRecognizer(profile)
+    def __init__(self, profile="original", *, source_frame_size=None):
+        self.hud = HudRecognizer(profile, source_frame_size=source_frame_size)
         self.capabilities = freeze({name: name in (
             "distance", "speed", "asteroid_selected", "target_identity", "target_portrait")
-            for name in CYCLE_FIELDS})
+            and source_frame_size is None for name in CYCLE_FIELDS})
 
     def __call__(self, sample):
         result = self.hud(sample)

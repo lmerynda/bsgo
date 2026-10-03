@@ -137,6 +137,13 @@ completeness and each worker's shutdown outcome. A complete diagnostic record
 can still prove that the game control preflight failed. The diagnostic command
 never starts a native input dispatcher or the mining mission.
 
+For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
+The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
+space while retaining the native frame size in snapshot context and the raw
+4K pixels in the run package. The transformation and its experimental status
+appear in each frame's `ocr_evidence`. Converted OCR is not yet validated for
+control, so the preflight capability report continues to block those fields.
+
 The tests cover concurrent publication, defensive immutability, per-field timestamps, rejected OCR fields, source/recognizer faults, target/session/layout changes, delayed planning, queued input cancellation, backlog overflow cleanup, ignored braking, and fresh stop acknowledgement. Rolling history and journal failure cases distinguish telemetry loss from control failure. Worker joins report whether shutdown finished; a blocked recognizer is not falsely reported stopped.
 
 An optional browser smoke test checks the HTML receiver with Playwright and an isolated headless Chromium browser. With Playwright available to Node, run `node tools/offline-bot/verify_receiver.cjs logs/offline-bot/nominal "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`. It saves received events, screenshots, and a verification report alongside the simulation report. It loads the local HTML file directly and closes its browser afterward.

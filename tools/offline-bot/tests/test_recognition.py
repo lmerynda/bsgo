@@ -222,6 +222,31 @@ class RecognitionTests(unittest.TestCase):
         self.assertFalse(result.healthy)
         self.assertEqual(result.reason, "layout_profile_mismatch")
 
+    def test_explicit_4k_resampling_retains_source_geometry_and_provenance(self):
+        from PIL import Image
+        from unittest.mock import Mock
+        from bsgo_offline.mining_recognition import MiningHudRecognizer
+        class Sample:
+            layout = "restart-20261001"
+            acquired_at = 12.
+            def to_image(self): return Image.new("RGB", (3840, 2160))
+        hud = HudRecognizer("restart-20261001", source_frame_size=(3840, 2160))
+        hud._reader.read = Mock(return_value={"speed": 0., "asteroid_selected": False})
+        result = hud(Sample())
+        self.assertEqual(hud._reader.read.call_args.args[0].size, (2560, 1440))
+        self.assertEqual(result.frame_size, (3840, 2160))
+        self.assertTrue(result.fields["speed"].valid)
+        evidence = result.fields["ocr_evidence"].value
+        self.assertEqual(evidence["resampling"], "lanczos_3840_to_2560")
+        self.assertEqual(evidence["resampling_validation"], "experimental_unvalidated")
+        self.assertFalse(MiningHudRecognizer("restart-20261001",
+            source_frame_size=(3840, 2160)).capabilities["speed"])
+        other = Sample()
+        other.to_image = lambda: Image.new("RGB", (3200, 1800))
+        rejected = hud(other)
+        self.assertFalse(rejected.healthy)
+        self.assertEqual(rejected.frame_size, (3200, 1800))
+
 
 if __name__ == "__main__":
     unittest.main()

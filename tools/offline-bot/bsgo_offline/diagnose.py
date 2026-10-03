@@ -87,6 +87,7 @@ def main():
     parser.add_argument("--seconds", type=float, default=6)
     parser.add_argument("--frames", type=int, default=6)
     parser.add_argument("--interval", type=float, default=.5)
+    parser.add_argument("--source-size", choices=["native-2560", "3840x2160"], default="native-2560")
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .mining_recognition import MiningHudRecognizer
@@ -96,9 +97,11 @@ def main():
             raise ValueError("unexpected_game_window_title")
         return NativeSource(NativeCapture(geometry.hwnd, geometry.pid, layout=args.profile), args.interval)
     report = run_preflight(args.output, source_factory=source_factory,
-        recognizer_factory=lambda: MiningHudRecognizer(args.profile), mode="native_game_capture_preflight",
+        recognizer_factory=lambda: MiningHudRecognizer(args.profile,
+            source_frame_size=(3840, 2160) if args.source_size == "3840x2160" else None),
+        mode="native_game_capture_preflight",
         configuration={"hwnd": args.hwnd, "expected_pid": args.pid, "profile": args.profile,
-                       "capture_interval_real_seconds": args.interval},
+                       "capture_interval_real_seconds": args.interval, "source_size": args.source_size},
         duration=args.seconds, snapshot_limit=args.frames)
     preflight = report.get("preflight") or {}
     print(json.dumps({"output": str(args.output.resolve()), "result": report["result"],

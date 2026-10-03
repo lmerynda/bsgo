@@ -182,7 +182,10 @@ class RecognitionWorker:
 class HudRecognizer:
     """Read the configured HUD profile; never infer profile from successful OCR."""
 
-    def __init__(self, profile: str = "original", reader_path: str | Path | None = None) -> None:
+    def __init__(self, profile: str = "original", reader_path: str | Path | None = None,
+                 *, source_frame_size: tuple[int, int] | None = None) -> None:
+        if source_frame_size not in (None, (3840, 2160)):
+            raise ValueError("unsupported_source_frame_size")
         path = Path(reader_path) if reader_path else Path(__file__).resolve().parents[2] / "hud-reader" / "hud_reader.py"
         spec = importlib.util.spec_from_file_location("bsgo_offline_hud_reader", path)
         if spec is None or spec.loader is None:
@@ -191,6 +194,7 @@ class HudRecognizer:
         spec.loader.exec_module(module)
         self._reader = module.HudReader(profile=profile)
         self.profile = profile
+        self.source_frame_size = source_frame_size
 
     def __call__(self, sample: FrameSample) -> RecognitionResult:
         from PIL import Image
@@ -203,12 +207,17 @@ class HudRecognizer:
         else:
             with Image.open(sample.path) as opened:
                 image = opened.convert("RGB")
+        source_size = image.size
+        converted = self.source_frame_size == source_size
+        if converted:
+            image = image.resize((2560, 1440), Image.Resampling.LANCZOS)
         # HudReader captured_at uses a wall clock. Keep monotonic freshness in
         # the shared-state layer, instead of feeding it a different time domain.
         raw = self._reader.read(image)
         fields: dict[str, FieldValue] = {}
         uncertainty = raw.get("ocr_uncertainty", {})
-        size_ok = image.size == (2560, 1440)
+        size_ok = (image.size == (2560, 1440) and
+                   source_size == (self.source_frame_size or (2560, 1440)))
         for name in HUD_FIELDS:
             value = raw.get(name)
             valid = size_ok and value is not None
@@ -226,6 +235,10 @@ class HudRecognizer:
             "speed_confidence": raw.get("speed_confidence"),
             "target_hp_confidence": raw.get("target_hp_confidence"),
             "calibration_profile": self.profile,
+            "source_frame_size": source_size,
+            "recognition_frame_size": image.size,
+            "resampling": "lanczos_3840_to_2560" if converted else "none",
+            "resampling_validation": "experimental_unvalidated" if converted else "native_profile_size",
         }, sample.acquired_at)
-        return RecognitionResult(image.size, fields, size_ok,
+        return RecognitionResult(source_size, fields, size_ok,
                                  None if size_ok else "layout_size_mismatch")
