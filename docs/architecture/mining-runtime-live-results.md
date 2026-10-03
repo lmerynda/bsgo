@@ -296,3 +296,14 @@ to return `mining_ready: false`. The motion/input and scoped OCR changes are
 checked in; a clean supervised acceptance run and the remaining startup probes
 are still required before real mining. No calibration program remained running
 after recovery.
+
+### Relocation to Exrun after recovery
+
+At the user's request, Computer Use repaired the recovered ship at Muninn and
+undocked after the repair cooldown. Repair-all cost 29,711 titanium; the UI
+confirmed 100% hull and equipment afterward. No cubits were spent. The ship
+jumped to the 276 Exrun beacon, whose displayed jump cost was 3,430 tylium.
+The arrival screenshot at game clock 19:14:24 confirmed 276 Exrun, hull
+5005/5005, speed 0.0 and the friendly Fortified Cylon Outpost at approximately
+397 m. No combat alerts appeared in that view. This was supervised relocation,
+not another application calibration or mining acceptance run.
