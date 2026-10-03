@@ -64,17 +64,38 @@ class StartupDiagnosticsTests(unittest.TestCase):
             "distance": {"valid": True, "value": 1000.},
             "asteroid_selected": {"valid": True, "value": False},
             "ocr_evidence": {"valid": True, "value": {"calibration_profile": "fixture"}}}}
-        observations = [{"snapshot": snapshot, "frame": frame}] * 2
+        observations = [{"snapshot": {**snapshot, "sequence": sequence},
+            "frame": {**frame, "path": f"frames/observation-{sequence:08d}.png"}}
+            for sequence in (1, 2)]
         report = {"preflight": {"checks": [{"name": "ownership", "state": "unknown",
             "reason": "ownership_unknown"}]}, "worker": {"error": None,
             "diagnostic_dropped": 0}, "shutdown": {"recognition": True},
             "input_pending": 0, "input_requests": [], "complete_diagnostics": True}
         assessment = assess_startup(report, manifest, observations,
-            [{"observation_sequence": 1}], expected_frames=2, expected_window_id="2:1")
+            [{"observation_sequence": 1, "path": "frames/observation-00000001.png"}],
+            expected_frames=2, expected_window_id="2:1")
         self.assertFalse(assessment["read_checks_pass"])
         self.assertFalse(assessment["control_checks_pass"])
         self.assertFalse(assessment["ready_for_control_experiment"])
         self.assertEqual(assessment["fields"]["speed"]["valid_frames"], 2)
+
+    def test_hashes_must_match_the_exact_observation_and_frame_path(self):
+        manifest = {"configuration": {"profile": "fixture"}, "source_sha256": {}}
+        context = {"window_id": "2:1", "frame_size": [4, 3]}
+        snapshot = {"sequence": 1, "healthy": True, "fields": {"ocr_evidence": {
+            "valid": True, "value": {"calibration_profile": "fixture"}}}}
+        observation = {"snapshot": snapshot, "frame": {"context": context,
+            "state": "queued", "path": "frames/observation-00000001.png"}}
+        report = {"preflight": {"checks": []}, "worker": {"error": None,
+            "diagnostic_dropped": 0}, "shutdown": {"recognition": True},
+            "input_pending": 0, "input_requests": [], "complete_diagnostics": True}
+        wrong_frame = {"observation_sequence": 1, "path": "frames/unrelated.png"}
+        result = assess_startup(report, manifest, [observation], [wrong_frame],
+                                expected_frames=1, expected_window_id="2:1")
+        retained = next(check for check in result["read_checks"]
+                        if check["name"] == "retained_pixels")
+        self.assertEqual(retained["state"], "blocked")
+        self.assertEqual(result["capture"]["retained_hashed_frames"], 0)
 
 
 if __name__ == "__main__":

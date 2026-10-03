@@ -34,6 +34,11 @@ def assess_startup(report, manifest, observations, frame_events, *, expected_fra
     healthy = sum(snapshot["healthy"] is True for snapshot in snapshots)
     frame_states = Counter(event["frame"]["state"] for event in observations)
     retained = {event["observation_sequence"]: event for event in frame_events}
+    expected_pairs = {(event["snapshot"]["sequence"], event["frame"].get("path"))
+                      for event in observations if event["frame"]["state"] == "queued"}
+    retained_pairs = {(event["observation_sequence"], event.get("path"))
+                      for event in frame_events}
+    matched_frames = len(expected_pairs & retained_pairs)
     fields = {}
     for name in (*CYCLE_FIELDS, "ocr_evidence"):
         valid = 0
@@ -63,11 +68,12 @@ def assess_startup(report, manifest, observations, frame_events, *, expected_fra
         "stable_expected_context" if identity_ok else "no_observation" if not contexts else "context_changed_or_unexpected",
         window_ids=window_ids, frame_sizes=[list(size) for size in frame_sizes],
         expected_window_id=expected_window_id))
-    pixels_ok = bool(count and len(retained) == count and not frame_states.get("dropped")
+    pixels_ok = bool(count and len(retained) == count and expected_pairs == retained_pairs
+                     and matched_frames == count and not frame_states.get("dropped")
                      and not frame_states.get("skipped") and not frame_states.get("unavailable"))
     reads.append(_check("retained_pixels", "ready" if pixels_ok else "blocked",
         "all_observations_have_hashed_frames" if pixels_ok else "frame_evidence_incomplete",
-        states=dict(frame_states), hashed_frames=len(retained)))
+        states=dict(frame_states), hashed_frames=matched_frames))
     reads.append(_check("recognition_pipeline", "ready" if count and healthy == count else "blocked",
         "all_observations_healthy" if count and healthy == count else "unhealthy_or_missing_observation",
         healthy=healthy, observed=count))
@@ -113,7 +119,7 @@ def assess_startup(report, manifest, observations, frame_events, *, expected_fra
                                 "calibration_sha256": calibration_hashes},
             "capture": {"observed_frames": count, "requested_frames": expected_frames,
                         "window_ids": window_ids, "frame_sizes": [list(size) for size in frame_sizes],
-                        "healthy_frames": healthy, "retained_hashed_frames": len(retained)},
+                        "healthy_frames": healthy, "retained_hashed_frames": matched_frames},
             "fields": fields, "read_checks": reads, "control_checks": controls,
             "read_checks_pass": read_pass, "control_checks_pass": control_pass,
             "ready_for_control_experiment": read_pass and control_pass,
