@@ -10,6 +10,7 @@ from typing import Callable, Mapping, Protocol
 
 from .replay import FrameSample
 from .state import FieldValue, Snapshot, SnapshotStore
+from .events import EventDetector
 
 
 HUD_FIELDS = ("distance", "speed", "asteroid_selected", "target_identity",
@@ -48,6 +49,7 @@ class RecognitionWorker:
         self.error: str | None = None
         self.processed = 0
         self.end_reason: str | None = None
+        self._events = EventDetector()
 
     @property
     def source_exhausted(self) -> bool:
@@ -95,10 +97,19 @@ class RecognitionWorker:
                     break
                 sequence += 1
                 stage = "publish"
-                self.store.publish(Snapshot(
+                geometry = getattr(sample, "geometry", None)
+                window_id = (f"{geometry.pid}:{geometry.hwnd}" if geometry else
+                             getattr(sample, "window_id", None) or sample.source_id or "unknown")
+                snapshot = Snapshot(
                     sequence, sample.session_epoch, sample.acquisition_sequence,
                     sample.acquired_at, self.clock(), sample.layout,
-                    result.frame_size, result.fields, result.healthy, result.reason))
+                    result.frame_size, result.fields, result.healthy, result.reason,
+                    window_id=window_id,
+                    ownership_generation=getattr(sample, "ownership_generation", 0),
+                    capture_started_at=getattr(sample, "capture_started_at", None),
+                    capture_completed_at=getattr(sample, "capture_completed_at", None),
+                    frame_produced_at=getattr(sample, "frame_produced_at", None))
+                self.store.publish(snapshot, self._events.update(snapshot))
                 self.processed += 1
             if self.end_reason is None:
                 self.end_reason = "cancelled"
@@ -119,7 +130,9 @@ class RecognitionWorker:
                 now, sample.layout if sample else (previous.layout if previous else "unknown"),
                 previous.frame_size if previous else (0, 0),
                 {name: FieldValue(None, now, False, self.error) for name in fields},
-                False, self.error)
+                False, self.error,
+                window_id=previous.window_id if previous else "unknown",
+                ownership_generation=previous.ownership_generation if previous else 0)
             self.store.publish(fault)
 
 

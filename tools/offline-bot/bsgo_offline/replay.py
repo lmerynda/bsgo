@@ -19,6 +19,7 @@ class FrameSample:
     layout: str
     acquired_at: float
     source_id: str = ""
+    window_id: str = "saved:replay"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", Path(self.path))

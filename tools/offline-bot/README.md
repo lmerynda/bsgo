@@ -2,6 +2,8 @@
 
 This Python harness tests the mining application's observation and control boundaries without opening or controlling BSGO. It supports real OCR on saved screenshots, a synthetic receiver that consumes recorded mouse/keyboard requests, and an opt-in native Windows test against its own receiver window. Python remains the current implementation choice. Memory retains recent telemetry, while a separate disk journal records events beyond those recent windows. The synthetic receiver's motion is an invented test model, not measured game physics.
 
+The new `simulate-mining` mode executes one complete cycle with a preselected synthetic asteroid. It uses semantic input intents, local selection tracking, retained gameplay events, pure routines, and bounded stop/pause handling. The original `simulate` mode remains the approach-only compatibility experiment. [Implementation results and limits](../../docs/architecture/mining-runtime-offline-results.md).
+
 ## Run
 
 From the repository root, use Python 3.12 with NumPy and Pillow. The existing experiment environment is ready:
@@ -24,11 +26,30 @@ $offlinePython = 'tools/offline-bot/.venv/Scripts/python.exe'
 
 This code uses repository files and Python APIs only. Codex does not need to remain running after a command is launched in your terminal.
 
+## Complete synthetic mining cycle
+
+After setting `$env:PYTHONPATH` and `$offlinePython` as above:
+
+```powershell
+& $offlinePython -m bsgo_offline simulate-mining --no-planner --output logs/offline-bot/mining-demo
+& $offlinePython -m bsgo_offline simulate-mining --reward-missing --output logs/offline-bot/mining-no-reward
+& $offlinePython tools/offline-bot/acceptance.py --output logs/offline-bot/mining-acceptance
+& $offlinePython tools/offline-bot/run_tests.py --output logs/offline-bot/mining-tests.txt
+```
+
+Use new output directories for repeated experiments. Additional fault options are `--scan-missing`, `--ineligible`, `--mining-ignored`, `--inventory-conflict`, `--ignore-brake`, `--stall-after` and `--fault-after`. `--planner-delay` delays fake observation advice in real seconds; `--no-planner` runs deterministic control alone. All input remains recording-only. Synthetic scan/mining bindings are rejected on other surfaces.
+
+`report.json` records transitions, track/context, action request and delivery links, gameplay events, reward evidence, source hash, journal statistics and worker shutdown. `MiningCoordinator.read_status()` returns immutable current status. `pause()` cancels work and reports its observed cleanup result; `resume()` requires a new drained backend session and fresh route/equipment preflight. The fake reward amount and physics are invented test parameters.
+
+The new runtime observes stopping after a fault using speed alone, independently of target selection. Cleanup ends as stopped, already stopped, stop unverified or control unavailable. This behavior belongs to `simulate-mining`; legacy `simulate` retains its existing approach-only failure result.
+
 ## Saved screenshot recognition
 
 `replay` defaults to the 25-frame `sol-tylium-live-2321` run in the [frozen corpus](../../test-data/vision/v1/README.md). `--source-run`, `--limit`, `--interval`, `--profile`, and `--consumer-delay` configure the experiment. Recognition owns its thread and publishes deeply immutable snapshots into a short-lock shared store. The delayed consumer retrieves already published state and never requests recognition.
 
 Frames are ordered by their original capture names and ordinals, rather than hash filenames. Capture-run boundaries change the session epoch. Acquisition times belong to the synthetic replay schedule; they do not recreate original game rendering timestamps. The explicit original/restart calibration profile is not inferred from successful reads. Invalid current fields remain unknown, with OCR rejection evidence available separately. A normal finite replay preserves its last observation and marks the source exhausted; its age continues to increase. A source or recognizer exception publishes unhealthy state with unknown fields.
+
+`replay --mining-observations` additionally exposes scan, mining activation, inventory and inventory-conflict fields as explicitly unknown. Their game-image recognizers remain unvalidated; the calibrated HUD reader still supplies its supported observations. `inventory_evidence.py` verifies the frozen corpus and produces source-group review sheets without game capture.
 
 ## Recording input and receiving it
 

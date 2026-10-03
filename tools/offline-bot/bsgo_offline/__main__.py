@@ -63,11 +63,17 @@ def simulation(output, *, ignore_brake=False, stall_after=None, fault_after=None
     backend.export_jsonl(Path(output)/'input.jsonl')
     return report
 
-def replay(output, *, source_run=None, limit=None, interval=.03, profile='original', consumer_delay=.3):
+def replay(output, *, source_run=None, limit=None, interval=.03, profile='original', consumer_delay=.3,
+           mining_observations=False):
     store = SnapshotStore()
     source = ReplaySource(ROOT/'test-data/vision/v1/manifest.json',source_run=source_run,
                          interval=interval,limit=limit,labeled_only=True,layout=profile)
-    worker = RecognitionWorker(source,HudRecognizer(profile=profile),store)
+    if mining_observations:
+        from .mining_recognition import MiningHudRecognizer
+        recognizer = MiningHudRecognizer(profile)
+    else:
+        recognizer = HudRecognizer(profile=profile)
+    worker = RecognitionWorker(source,recognizer,store)
     worker.start()
     observations=[]
     first = store.wait_for_sequence(0,timeout=2)
@@ -87,7 +93,8 @@ def replay(output, *, source_run=None, limit=None, interval=.03, profile='origin
     finally:
         worker.stop();stopped=worker.join(timeout=2)
     report={'mode':'saved_pixel_replay','timing':'Synthetic replay acquisitions; not original game frame timestamps',
-            'profile':profile,'source_run':source_run,'recognition_processed':worker.processed,
+            'profile':profile,'source_run':source_run,'mining_observations':mining_observations,
+            'recognition_processed':worker.processed,
             'recognition_end_reason':worker.end_reason,'recognition_error':worker.error,
             'consumer_delay_real_seconds':consumer_delay,'sequence_before_delay':before,'sequence_after_delay':after,
             'advanced_during_delay':after>before,'latest_snapshot':store.latest(),'consumer_observations':observations,
@@ -97,7 +104,7 @@ def replay(output, *, source_run=None, limit=None, interval=.03, profile='origin
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode',choices=['simulate','replay'])
+    parser.add_argument('mode',choices=['simulate','replay','simulate-mining'])
     parser.add_argument('--output',type=Path,default=ROOT/'logs/offline-bot/demo')
     parser.add_argument('--ignore-brake',action='store_true')
     parser.add_argument('--stall-after',type=int)
@@ -109,13 +116,28 @@ def main():
     parser.add_argument('--interval',type=float,default=.03)
     parser.add_argument('--profile',choices=['original','restart-20261001'],default='original')
     parser.add_argument('--consumer-delay',type=float,default=.3)
+    parser.add_argument('--no-planner', action='store_true')
+    parser.add_argument('--scan-missing', action='store_true')
+    parser.add_argument('--ineligible', action='store_true')
+    parser.add_argument('--mining-ignored', action='store_true')
+    parser.add_argument('--reward-missing', action='store_true')
+    parser.add_argument('--inventory-conflict', action='store_true')
+    parser.add_argument('--mining-observations', action='store_true')
     args=parser.parse_args()
-    if args.mode=='simulate':
+    if args.mode=='simulate-mining':
+        from .mining_harness import simulate_mining
+        report=simulate_mining(args.output, ignore_brake=args.ignore_brake,
+            stall_after=args.stall_after, fault_after=args.fault_after,
+            planner_delay=None if args.no_planner else args.planner_delay, speedup=args.speedup,
+            scan_missing=args.scan_missing, eligible=not args.ineligible,
+            mining_ignored=args.mining_ignored, reward_missing=args.reward_missing,
+            inventory_conflict=args.inventory_conflict)
+    elif args.mode=='simulate':
         report=simulation(args.output,ignore_brake=args.ignore_brake,stall_after=args.stall_after,
             fault_after=args.fault_after,planner_delay=args.planner_delay,speedup=args.speedup)
     else:
         report=replay(args.output,source_run=args.source_run,limit=args.limit,interval=args.interval,
-            profile=args.profile,consumer_delay=args.consumer_delay)
+            profile=args.profile,consumer_delay=args.consumer_delay,mining_observations=args.mining_observations)
     summary={key:plain(report[key]) for key in ['mode','recognition_processed','recognition_end_reason','shutdown']}
     if 'result' in report: summary['result']=plain(report['result'])
     if 'advanced_during_delay' in report: summary['advanced_during_delay']=report['advanced_during_delay']

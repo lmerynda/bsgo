@@ -48,6 +48,9 @@ class NativeFrame:
     rgb: bytes
     geometry: WindowGeometry
     source_id: str = "native-visible-client"
+    capture_started_at: float | None = None
+    capture_completed_at: float | None = None
+    frame_produced_at: float | None = None
 
     def __post_init__(self) -> None:
         if self.width < 1 or self.height < 1:
@@ -303,7 +306,9 @@ class NativeCapture:
                 width, height = geometry.client_size
                 self._sequence += 1
                 return NativeFrame(self._sequence, self._epoch, self.layout,
-                                   acquired_at, width, height, pixels, geometry)
+                                   acquired_at, width, height, pixels, geometry,
+                                   capture_started_at=acquired_at,
+                                   capture_completed_at=time.monotonic())
             except Exception as exc:
                 self._invalid_reason = str(exc)
                 self._epoch += 1

@@ -4,89 +4,11 @@ from dataclasses import dataclass
 from collections import deque
 import math, threading, time
 from .policy import ApproachPolicy, PolicyError
+from .routines import ApproachRoutine, RoutineContext
+from .tracking import SelectionTracker
+from .execution import InputExecutor, ActionIntent, DEFAULT_BINDINGS
 
-@dataclass(frozen=True)
-class Proposal:
-    session_epoch: int
-    layout: str
-    target_identity: str
-    source_sequence: int
-    source_acquired_at: float
-    expires_at: float
-    action: str = 'observe'
-    frame_size: tuple = (2560,1440)
-    target_portrait: tuple = ()
-
-    def __post_init__(self):
-        object.__setattr__(self,'frame_size',tuple(self.frame_size))
-        object.__setattr__(self,'target_portrait',tuple(self.target_portrait))
-
-def validate_proposal(proposal, snapshot, now):
-    """Revalidate relevant dependencies, rather than rejecting every newer sequence."""
-    if not snapshot.healthy:
-        return False, 'recognition_unhealthy'
-    numbers=(now,proposal.source_acquired_at,proposal.expires_at,snapshot.acquired_at,snapshot.published_at)
-    if any(type(v) not in (int,float) or not math.isfinite(v) for v in numbers):
-        return False, 'invalid_timestamps'
-    if not snapshot.acquired_at <= snapshot.published_at <= now or proposal.expires_at<proposal.source_acquired_at:
-        return False, 'invalid_timestamps'
-    field = snapshot.fields.get('target_identity')
-    portrait=snapshot.fields.get('target_portrait')
-    if (snapshot.session_epoch != proposal.session_epoch or snapshot.layout != proposal.layout
-            or tuple(snapshot.frame_size)!=proposal.frame_size
-            or field is None or not field.valid or field.value != proposal.target_identity
-            or portrait is None or not portrait.valid or len(proposal.target_portrait)!=144
-            or not isinstance(portrait.value,tuple) or len(portrait.value)!=144):
-        return False, 'dependencies_changed'
-    if any(type(v) is not int or not 0<=v<=7 for v in (*proposal.target_portrait,*portrait.value)):
-        return False, 'invalid_portrait'
-    if sum(abs(a-b) for a,b in zip(proposal.target_portrait,portrait.value))/144>.75:
-        return False, 'portrait_changed'
-    if now < proposal.source_acquired_at or now > proposal.expires_at:
-        return False, 'proposal_expired'
-    if any(type(f.observed_at) not in (int,float) or not math.isfinite(f.observed_at) or not 0<=now-f.observed_at<=2 or f.observed_at>snapshot.acquired_at
-           for f in [field,portrait]) or now-snapshot.acquired_at>2:
-        return False, 'current_state_stale'
-    if proposal.action != 'observe':
-        return False, 'unsupported_proposal'
-    return True, 'dependencies_still_valid'
-
-class DelayedPlanner:
-    """Cancellable fake planner; no network or model. Delay is real wall seconds."""
-    def __init__(self, delay=.4, ttl=12.0):
-        if not math.isfinite(delay) or not math.isfinite(ttl) or delay < 0 or ttl <= 0:
-            raise ValueError('planner delay/TTL invalid')
-        self.delay, self.ttl = delay, ttl
-        self._stop = threading.Event()
-        self._thread = None
-        self._proposal = None
-        self._done = threading.Event()
-        self.started_sequence = None
-
-    def start(self, snapshot):
-        if self._thread is not None:
-            raise RuntimeError('Only one planner request is permitted')
-        self.started_sequence = snapshot.sequence
-        proposal = Proposal(snapshot.session_epoch, snapshot.layout,
-            snapshot.fields['target_identity'].value, snapshot.sequence,
-            snapshot.acquired_at, snapshot.acquired_at+self.ttl,
-            frame_size=snapshot.frame_size,target_portrait=snapshot.fields['target_portrait'].value)
-        def produce():
-            if not self._stop.wait(self.delay):
-                self._proposal = proposal
-            self._done.set()
-        self._thread = threading.Thread(target=produce, name='offline-delayed-planner')
-        self._thread.start()
-
-    def poll(self):
-        return self._proposal if self._done.is_set() else None
-
-    def close(self, timeout=2.0):
-        self._stop.set()
-        if self._thread:
-            self._thread.join(timeout)
-            return not self._thread.is_alive()
-        return True
+from .planning import Proposal, DelayedPlanner, validate_proposal
 
 @dataclass(frozen=True)
 class CoordinatorResult:
@@ -124,6 +46,10 @@ class Coordinator:
         self.journal = journal
         self.seen = 0
         self.stop_requested = False
+        self.tracker = SelectionTracker()
+        # Acquisition in the original harness precedes approach ownership.
+        self.executor = None
+        self._routine = None
 
     def cancel(self):
         with self._submission_lock:
@@ -157,7 +83,16 @@ class Coordinator:
         with self._submission_lock:
             if self._cancel.is_set():
                 raise RuntimeError('Input canceled before submission')
-            self.backend.press_key(key,reason=reason,expected_session=self._input_session,expected_layout=self._input_layout)
+            operation = next(name for name, binding in DEFAULT_BINDINGS.items() if binding.key == key)
+            snapshot = self.store.latest()
+            now = self.clock()
+            intent = ActionIntent(f'{self.executor.generation}:approach:{operation}',
+                self.executor.generation, snapshot.context, self.tracker.track.track_id,
+                operation, now, now + 2, self.store.read().events.next_cursor,
+                {"minimum_distance": self.policy.brake_at + 250} if operation == 'maximum_throttle' else {})
+            status = self.executor.submit(intent)
+            if status.state != 'requested':
+                raise RuntimeError(status.reason)
 
     def _fault(self, reason):
         self.backend.cancel(reason=reason)
@@ -181,29 +116,44 @@ class Coordinator:
             while time.monotonic() < deadline:
                 if self._cancel.is_set():
                     return self._fault('cancelled')
-                snapshot = self.store.latest()
+                view = self.store.read(self._routine.context.event_cursor if self._routine else 0)
+                snapshot = view.snapshot
                 if snapshot is None:
                     self._cancel.wait(self.poll_interval)
                     continue
                 now = self.clock()
                 # Validate unchanged state too: age keeps increasing without publication.
                 self.policy.validate(snapshot, now)
+                track = self.tracker.update(snapshot, now)
+                if track is None or track.continuity != 'confirmed':
+                    raise PolicyError('Selected target continuity is uncertain')
+                if self._routine is None:
+                    self.executor = InputExecutor(self.store, self.backend, self.tracker, self.clock)
+                    self._routine = ApproachRoutine(self.policy)
+                    self._routine.start(RoutineContext(snapshot.context, track.track_id,
+                        self.executor.generation, self.store.read().events.next_cursor), now)
+                elif track.track_id != self._routine.context.track_id:
+                    raise PolicyError('Selected target continuity changed')
                 if snapshot.sequence != last_sequence:
                     self.seen += 1
                     last_sequence = snapshot.sequence
                 if self.planner and self.planner.started_sequence is None:
-                    self.planner.start(snapshot)
+                    self.planner.start(snapshot, track=track, generation=self.executor.generation)
                     self._record('planner_started', source_sequence=snapshot.sequence)
                 if self.planner and not planner_handled:
                     proposal = self.planner.poll()
                     if proposal is not None:
-                        accepted, reason = validate_proposal(proposal, snapshot, now)
+                        accepted, reason = validate_proposal(proposal, snapshot, now,
+                            track=track, generation=self.executor.generation)
                         self._record('planner_completed', accepted=accepted, reason=reason,
                             source_sequence=proposal.source_sequence, current_sequence=snapshot.sequence)
                         planner_handled = True
                 due = self.policy.last is None or snapshot.acquired_at-self.policy.last.acquired_at >= self.decision_interval
                 if due:
-                    action = self.policy.decide(snapshot, now)
+                    update = self._routine.update(view, self.executor.statuses(), now)
+                    if update.status == 'failed':
+                        raise PolicyError(update.progress.get('detail', update.reason))
+                    action = 'complete' if update.status == 'succeeded' else update.reason
                     self._record('decision', action=action, sequence=snapshot.sequence,
                                  distance=self.policy.last.distance, speed=self.policy.last.speed)
                     if action == 'accelerate':

@@ -68,6 +68,33 @@ class FakeNativeApi:
 
 
 class NativeInputTests(unittest.TestCase):
+    def test_already_dequeued_press_up_releases_injected_down_after_cancel(self):
+        backend, api, dispatcher = self.setup_dispatcher()
+        backend.press_key("PageUp")
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        up = backend.get_action(0)
+        backend.cancel(reason="cancel_after_up_dequeue")
+        api.status = replace(api.status, foreground=999)
+        self.assertEqual(dispatcher.dispatch(up).outcome, "injected")
+        self.assertFalse(dispatcher.injected_held_keys)
+        self.assertEqual(len(api.sent), 2)
+        self.assertTrue(api.sent[-1][0].ki.dwFlags & KEYEVENTF_KEYUP)
+
+    def test_delivery_contract_is_rechecked_after_geometry_and_reports_rejection(self):
+        backend, api, dispatcher = self.setup_dispatcher()
+        allowed = [True]
+        feedback = []
+        backend.set_delivery_contract(lambda record: allowed[0],
+                                      lambda record, outcome: feedback.append(outcome))
+        def invalidate():
+            allowed[0] = False
+        api.on_inspect = invalidate
+        backend.press_key("PageUp")
+        result = self.deliver(backend, dispatcher)
+        self.assertEqual(result.outcome, "skipped_dependency")
+        self.assertFalse(api.sent)
+        self.assertEqual(feedback, ["skipped_dependency"])
+
     def setup_dispatcher(self, **options):
         backend = RecordingInputBackend(session_id="native-test", layout_id="receiver",
                                         width=640, height=480)

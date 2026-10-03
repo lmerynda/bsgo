@@ -26,7 +26,8 @@ def save_report(directory, report):
         'Discarded before receipt' if a['sequence'] in discarded else received.get(a['sequence'],'Pending receipt'),a.get('reason','')])+'</tr>' for a in actions)
     effect_text = html.escape(json.dumps(effects,indent=2))
     result=payload.get('result',{})
-    status=('Synthetic approach completed with a fresh observed stop.' if result.get('completed') else
+    status=('Synthetic mining cycle completed with an observed reward.' if result.get('completed') and payload.get('mode')=='synthetic_mining' else
+            'Synthetic approach completed with a fresh observed stop.' if result.get('completed') else
             'Synthetic run ended: '+str(result.get('reason','recognition-only replay'))+'. Stop observed: '+str(result.get('stop_observed',False)))
     document = f'''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Offline bot input receiver</title><style>body{{font:16px system-ui;background:#111824;color:#e7edf7;max-width:1100px;margin:32px auto;padding:0 24px}}svg{{width:100%;background:#172334;border:1px solid #41526b}}svg text{{fill:#e7edf7;font-size:34px}}table{{width:100%;border-collapse:collapse}}td,th{{text-align:left;padding:10px;border-bottom:1px solid #41526b}}pre{{white-space:pre-wrap}}.status{{color:#96e6b2}}</style>

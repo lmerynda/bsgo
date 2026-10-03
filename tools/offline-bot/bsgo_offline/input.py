@@ -108,6 +108,40 @@ class RecordingInputBackend:
         self._total_records = 0
         self._canceled = False
         self._cancel_reason: str | None = None
+        self._delivery_guard = None
+        self._delivery_observer = None
+
+    def set_delivery_contract(self, guard, observer=None) -> None:
+        """One executor owns nonblocking validation and delivery feedback.
+
+        Callbacks run outside the queue lock. Receivers check immediately before
+        applying ordinary input. Releases after a delivered down remain allowed.
+        """
+        with self._condition:
+            if self._delivery_guard is not None:
+                raise RuntimeError("input executor already owns this backend")
+            self._delivery_guard, self._delivery_observer = guard, observer
+
+    def delivery_allowed(self, record) -> bool:
+        cleanup = dict(record.metadata).get("cleanup") is True
+        with self._condition:
+            guard, canceled = self._delivery_guard, self._canceled
+        if cleanup:
+            return True
+        if canceled:
+            return False
+        if guard is None:
+            return True
+        try:
+            return guard(record) is True
+        except Exception:
+            return False
+
+    def report_delivery(self, record, outcome) -> None:
+        with self._condition:
+            observer = self._delivery_observer
+        if observer:
+            observer(record, outcome)
 
     @staticmethod
     def _validate_identifier(value: str, name: str) -> None:
@@ -191,6 +225,11 @@ class RecordingInputBackend:
         """Fresh scalar snapshot; lifetime totals survive clearing recent history."""
         with self._condition:
             return self._history_stats_locked()
+
+    @property
+    def pending_requests(self) -> int:
+        with self._condition:
+            return len(self._queue)
 
     @property
     def width(self) -> int:

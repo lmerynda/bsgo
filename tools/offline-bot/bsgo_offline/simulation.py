@@ -79,7 +79,7 @@ class VirtualReceiver:
                 now = self.clock()
                 self._advance(now)
                 effect = 'no_state_change'
-                if self.backend.canceled and not dict(action.metadata).get('cleanup'):
+                if not self.backend.delivery_allowed(action):
                     effect = 'cancelled_before_effect'
                 elif action.kind == 'mouse_click':
                     if action.button == 'left' and 1160 <= action.x <= 1240 and 560 <= action.y <= 640:
@@ -96,12 +96,15 @@ class VirtualReceiver:
                     else:
                         self.throttle = 0
                         effect = 'idle_throttle_requested'
+                else:
+                    effect = self._extra_action(action, now)
                 event = {'action_sequence': action.sequence, 'observed_at': now,
                          'effect': effect, 'speed_at_effect': self.speed}
                 self.effects_total += 1
                 if len(self.effects) == self.effects.maxlen:
                     self.effects_evicted += 1
                 self.effects.append(event)
+            self.backend.report_delivery(action, 'rejected' if effect == 'cancelled_before_effect' else 'received')
             # The optional sink promises nonblocking submit. Keep it outside the
             # receiver state lock so capture never waits on telemetry submission.
             if self.journal is not None:
@@ -116,6 +119,9 @@ class VirtualReceiver:
     def start(self):
         self._thread = threading.Thread(target=self._receive, name='offline-input-receiver')
         self._thread.start()
+
+    def _extra_action(self, action, now):
+        return 'no_state_change'
 
     def stop(self, timeout=2.0):
         self._stop.set()

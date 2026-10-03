@@ -2,6 +2,8 @@
 
 This project collects skills and observations for learning to play BSGO automatically.
 
+- [Mining runtime improvement plan](docs/architecture/mining-runtime-improvement-plan.md): ordered implementation tasks, concrete contracts, offline acceptance checks, and deferred BSGO validation.
+- [Mining runtime offline results](docs/architecture/mining-runtime-offline-results.md): complete simulated cycle, 216 passing tests, 11 accepted threaded scenarios, and the remaining game-image perception work.
 - [Standalone mining application architecture review](docs/architecture/standalone-mining-app.md): proposed thread-based runtime, published state, control ownership, and assumptions found in the current prototypes.
 - [Building block experiment plan](docs/architecture/building-block-experiments.md): capture, input, OCR, small local models, Ollama planning, and shared RTX 4070 performance.
 - [Decision windows and local model research](docs/architecture/decision-windows-and-local-models.md): measured request overhead, task deadlines, and Hugging Face candidates for recognition and planning.

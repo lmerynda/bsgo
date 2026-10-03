@@ -373,11 +373,12 @@ class NativeInputDispatcher:
         """Synchronous test/integration entry; caller must already dequeue record."""
         with self._lock:
             try:
-                return self._dispatch_in_context(record)
+                result = self._dispatch_in_context(record)
             except Exception as exc:
                 result = self._delivery(record, "failed", 0, 0, reason=str(exc))
                 self._fail(str(exc))
-                return result
+            self.backend.report_delivery(record, result.outcome)
+            return result
 
     def _dispatch_in_context(self, record: ActionRecord) -> DeliveryRecord:
         with self._lock, self._api.dpi_context():
@@ -398,11 +399,16 @@ class NativeInputDispatcher:
                 if cleanup and not (record.kind == "key_up"
                                     or (record.kind == "key_down" and record.key == "PageDown")):
                     raise NativeDispatchError("unsupported cleanup action")
-                if (self.backend.canceled or self._error or self._stop_event.is_set()) and not cleanup:
+                # A press-up can already be dequeued when cancellation empties
+                # the queue. Only the dispatcher knows a down was inserted;
+                # preserve its matching release even if the queue no longer
+                # contains the evidence used by reserved cleanup generation.
+                injected_release = record.kind == "key_up" and record.key in self._keys
+                if (self.backend.canceled or self._error or self._stop_event.is_set()) and not cleanup and not injected_release:
                     return self._delivery(record, "skipped_canceled", 0, 0)
                 if record.kind == "key_up" and record.key not in self._keys:
                     return self._delivery(record, "skipped_not_injected", 0, 0)
-                release_only = cleanup and record.kind == "key_up" and record.key in self._keys
+                release_only = (cleanup or self.backend.canceled) and injected_release
                 if not release_only:
                     if self._error or self._stop_event.is_set():
                         return self._delivery(record, "skipped_shutdown", 0, 0)
@@ -445,8 +451,10 @@ class NativeInputDispatcher:
                 # Recheck geometry/focus after encoding, then cancellation.
                 if not release_only:
                     self._guard(point if record.kind in ("mouse_move", "mouse_click") else None)
-                if self.backend.canceled and not cleanup:
+                if self.backend.canceled and not cleanup and not injected_release:
                     return self._delivery(record, "skipped_canceled", len(events), 0)
+                if not self.backend.delivery_allowed(record) and not injected_release:
+                    return self._delivery(record, "skipped_dependency", len(events), 0)
                 try:
                     inserted = self._api.send(events)
                 except Exception:
