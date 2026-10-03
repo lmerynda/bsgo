@@ -248,6 +248,31 @@ does not yet classify scan-result pixels or resources. Inspect the retained
 frames independently before adding a semantic scan recognizer. This probe
 never sets `mining_ready`.
 
+The supervised approach experiment uses the same independent capture and input
+workers, plus the existing pure `ApproachPolicy`:
+
+```powershell
+& $offlinePython -m bsgo_offline.approach_probe --hwnd <current-game-window-handle> --pid <current-game-pid> --profile largehud-20261003 --clear-corridor-assessed --aligned-heading-assessed --safe-stopped-scene-assessed --output logs/mining/<new-approach-run>
+```
+
+The supervisor must inspect the fresh scene and confirm full hull, no combat,
+an unobstructed corridor, a heading aligned toward one already selected
+asteroid, and a stopped ship. These assertions are recorded separately from
+image evidence because hull, combat and heading are not yet validated fields.
+The native client must be exactly 2560×1440. The probe requires two fresh,
+consistent stopped target readings before one PageUp press. It validates target
+identity, portrait, maximum HP, context, distance and speed on every new image.
+At 900 m it requests a reserved PageDown brake. An independent watchdog also
+requests PageDown on stale or invalid images and after at most 12 seconds of
+thrust; `--max-thrust-seconds` can lower that bound. It reports success only
+after image-observed closure and speed, injected controls and two fresh zero
+speed images after the brake delivery. A short run that stops before 900 m is
+retained as a blocked, bounded segment. The gun ranges are recorded as 760 m
+optimal and 800 m maximum, but this experiment does not fire, scan or mine.
+`approach-probe.json` and the diagnostic package retain every frame, rejected
+image sidecars, requests, deliveries, observations, shutdown and blockers.
+`mining_ready` remains false even after a successful approach stop.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw
