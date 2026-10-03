@@ -21,12 +21,25 @@ class Box4KSpeedTests(unittest.TestCase):
         return Image.open(FIXTURES / f'box4k-speed-{label}.png').convert('RGB')
 
     def test_only_explicit_box_raster_accepts_complete_moving_digits(self):
-        for label, value in (('1p6', 1.6), ('1p4', 1.4)):
+        # 1p3 is visually labeled from Exrun calibration observation 5;
+        # development evidence, never a held-out accuracy sample.
+        for label, value in (('1p6', 1.6), ('1p4', 1.4), ('1p3', 1.3)):
             with self.subTest(speed=label):
                 image = self.crop(label)
                 self.assertEqual(image.size, (80, 26))
                 self.assertEqual(self.reader.speed(image)[0], value)
                 self.assertIsNone(self.native.speed(image)[0])
+
+    def test_exrun_one_keeps_complete_strokes_and_dark_gap_required(self):
+        for name, rectangle, color in (
+                ('upper endpoint', (30, 5, 32, 5), (0, 0, 0)),
+                ('lower endpoint', (30, 20, 32, 20), (0, 0, 0)),
+                ('gap filled', (30, 12, 32, 12), (255, 255, 255)),
+                ('lower interior erased', (30, 15, 32, 18), (0, 0, 0))):
+            with self.subTest(fault=name):
+                image = self.crop('1p3')
+                ImageDraw.Draw(image).rectangle(rectangle, fill=color)
+                self.assertIsNone(self.reader.speed(image)[0])
 
     def test_box_narrow_one_clipping_gap_and_interior_erasure_reject(self):
         for name, rectangle, color in (

@@ -231,10 +231,11 @@ class HudReader:
                 widths=(2,3) if self.profile=='original' else (3,)
                 # Explicit 4K BOX conversion can lose one raster row at each
                 # end of a narrow 1. Keep the native restart extent strict;
-                # accept only the complete, anchored 16-row BOX variant.
+                # accept only complete, anchored 16-row BOX variants. The
+                # Exrun 1.3 crop has a lower-bar tip at row 13, like native 1.
                 variants = (((16,5,21,14),(17,5,22,14)) if self.profile=='original' else
                     ((18,4,22,13),(18,4,22,14)) +
-                    (((16,5,21,14),) if self.speed_raster=='box_3840_to_2560' else ()))
+                    (((16,5,21,14),(16,5,21,13)) if self.speed_raster=='box_3840_to_2560' else ()))
                 complete=any(component.shape[0]==height and
                     not narrow[:first_row].any() and not narrow[last_row:].any() and
                     narrow[first_row:12].any(axis=1).all() and
