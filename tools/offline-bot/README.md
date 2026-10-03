@@ -216,6 +216,31 @@ as unverified. A supervisor must inspect the latest scene before launching it.
 The later corrected run took place during combat and is excluded from clean
 acceptance, despite passing its narrow speed-feedback checks.
 
+The next narrow experiment records a stationary asteroid scan:
+
+```powershell
+& $offlinePython -m bsgo_offline.scan_probe --hwnd <current-game-window-handle> --pid <current-game-pid> --profile restart-20261001 --safe-scene-assessed --output logs/mining/<new-scan-run>
+```
+
+Inspect the current scene, hull and combat indicators, confirm a stopped ship
+with a selected asteroid, and keep other controllers idle before invoking it.
+Use a new empty output directory and the current HWND/PID; for a 3840×2160
+client, add `--source-size 3840x2160`. The probe requires two fresh, healthy
+image readings of zero speed, selection, distance, target identity and target
+maximum HP. It sends exactly one Z down/up pair using virtual-key encoding and
+a 50 ms hold, then captures approximately eight seconds of images. Context,
+target identity, maximum HP and stationary distance remain guarded. It does
+not issue thrust, braking, mining or clicks. Native focus, PID and client
+geometry are checked again when the input is delivered.
+
+`scan-probe.json` links the before/after observation identities, request and
+delivery records, shutdown and blockers. The diagnostic package keeps every
+frame, and every rejected image reading has a JSON sidecar. A complete run
+reports `scan_effect_unverified` even if Windows accepted Z: the application
+does not yet classify scan-result pixels or resources. Inspect the retained
+frames independently before adding a semantic scan recognizer. This probe
+never sets `mining_ready`.
+
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
 space while retaining the native frame size in snapshot context and the raw
