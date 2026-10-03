@@ -155,6 +155,30 @@ class DiagnosticTests(unittest.TestCase):
                 self.assertEqual(frame["context"]["window_id"], "2:1")
             self.assertEqual(json.loads((run_directory / "status.json").read_text())["lifecycle"], "finalized")
 
+    def test_large_result_is_full_in_report_but_terminal_trace_is_bounded(self):
+        with scratch_directory() as directory:
+            run_directory = directory / "run"
+            run = DiagnosticRun(run_directory, mode="fixture", configuration={})
+            motion = [{"sequence": n, "distance": 5000-n,
+                       "target_portrait": list(range(144))} for n in range(205)]
+            result = {"state": "blocked", "reason": "cancel_requested",
+                      "cancel_requested": True, "motion": motion}
+            report = run.close(shutdown={"recognition": True}, result=result)
+            self.assertTrue(report["complete_diagnostics"], report)
+            self.assertEqual(report["result"]["motion"], motion)
+            stored = json.loads((run_directory / "report.json").read_text())
+            self.assertEqual(len(stored["result"]["motion"]), 205)
+            events = list(iter_trace_events(run_directory / "trace", report["run_id"]))
+            terminal = [e["payload"] for e in events
+                        if e["payload"]["event"] == "run_shutdown"]
+            self.assertEqual(len(terminal), 1)
+            self.assertEqual(terminal[0]["full_result"],
+                             {"file": "report.json", "json_pointer": "/result"})
+            self.assertEqual(terminal[0]["result_summary"]["reason"], "cancel_requested")
+            self.assertNotIn("motion", terminal[0])
+            self.assertLess(len(json.dumps(terminal[0]).encode()), 4096)
+            self.assertEqual(report["trace"]["dropped"], 0)
+
     def test_startup_failure_preserves_manifest_report_and_zero_requests(self):
         with scratch_directory() as directory:
             def fail():

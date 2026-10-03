@@ -36,6 +36,21 @@ def _write_json(path, payload):
     temporary.replace(path)
 
 
+def _terminal_result_summary(result):
+    """Keep the terminal journal event bounded; report.json holds full result."""
+    if not isinstance(result, dict):
+        return {"available": result is not None}
+    names = ("state", "reason", "mining_ready", "final_stop_observed",
+             "cancel_requested", "brake_reason", "scan_effect_verified",
+             "selection_effect_verified", "firing_effect_verified")
+    summary = {}
+    for name in names:
+        value = result.get(name)
+        if type(value) in (str, int, float, bool) or value is None:
+            summary[name] = value[:512] if isinstance(value, str) else value
+    return summary
+
+
 def source_manifest():
     package = Path(__file__).resolve().parent
     sources = {"bsgo_offline/" + path.name: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -271,7 +286,11 @@ class DiagnosticRun:
         self._writer.join(timeout)
         shutdown = {**shutdown, "status_sampler": sampler_stopped,
                     "frame_writer": not self._writer.is_alive()}
-        self.submit({"event": "run_shutdown", "shutdown": shutdown, "result": result, "error": error})
+        self.submit({"event": "run_shutdown", "run_id": self.journal.run_id,
+                     "shutdown": shutdown, "result_summary": _terminal_result_summary(result),
+                     "full_result": {"file": self.report_filename,
+                                     "json_pointer": "/result"},
+                     "error": str(error)[:512] if error is not None else None})
         shutdown["trace_writer"] = self.journal.close(timeout)
         status = self.read_status()
         telemetry_complete = (all(shutdown.values()) and status["trace"]["write_complete"]
