@@ -169,7 +169,8 @@ class MotionBrakeProbe:
         if (request.sequence != delivery.request_sequence or delivery.at < request.at
                 or request.at < self.started_at or delivery.at > self.expires_at
                 or self._deliveries and (request.sequence <= self._deliveries[-1].request.sequence
-                    or request.at < self._deliveries[-1].result.at)):
+                    or request.at < self._deliveries[-1].request.at
+                    or delivery.at < self._deliveries[-1].result.at)):
             self._block("input_delivery_order_or_identity_invalid")
             return
         expected_outcome = "injected" if self.scope == "native" else "received"
@@ -196,7 +197,10 @@ class MotionBrakeProbe:
         if len(self._deliveries) < 2:
             return ProbeAssessment("pending", "waiting_for_acceleration_delivery")
         accelerate = self._deliveries[:2]
-        baseline = [s for s in self._snapshots if s.published_at < accelerate[0].request.at]
+        # A consumed publication can share the same coarse monotonic tick as
+        # the ensuing request on Windows. The runner's program order supplies
+        # the causal boundary in that case.
+        baseline = [s for s in self._snapshots if s.published_at <= accelerate[0].request.at]
         baseline = baseline[-2:]
         if (len(baseline) != 2 or any(s.fields["speed"].value != 0 for s in baseline)
                 or accelerate[0].request.at - baseline[-1].acquired_at > self.max_observation_age):
@@ -214,7 +218,7 @@ class MotionBrakeProbe:
         if len(self._deliveries) < 4:
             return ProbeAssessment("pending", "waiting_for_brake_delivery")
         brake = self._deliveries[2:4]
-        if brake[0].request.at <= movement.published_at:
+        if brake[0].request.at < movement.published_at:
             return ProbeAssessment("blocked", "brake_before_motion_observation_published")
         after_brake = [s for s in self._snapshots if s.acquired_at > brake[-1].result.at]
         saw_zero = False

@@ -135,6 +135,17 @@ class CalibrationEvidenceTests(unittest.TestCase):
         item = probe()
         self.assertEqual(item.evaluate(10.).reason, "probe_expired")
 
+    def test_atomic_press_pair_may_share_request_timestamp(self):
+        item = probe()
+        item.observe(image(1, 1., 0.))
+        item.observe(replace(image(2, 1.2, 0.), published_at=1.3))
+        down, first = delivery(1, 1.3, "key_down", "PageUp")
+        up, second = delivery(2, 1.3, "key_up", "PageUp")
+        item.record_delivery("accelerate", "accelerate-1", down, first)
+        item.record_delivery("accelerate", "accelerate-1", up,
+                             replace(second, at=first.at + .01))
+        self.assertEqual(item.evaluate(1.4).reason, "waiting_for_image_observed_motion")
+
     def test_late_motion_and_ignored_brake_do_not_certify(self):
         item = probe()
         item.observe(image(1, 1., 0.))
