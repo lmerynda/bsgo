@@ -471,3 +471,75 @@ false. Post-run supervision at game clock 21:48:46 confirmed full hull/energy,
 zero speed and outpost 370 m. No thrust, mining or reward occurred in this
 scan probe. The next basic experiment is reliable target selection followed by
 a first scan with independently visible before/after resource evidence.
+
+### Restarted application loop: selection, first scans and approach, October 3
+
+The live client restarted in Exrun with the enlarged 2560×1440 HUD. These runs
+used the new application's native capture, recognition, input dispatcher and
+diagnostic packages. Computer Use supervised the scene and supplied candidate
+coordinates and heading assessments; it did not supply motion inputs while an
+application approach owned the controls. This remains supervised development,
+with full mining readiness false.
+
+Stationary selection initially missed small rocks or selected a planetoid. The
+application correctly withheld asteroid-selection proof. A configurable 50 ms
+pointer-settling interval followed by a 50 ms mouse hold was added, with fresh
+focus, geometry and cancellation checks before button-down. The misses alone
+do not establish that input duration caused them. Selection run
+`5832231388914adba4143ecbc7a9f21d` (`exrun-loop-restart-selection-6`) then proved
+a changed asteroid selection on two fresh images after its delivered click:
+maximum HP changed from 3,781 to 3,220, at 3,147 m. The selection probe records
+input delivery separately from the observed target change.
+
+Three first-scan experiments delivered Z while stopped. Independent before/after
+visual supervision saw gray portraits become purple Titanium for HP 3,781 at
+2,625 m and HP 3,220 at 3,147 m, then blue Water for HP 4,166 at 3,098 m. These
+were `exrun-loop-restart-scan-3`, `-4` and `-5` respectively; each retained 21
+frames with valid HUD readings and complete diagnostics. Titanium was skipped.
+The application still reports `scan_effect_unverified`: it does not yet classify
+the resource result itself. The Water scan's run ID is
+`fb688198d76f40fc8553361fa0d3c405`.
+
+Failures exposed two complete HP glyph layouts: a narrow final one recentered
+the label's slash by five pixels, and the HP digit six had twelve rows. Measured
+HUD-only crops were added with rejection regressions for clipping. An approach
+also exposed a speed crop that cut off the decimal digit in 10.7; widening the
+native crop fixed complete two-digit speed readings. Every failed recognition
+image remains in its local run package. Full frames, private chat and generated
+logs are excluded from commits.
+
+`exrun-loop-restart-approach-1` observed acceleration and closing range but
+braked immediately on the rejected 10.7 speed image. It verified two final zero
+speeds. Approach 2 reached its 12-second thrust cap and commanded idle, but its
+original 12-second coast-down observation window expired before a fresh stop.
+Independent supervision subsequently confirmed zero speed. The default stop
+observation budget was increased to 35 seconds, retaining a 45-second upper
+bound. A delivered idle command is not treated as a stopped ship.
+
+Approach 3 (`7a5cfa9db64c406aa184bf0a1dedce03`) moved toward the Water target from
+3,098 to 2,747 m and verified zero speed on sequences 63 and 64. Approach 4
+(`d8ac394a45fa4d51ac8afbe8879a7bc9`) used a 30-second thrust cap and stopped at
+1,759 m, with final zero readings on sequences 111 and 112. Neither reached
+the 900 m brake threshold, so both correctly report
+`thrust_limit_before_brake_threshold`, rather than full approach proof. Both
+retained all frames, had no recognition failures and joined all components.
+Measured cruise speed was 33.0. An explicit thrust cap of up to 45 seconds is
+now permitted for the next threshold trial; the short 12-second default remains.
+The frame budget covers the longer bounded trial and its coast-down period.
+
+The integrated offline suite passed 317 tests after the selection and glyph
+corrections; eight focused approach tests passed after extending the explicit
+thrust bound. These checks complement the live observations, without proving
+general OCR accuracy, radar avoidance, resource classification or harvesting.
+
+Approach 5 (`eefceca4f70c46f583d8afe885ff3f7c`) then proved the actual threshold
+approach and stop. It began at 1,759 m and 0.0 speed, observed cruise speed 33.0,
+and requested PageDown at its first threshold sample of 892 m (previous samples
+918 and 905 m). Both key holds measured 62 ms. The application verified fresh
+zero speeds on sequences 119 and 120, with final distance 654 m. All 120 frames
+were retained, none had rejected recognition, diagnostics were complete and all
+components joined with input idle. Independent supervision at game clock
+22:57:31 confirmed 654 m, speed 0.0, hull 5005/5005 and energy 800/800. This run
+supports the 900 m brake setting for this observed clear aligned approach, and
+leaves the scanned Water candidate within the user's 760 m optimal gun range.
+It does not establish a universal stopping distance or mining readiness.
