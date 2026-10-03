@@ -1,5 +1,5 @@
 """Semantic action ownership and validation at submission AND delivery."""
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from dataclasses import dataclass
 import math
 from threading import RLock
@@ -7,6 +7,7 @@ from typing import Mapping
 
 from .events import current_field
 from .state import ObservationContext, freeze
+from .artifacts import plain
 
 
 @dataclass(frozen=True)
@@ -56,13 +57,19 @@ SYNTHETIC_BINDINGS = {**DEFAULT_BINDINGS, "scan": Binding("S", synthetic_only=Tr
 
 
 class InputExecutor:
-    def __init__(self, store, backend, tracker, clock, *, bindings=None, capacity=256, permission=None):
+    def __init__(self, store, backend, tracker, clock, *, bindings=None, capacity=256, permission=None,
+                 journal=None, history_capacity=1024):
         if type(capacity) is not int or capacity < 1:
             raise ValueError("executor_capacity")
+        if type(history_capacity) is not int or history_capacity < 1:
+            raise ValueError("history_capacity")
         self.store, self.backend, self.tracker, self.clock = store, backend, tracker, clock
         self.bindings = dict(DEFAULT_BINDINGS if bindings is None else bindings)
         self.capacity, self.generation = capacity, 1
         self.permission = permission
+        self.journal = journal
+        self._history = deque(maxlen=history_capacity)
+        self._history_total = self.journal_dropped = 0
         self._session, self._layout = backend.session_id, backend.layout_id
         self._lock = RLock()
         self._intents = OrderedDict()
@@ -75,9 +82,41 @@ class InputExecutor:
         with self._lock:
             return tuple(self._statuses.values())
 
+    def history(self):
+        with self._lock:
+            return tuple(self._history)
+
+    def telemetry_stats(self):
+        with self._lock:
+            return {"history_total": self._history_total, "history_retained": len(self._history),
+                    "history_evicted": self._history_total - len(self._history),
+                    "journal_dropped": self.journal_dropped}
+
+    def _record(self, kind, **data):
+        snapshot = self.store.latest()
+        record = freeze(plain({"kind": kind, "at": self.clock(), **data,
+            "observation_sequence": snapshot.sequence if snapshot else None,
+            "acquisition_sequence": snapshot.acquisition_sequence if snapshot else None,
+            "context": snapshot.context if snapshot else None}))
+        self._history.append(record)
+        self._history_total += 1
+        if self.journal:
+            try:
+                accepted = self.journal.submit({"event": "action_lifecycle", "record": plain(record)})
+            except Exception:
+                accepted = False
+            if not accepted:
+                self.journal_dropped += 1
+
+    def _rejection(self, intent, reason):
+        result = ActionStatus(intent.action_id, "rejected", self.clock(), reason)
+        self._record("submission_rejected", intent=intent, status=result)
+        return result
+
     def _status(self, intent, state, reason, sequences=()):
         result = ActionStatus(intent.action_id, state, self.clock(), reason, tuple(sequences))
         self._statuses[intent.action_id] = result
+        self._record("status", status=result)
         return result
 
     def _validate(self, intent):
@@ -154,15 +193,16 @@ class InputExecutor:
         with self._lock:
             if intent.action_id in self._statuses:
                 if self._intents[intent.action_id] != intent:
-                    return ActionStatus(intent.action_id, "rejected", self.clock(), "action_id_collision")
+                    return self._rejection(intent, "action_id_collision")
                 return self._statuses[intent.action_id]
             if not intent.action_id.startswith(str(intent.generation) + ":"):
-                return ActionStatus(intent.action_id, "rejected", self.clock(), "action_generation_prefix")
+                return self._rejection(intent, "action_generation_prefix")
             # One mission has a small bounded number of actions. Fail closed
             # before a lifecycle can lose the evidence needed to deduplicate.
             if len(self._intents) >= self.capacity:
-                return ActionStatus(intent.action_id, "rejected", self.clock(), "action_capacity")
+                return self._rejection(intent, "action_capacity")
             self._intents[intent.action_id] = intent
+            self._record("intent", intent=intent)
             rejected = self._validate(intent)
             if rejected:
                 return self._status(intent, *rejected)
@@ -207,6 +247,8 @@ class InputExecutor:
             intent = self._intents.get(action_id)
             if intent is None:
                 return
+            self._record("delivery", action_id=action_id, request_sequence=record.sequence,
+                         input_kind=record.kind, outcome=outcome)
             if outcome in ("injected", "received"):
                 self._delivered_records.add(record.sequence)
                 if record.kind == "key_down":

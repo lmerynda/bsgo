@@ -81,7 +81,7 @@ class MiningCoordinator:
         self.planner, self.journal = planner, journal
         self.tracker = SelectionTracker()
         self.executor = InputExecutor(store, backend, self.tracker, clock, bindings=bindings,
-                                      permission=self._permission)
+                                      permission=self._permission, journal=journal)
         self._lock, self._wake = RLock(), Event()
         self.transitions = deque(maxlen=history_capacity)
         self.transitions_total = self.journal_dropped = 0
@@ -115,7 +115,11 @@ class MiningCoordinator:
         return None
 
     def _record(self, kind, **data):
-        event = freeze({"at": self.clock(), "kind": kind, **data})
+        snapshot = self._last_view.snapshot if self._last_view else self.store.latest()
+        event = freeze(plain({"at": self.clock(), "kind": kind, **data,
+            "observation_sequence": snapshot.sequence if snapshot else None,
+            "acquisition_sequence": snapshot.acquisition_sequence if snapshot else None,
+            "context": snapshot.context if snapshot else None}))
         self.transitions.append(event)
         self.transitions_total += 1
         if self.journal:

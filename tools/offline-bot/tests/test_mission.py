@@ -121,7 +121,8 @@ class MissionTests(unittest.TestCase):
         h = MissionFixture(journal=journal)
         self.assertTrue(h.complete().completed)
         self.assertEqual(h.coordinator.journal_dropped, 0)
-        self.assertEqual(len(journal.rows), h.coordinator.transitions_total)
+        transitions = [row for row in journal.rows if row["event"] == "mining_transition"]
+        self.assertEqual(len(transitions), h.coordinator.transitions_total)
         self.assertEqual(journal.rows[-1]["record"]["reason"], "reward_observed")
 
     def test_dispatch_failure_is_not_observed_completion(self):
