@@ -72,6 +72,82 @@ class FakeNativeApi:
 
 
 class NativeInputTests(unittest.TestCase):
+    def test_pointer_settles_before_button_down(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_settle_seconds=.05,
+                                                        minimum_mouse_hold_seconds=.05)
+        backend.click_mouse(120, 100)
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, 'injected')
+        self.assertEqual([len(batch) for batch in api.sent], [1, 1, 1])
+        self.assertGreaterEqual(api.sent_at[1]-api.sent_at[0], .045)
+        self.assertGreaterEqual(api.sent_at[2]-api.sent_at[1], .045)
+        self.assertFalse(dispatcher.injected_held_buttons)
+
+    def test_focus_loss_during_pointer_settle_never_sends_down(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_settle_seconds=.01)
+        original_send = api.send
+        def lose_focus(events):
+            result = original_send(events)
+            api.status = replace(api.status, foreground=999)
+            return result
+        api.send = lose_focus
+        backend.click_mouse(120, 100)
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, 'failed')
+        self.assertEqual([len(batch) for batch in api.sent], [1])
+        self.assertFalse(dispatcher.injected_held_buttons)
+
+    def test_canceled_pointer_settle_never_sends_down(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_settle_seconds=.01)
+        original_send = api.send
+        def cancel(events):
+            result = original_send(events)
+            backend.cancel(reason='test')
+            return result
+        api.send = cancel
+        backend.click_mouse(120, 100)
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, 'partial')
+        self.assertEqual(len(api.sent), 1)
+        self.assertFalse(dispatcher.injected_held_buttons)
+
+    def test_mouse_hold_splits_down_and_up_across_render_frames(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_hold_seconds=.05)
+        backend.click_mouse(120, 100)
+        result = self.deliver(backend, dispatcher)
+        self.assertEqual(result.outcome, 'injected')
+        self.assertEqual([len(batch) for batch in api.sent], [2, 1])
+        self.assertGreaterEqual(api.sent_at[1]-api.sent_at[0], .045)
+        self.assertFalse(dispatcher.injected_held_buttons)
+
+    def test_failed_mouse_up_retains_release_for_emergency_cleanup(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_hold_seconds=.01)
+        api.send_counts = [2, 0, 1]
+        backend.click_mouse(120, 100)
+        result = self.deliver(backend, dispatcher)
+        self.assertEqual(result.outcome, 'partial')
+        self.assertFalse(dispatcher.injected_held_buttons)
+        self.assertEqual(len(api.sent), 3)
+        self.assertEqual(api.sent[-1][0].mi.dwFlags, 4)
+
+    def test_cancellation_interrupts_mouse_dwell_and_releases_down(self):
+        backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_hold_seconds=.5)
+        backend.click_mouse(120, 100)
+        def cancel_after_down():
+            while not api.sent:
+                time.sleep(.001)
+            backend.cancel(reason='test_cancel')
+        thread = Thread(target=cancel_after_down)
+        thread.start()
+        self.deliver(backend, dispatcher)
+        thread.join(1)
+        self.assertFalse(dispatcher.injected_held_buttons)
+        self.assertLess(api.sent_at[1]-api.sent_at[0], .2)
+
+    def test_mouse_hold_duration_is_bounded(self):
+        for value in (-1, .6, True, float('nan')):
+            with self.assertRaises(ValueError):
+                self.setup_dispatcher(minimum_mouse_hold_seconds=value)
+            with self.assertRaises(ValueError):
+                self.setup_dispatcher(minimum_mouse_settle_seconds=value)
+
     def test_already_dequeued_press_up_releases_injected_down_after_cancel(self):
         backend, api, dispatcher = self.setup_dispatcher()
         backend.press_key("PageUp")

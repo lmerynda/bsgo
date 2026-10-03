@@ -254,13 +254,22 @@ class NativeInputDispatcher:
     def __init__(self, backend: RecordingInputBackend, hwnd: int, pid: int, *,
                  expected_size: tuple[int, int], expected_origin: tuple[int, int],
                  history_capacity: int | None = None, journal=None, _api=None,
-                 minimum_key_hold_seconds: float = 0., keyboard_mode: str = "scan_code"):
+                 minimum_key_hold_seconds: float = 0., keyboard_mode: str = "scan_code",
+                 minimum_mouse_hold_seconds: float = 0., minimum_mouse_settle_seconds: float = 0.):
         if keyboard_mode not in ("scan_code", "virtual_key"):
             raise ValueError("keyboard_mode must be scan_code or virtual_key")
         if (type(minimum_key_hold_seconds) not in (int, float)
                 or not math.isfinite(minimum_key_hold_seconds)
                 or not 0 <= minimum_key_hold_seconds <= .5):
             raise ValueError("minimum_key_hold_seconds must be between zero and .5")
+        if (type(minimum_mouse_hold_seconds) not in (int, float)
+                or not math.isfinite(minimum_mouse_hold_seconds)
+                or not 0 <= minimum_mouse_hold_seconds <= .5):
+            raise ValueError("minimum_mouse_hold_seconds must be between zero and .5")
+        if (type(minimum_mouse_settle_seconds) not in (int, float)
+                or not math.isfinite(minimum_mouse_settle_seconds)
+                or not 0 <= minimum_mouse_settle_seconds <= .5):
+            raise ValueError("minimum_mouse_settle_seconds must be between zero and .5")
         if type(hwnd) is not int or hwnd <= 0 or type(pid) is not int or pid <= 0:
             raise ValueError("hwnd and pid must be positive integers")
         if (len(expected_size) != 2 or any(type(v) is not int or v <= 0 for v in expected_size)
@@ -289,6 +298,8 @@ class NativeInputDispatcher:
         self._keys: dict[str, _KeyEncoding] = {}
         self._key_down_at: dict[str, float] = {}
         self.minimum_key_hold_seconds = minimum_key_hold_seconds
+        self.minimum_mouse_hold_seconds = minimum_mouse_hold_seconds
+        self.minimum_mouse_settle_seconds = minimum_mouse_settle_seconds
         self.keyboard_mode = keyboard_mode
         self._buttons: set[str] = set()
 
@@ -402,6 +413,63 @@ class NativeInputDispatcher:
             self.backend.report_delivery(record, result.outcome)
             return result
 
+    def _send_mouse_with_hold(self, events, button, record):
+        """Keep an inserted down across render frames; always release our hold.
+
+        A partial/exceptional up is handled by the existing emergency release
+        path. Never delay that path or inject a second down after interruption.
+        """
+        moved = 0
+        if self.minimum_mouse_settle_seconds:
+            moved = self._api.send(events[:1])
+            if type(moved) is not int or not 0 <= moved <= 1:
+                raise NativeDispatchError("invalid mouse-move insertion count")
+            if moved != 1:
+                return moved
+            deadline = time.monotonic() + self.minimum_mouse_settle_seconds
+            while (remaining := deadline - time.monotonic()) > 0:
+                if self.backend.canceled or self._stop_event.wait(min(remaining, .01)):
+                    return moved
+            self._guard((self.expected_origin[0]+record.x, self.expected_origin[1]+record.y))
+            if self.backend.canceled or self._stop_event.is_set() or not self.backend.delivery_allowed(record):
+                return moved
+        # A failed native down call has uncertain insertion: own its release.
+        self._buttons.add(button)
+        inserted = self._api.send(events[1:2] if moved else events[:2])
+        expected_down = 1 if moved else 2
+        if type(inserted) is not int or not 0 <= inserted <= expected_down:
+            self._buttons.add(button)
+            raise NativeDispatchError("invalid mouse-down insertion count")
+        if inserted != expected_down:
+            self._buttons.discard(button)
+            return moved + inserted
+        self._buttons.add(button)
+        down_at = time.monotonic()
+        deadline = down_at + self.minimum_mouse_hold_seconds
+        while (remaining := deadline - time.monotonic()) > 0:
+            if self.backend.canceled or self._stop_event.wait(min(remaining, .01)):
+                break
+        # Release only the button we inserted, even if focus changed meanwhile.
+        released = self._api.send(events[2:])
+        up_at = time.monotonic()
+        if type(released) is not int or not 0 <= released <= 1:
+            raise NativeDispatchError("invalid mouse-up insertion count")
+        if released:
+            self._buttons.discard(button)
+        if self._journal is not None:
+            try:
+                if not self._journal.submit({"event": "native_mouse_hold",
+                        "request_sequence": record.sequence, "button": button,
+                        "down_at": down_at, "up_at": up_at,
+                        "requested_seconds": self.minimum_mouse_hold_seconds,
+                        "actual_seconds": up_at-down_at,
+                        "interrupted": self.backend.canceled or self._stop_event.is_set(),
+                        "up_inserted": released == 1}):
+                    self._logging_gaps += 1
+            except Exception:
+                self._logging_gaps += 1
+        return moved + inserted + released
+
     def _dispatch_in_context(self, record: ActionRecord) -> DeliveryRecord:
         with self._lock, self._api.dpi_context():
             cleanup = dict(record.metadata).get("cleanup") is True
@@ -477,7 +545,7 @@ class NativeInputDispatcher:
                         if button not in _BUTTON_FLAGS:
                             raise NativeDispatchError("unsupported mouse button")
                         down, up = _BUTTON_FLAGS[button]
-                        # Move/down/up is a single ordered SendInput batch.
+                        # Optional settle/hold phases split this ordered batch.
                         events += (_mouse(down, tag), _mouse(up, tag))
                 else:
                     raise NativeDispatchError("unsupported action kind")
@@ -488,14 +556,18 @@ class NativeInputDispatcher:
                     return self._delivery(record, "skipped_canceled", len(events), 0)
                 if not self.backend.delivery_allowed(record) and not injected_release:
                     return self._delivery(record, "skipped_dependency", len(events), 0)
+                phased_mouse = button is not None and (self.minimum_mouse_hold_seconds > 0
+                                                       or self.minimum_mouse_settle_seconds > 0)
                 try:
-                    inserted = self._api.send(events)
+                    inserted = (self._send_mouse_with_hold(events, button, record)
+                                if phased_mouse
+                                else self._api.send(events))
                 except Exception:
                     # A native exception provides no insertion count. Release
                     # any offered downs conservatively and retain uncertainty.
                     if record.kind == "key_down":
                         self._keys[record.key] = encoding
-                    elif button is not None:
+                    elif button is not None and not phased_mouse:
                         self._buttons.add(button)
                     raise
                 if type(inserted) is not int or not 0 <= inserted <= len(events):
