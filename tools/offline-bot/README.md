@@ -223,6 +223,26 @@ as unverified. A supervisor must inspect the latest scene before launching it.
 The later corrected run took place during combat and is excluded from clean
 acceptance, despite passing its narrow speed-feedback checks.
 
+For one supervised stationary asteroid selection click, run:
+
+```powershell
+& $offlinePython -m bsgo_offline.selection_probe --hwnd <current-game-window-handle> --pid <current-game-pid> --profile largehud-20261003 --x <asteroid-frame-x> --y <asteroid-frame-y> --safe-scene-assessed --output logs/mining/<new-selection-run>
+```
+
+The supervisor must inspect a fresh stopped, safe scene and choose the visible
+asteroid point in 2560×1440 client coordinates. The probe pins the native
+window and capture context, waits up to four seconds for two consecutive fresh
+zero-speed images, and sends no click if that baseline fails. A temporarily
+unreadable speed before input resets the count and is archived with its
+rejection sidecar; observed motion or a changed capture context blocks the run.
+It sends one guarded mouse click with a 50 ms settle and hold, then captures
+four seconds of images. Two later, matching target-identity images after
+confirmed click insertion are required to report the narrow selection effect.
+Input insertion alone is insufficient, and post-click invalid speed or context
+blocks the result. `selection-probe.json` includes the baseline retries,
+before/after observations, delivery, shutdown and blockers. It neither moves
+the ship nor sets `mining_ready`.
+
 The next narrow experiment records a stationary asteroid scan:
 
 ```powershell
