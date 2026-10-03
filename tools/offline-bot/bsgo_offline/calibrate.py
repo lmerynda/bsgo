@@ -48,7 +48,8 @@ def run_calibration(output, *, source_factory, recognizer_factory, dispatcher_fa
     shutdown, error = {}, None
     result = {"state": "blocked", "reason": "not_started", "certificate": None,
               "final_stop_observed": False, "mining_ready": False,
-              "unverified": ["heading_control", "target_selection", "scan", "mining", "inventory"]}
+              "unverified": ["heading_control", "target_selection", "scan", "mining", "inventory",
+                             "combat_detection", "hull_health", "exclusive_input_ownership"]}
     stop_lock = Lock()
     brake_at = None
     brake_reason = None

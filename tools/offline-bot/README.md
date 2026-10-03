@@ -198,6 +198,12 @@ is available for comparison; live scan-code attempts with immediate, 50 ms and
 Virtual-key input with 50 ms holds did move and stop the ship. Its first probe
 still rejected the certificate because intermediate speed readings were
 ambiguous; this distinction is retained in the report.
+The scoped 4K reader correction now accepts the measured complete raster
+variants, with damaged-glyph checks retained. The probe does not recognize hull
+health, combat or exclusive human/bot input ownership; these appear explicitly
+as unverified. A supervisor must inspect the latest scene before launching it.
+The later corrected run took place during combat and is excluded from clean
+acceptance, despite passing its narrow speed-feedback checks.
 
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate
