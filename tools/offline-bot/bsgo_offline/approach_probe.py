@@ -40,7 +40,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     if scope not in ("native", "synthetic"):
         raise ValueError("scope")
     for name, value, low, high in (("brake_at", brake_at, 600, 1400),
-        ("max_thrust_seconds", max_thrust_seconds, .1, 30),
+        ("max_thrust_seconds", max_thrust_seconds, .1, 45),
         ("baseline_seconds", baseline_seconds, .1, 8),
         ("stop_seconds", stop_seconds, .1, 45),
         ("decision_interval", decision_interval, .01, 2)):
@@ -54,7 +54,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             "max_thrust_seconds": max_thrust_seconds,
             "baseline_seconds": baseline_seconds, "stop_seconds": stop_seconds,
             "gun_optimal_range": 760, "gun_max_range": 800,
-            "mission_started": False}, frame_capacity=32, max_frames=224)
+            "mission_started": False}, frame_capacity=32, max_frames=256)
     store = SnapshotStore()
     source = worker = backend = dispatcher = watchdog = None
     watchdog_stop = Event()

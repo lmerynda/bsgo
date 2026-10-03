@@ -244,6 +244,15 @@ class ApproachProbeTests(unittest.TestCase):
         self.assertEqual(signature.parameters["stop_seconds"].default, 35.)
         self.assertEqual(signature.parameters["max_thrust_seconds"].default, 12.)
         with scratch_directory() as directory:
+            with self.assertRaisesRegex(ValueError, "max_thrust_seconds"):
+                run_approach_probe(directory / "unused", source_factory=lambda: None,
+                    recognizer_factory=lambda: None,
+                    dispatcher_factory=lambda backend, journal: None,
+                    configuration={}, profile=PROFILE, expected_window_id="42:17",
+                    frame_size=(4, 3), clear_corridor_assessed=True,
+                    aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
+                    max_thrust_seconds=45.1)
+        with scratch_directory() as directory:
             with self.assertRaisesRegex(ValueError, "stop_seconds"):
                 run_approach_probe(directory / "unused", source_factory=lambda: None,
                     recognizer_factory=lambda: None,
