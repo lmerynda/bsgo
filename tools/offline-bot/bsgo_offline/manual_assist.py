@@ -208,7 +208,7 @@ class ManualAssistController:
                 if token is None:
                     blocked = blocked or "fresh_selected_image_context_required"
                 active = toggle_enabled or toggle_draining or owner == name
-                waiting = toggle_progress.reason if toggle_progress else None
+                waiting = toggle_progress.reason if active and toggle_progress else None
             else:
                 blocked = blocked or reason
                 if name == "scan_selected" and reading and reading["distance"] > 4000:

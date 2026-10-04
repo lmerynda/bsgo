@@ -31,6 +31,27 @@ def wait_for(predicate):
 
 
 class ManualSelectedToggleTests(unittest.TestCase):
+    def test_off_snapshot_clears_current_wait_and_keeps_completed_result(self):
+        with scratch_directory() as directory:
+            current=[snapshot()]
+            controller=self.controller(directory,current,lambda name,**kw:{
+                **drained(),"state":"recorded","reason":"scan_effect_unverified"})
+            controller.start_action("auto_scan_selected",request(controller))
+            wait_for(lambda:controller.actions_snapshot()["selected_scan_toggle"]["last_result"])
+            wait_for(lambda:controller.actions_snapshot()["routines"]["auto_scan_selected"]["waiting_for"]
+                =="selected_track_already_attempted_or_image_scanned")
+            controller.stop_action("auto_scan_selected")
+            wait_for(lambda:not controller._toggle_thread.is_alive())
+            state=controller.actions_snapshot()
+            routine=state["routines"]["auto_scan_selected"]
+            self.assertFalse(routine["active"])
+            self.assertEqual(routine["phase"],"completed")
+            for name in ("waiting_for","processing","expected_next_step"):
+                self.assertIsNone(routine[name],name)
+            self.assertEqual(routine["result"]["probe_evidence"]["reason"],"scan_effect_unverified")
+            self.assertIsNotNone(state["selected_scan_toggle"]["last_result"])
+            self.assertTrue(controller.close())
+
     def test_driver_failure_survives_owned_scan_cleanup_as_blocked(self):
         with scratch_directory() as directory:
             current=[snapshot()]
