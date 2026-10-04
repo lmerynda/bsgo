@@ -484,7 +484,7 @@ navigation, or model decisions. Saved-pixel OCR and the synthetic control loop
 are complementary experiments; synthetic motion does not certify OCR accuracy
 or gameplay safety. [Recorded offline results](../../docs/architecture/offline-bot-experiments.md).
 
-## Read-only live observer
+## Local mining observer
 
 Run the local observer in a separate terminal while the mining probes create
 diagnostic packages:
@@ -501,17 +501,35 @@ delivery and observed effect, plus saved failure evidence. Images are hidden
 until **Show images** is selected because a game frame may include private chat.
 The page distinguishes a live run from a finalized, blocked, or stale package; missing
 execution evidence is labeled **UNKNOWN**. The server binds only to loopback,
-dispatches no game input, and accepts image paths only from the selected
+and accepts image paths only from the selected
 run's retained frame directories. A synthetic demonstration is labeled in the
 run selector and display and never becomes the automatic latest run. Stop the
 observer with Ctrl+C.
 
-The top control-mode display is independent of the selected run. It shows the
+The standalone command above has no attached action controller, so its Manual
+action buttons are disabled with `controller_not_attached` and it sends no game
+input. The top control-mode display is independent of the selected run. It shows the
 controller-acknowledged actual mode, app input and decision availability,
 requested/pending mode, and the handover blocker. With this standalone observer
 there is no attached game controller: an Autopilot request is rejected with
 `controller_not_attached`, while actual mode stays Manual and app input stays
-disabled. No observer button launches a probe or sends game input.
+disabled. A native Manual-assist session can attach an action controller; only
+its explicit, readiness-checked Start requests can launch a bounded routine.
+The Manual/Autopilot switch never launches a probe, and selecting a historical
+run never changes which live target a Manual action addresses.
+
+Manual actions expose a nearby-unscanned scan toggle, a one-shot scan of the
+currently selected asteroid, and a one-shot approach of the current target.
+Each card shows its own readiness reason and runtime progress. Nearby discovery
+requires a verified target provider and remains unavailable without one; an
+input delivery by the selected scan is not a verified resource classification.
+An approach requires fresh supervisor assertions for clear corridor, aligned
+heading, safe stopped scene, and the separately assessed configured flight
+point. The controller pins these to a short-lived target/context token and
+revalidates before input. Stop/Cancel applies to the active routine; global
+Manual mode means the human retains mission decisions while a routine may
+temporarily own its stated input scope. Manual actions never inherit readiness
+from the selected historical diagnostic package.
 
 For live manual play, start the input-free passive reader in a separate terminal
 with the current game window handle and PID (refresh these after a client

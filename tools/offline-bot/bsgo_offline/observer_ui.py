@@ -1,4 +1,4 @@
-"""Read-only localhost dashboard for retained mining diagnostic runs."""
+"""Local mining dashboard; Manual actions require an injected native controller."""
 from __future__ import annotations
 
 import argparse
@@ -16,24 +16,61 @@ RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 IMAGE_NAME = re.compile(r"observation-[0-9]{8}\.png\Z")
 HTML = Path(__file__).with_name("observer.html")
 MAX_JSON_BYTES = 8 * 1024 * 1024
+MANUAL_ROUTINES = ("scan_nearby_unscanned", "scan_selected",
+                   "approach_current_target")
+
+
+class UnattachedManualActions:
+    """Honest action status when the observer has no native routine owner."""
+
+    def actions_snapshot(self):
+        routines = {name: {"kind": "toggle" if name == "scan_nearby_unscanned" else "once",
+                           "available": False, "ready": False,
+                           "reason": "controller_not_attached", "active": False,
+                           "state": "unavailable", "phase": None, "processing": None,
+                           "waiting_for": None, "expected_next_step": None,
+                           "result": None, "error": None}
+                    for name in MANUAL_ROUTINES}
+        return {"actual_mode": "manual", "paused": None,
+                "app_control_enabled": False, "decisions_enabled": False,
+                "attached_controller": None, "routine_decisions_enabled": False,
+                "assessment_context": None,
+                "ownership": {"owner": None, "state": "idle", "input_scope": None,
+                              "run_id": None},
+                "routines": routines, "last_input_intent": None,
+                "last_input_delivery": None, "last_confirmed_effect": None}
+
+    def start_action(self, name, request=None):
+        return {"accepted": False, "reason": "controller_not_attached",
+                "state": self.actions_snapshot()}
+
+    def stop_action(self, name):
+        return {"accepted": False, "reason": "controller_not_attached",
+                "state": self.actions_snapshot()}
 
 
 class UnattachedModeController:
     """Explicitly rejects handover when the observer has no control owner."""
 
-    def __init__(self):
+    def __init__(self, actions=None):
         self._lock = Lock()
         self._requested = "manual"
         self._last_ack = None
+        self._actions = actions
 
     def snapshot(self):
+        action_state = self._actions.actions_snapshot() if self._actions else {}
         with self._lock:
             return {"actual_mode": "manual", "requested_mode": self._requested,
-                    "pending": False, "app_control_enabled": False,
-                    "decisions_enabled": False, "attached_controller": None,
+                    "pending": False,
+                    "app_control_enabled": action_state.get("app_control_enabled") is True,
+                    "decisions_enabled": False, "mission_decisions_owner": "human",
+                    "routine_ownership": action_state.get("ownership"),
+                    "routine_decisions_enabled": action_state.get("routine_decisions_enabled") is True,
+                    "attached_controller": action_state.get("attached_controller"),
                     "autopilot_available": False,
-                    "reason": "controller_not_attached",
-                    "handover_blocker": "controller_not_attached",
+                    "reason": "autopilot_controller_not_attached",
+                    "handover_blocker": "autopilot_controller_not_attached",
                     "last_ack": self._last_ack}
 
     def request(self, mode):
@@ -41,11 +78,11 @@ class UnattachedModeController:
             self._requested = mode
             self._last_ack = {"requested_mode": mode,
                               "accepted": mode == "manual",
-                              "reason": None if mode == "manual" else "controller_not_attached",
+                              "reason": None if mode == "manual" else "autopilot_controller_not_attached",
                               "at_utc": datetime.now(timezone.utc).isoformat()}
         state = self.snapshot()
         return {"accepted": mode == "manual", "state": state,
-                "reason": None if mode == "manual" else "controller_not_attached"}
+                "reason": None if mode == "manual" else "autopilot_controller_not_attached"}
 
 
 def _json_file(path: Path):
@@ -243,9 +280,29 @@ class ObserverIndex:
                         and _inside(path, directory)) else None
 
 
-def make_server(runs_root: Path, port: int = 8765, mode_controller=None):
+def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
+                action_adapter=None):
     index = ObserverIndex(runs_root)
-    controller = mode_controller or UnattachedModeController()
+    actions = action_adapter or UnattachedManualActions()
+    controller = mode_controller or UnattachedModeController(actions)
+    actions_lock = Lock()
+
+    def mode_snapshot():
+        state = controller.snapshot()
+        if state.get("actual_mode") == "manual":
+            routine = actions.actions_snapshot()
+            state = {**state, "app_control_enabled": routine.get("app_control_enabled") is True,
+                     "decisions_enabled": False, "mission_decisions_owner": "human",
+                     "routine_decisions_enabled": routine.get("routine_decisions_enabled") is True,
+                     "routine_ownership": routine.get("ownership")}
+        return state
+
+    def action_status():
+        state = actions.actions_snapshot()
+        mode = controller.snapshot()
+        return {**state, "actual_mode": mode.get("actual_mode", "unknown"),
+                "mode_pending": mode.get("pending") is True,
+                "mode_reason": mode.get("reason")}
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code, body: bytes, mime: str):
@@ -281,7 +338,22 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None):
                 self._json(200, {"runs": index.runs(), "runs_root": str(index.root)})
                 return
             if request.path == "/api/control-mode":
-                self._json(200, controller.snapshot())
+                try:
+                    payload = mode_snapshot()
+                except Exception as exc:
+                    self._json(503, {"error": "mode_status_unavailable",
+                                     "cause": type(exc).__name__})
+                    return
+                self._json(200, payload)
+                return
+            if request.path == "/api/manual-actions":
+                try:
+                    payload = action_status()
+                except Exception as exc:
+                    self._json(503, {"error": "action_status_unavailable",
+                                     "cause": type(exc).__name__})
+                    return
+                self._json(200, payload)
                 return
             if request.path == "/api/status":
                 run = query.get("run", [None])[0]
@@ -331,7 +403,8 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None):
             if origin != f"http://127.0.0.1:{self.server.server_port}":
                 self._json(403, {"error": "invalid_origin"})
                 return
-            if urlsplit(self.path).path != "/api/control-mode":
+            path = urlsplit(self.path).path
+            if path not in ("/api/control-mode", "/api/manual-actions"):
                 self._json(404, {"error": "not_found"})
                 return
             if self.headers.get("Content-Type") != "application/json":
@@ -339,17 +412,57 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None):
                 return
             try:
                 size = int(self.headers.get("Content-Length", ""))
-                if not 0 < size <= 256:
+                if not 0 < size <= (4096 if path == "/api/manual-actions" else 256):
                     raise ValueError
                 data = json.loads(self.rfile.read(size))
             except (ValueError, json.JSONDecodeError):
                 self._json(400, {"error": "invalid_mode_request"})
                 return
-            mode = data.get("mode") if isinstance(data, dict) else None
-            if mode not in ("manual", "autopilot"):
-                self._json(400, {"error": "invalid_mode"})
+            try:
+                if path == "/api/control-mode":
+                    mode = data.get("mode") if isinstance(data, dict) else None
+                    if mode not in ("manual", "autopilot"):
+                        self._json(400, {"error": "invalid_mode"})
+                        return
+                    decision = controller.request(mode)
+                    decision["state"] = mode_snapshot()
+                else:
+                    if (not isinstance(data, dict) or data.get("action") not in ("start", "stop")
+                            or data.get("routine") not in MANUAL_ROUTINES
+                            or not isinstance(data.get("request", {}), dict)):
+                        self._json(400, {"error": "invalid_manual_action"})
+                        return
+                    name, action = data["routine"], data["action"]
+                    with actions_lock:
+                        current = action_status()
+                        owner = (current.get("ownership") or {}).get("owner")
+                        routines = current.get("routines") or {}
+                        active = [routine for routine, state in routines.items()
+                                  if isinstance(state, dict) and state.get("active") is True]
+                        if action == "start" and (current.get("actual_mode") != "manual"
+                                                  or current.get("mode_pending")):
+                            decision = {"accepted": False, "reason": "manual_mode_required",
+                                        "state": current}
+                        elif action == "start" and (owner not in (None, "none", "idle") or active):
+                            decision = {"accepted": False, "reason": "input_owner_busy",
+                                        "state": current}
+                        elif action == "start" and not ((routines.get(name) or {}).get("available") is True
+                                                        and (routines.get(name) or {}).get("ready") is True):
+                            decision = {"accepted": False,
+                                        "reason": (routines.get(name) or {}).get("reason") or "routine_not_ready",
+                                        "state": current}
+                        elif action == "start":
+                            decision = actions.start_action(name, data.get("request", {}))
+                        elif owner != name and name not in active:
+                            decision = {"accepted": False, "reason": "routine_not_active",
+                                        "state": current}
+                        else:
+                            decision = actions.stop_action(name)
+                        decision["state"] = action_status()
+            except Exception as exc:
+                self._json(503, {"error": "action_adapter_unavailable",
+                                 "cause": type(exc).__name__})
                 return
-            decision = controller.request(mode)
             self._json(200 if decision["accepted"] else
                        202 if decision["state"].get("pending") else 409, decision)
 

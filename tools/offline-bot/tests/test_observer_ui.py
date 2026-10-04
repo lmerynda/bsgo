@@ -233,7 +233,7 @@ class ObserverUiTests(unittest.TestCase):
                 self.assertEqual(rejected["state"]["requested_mode"], "autopilot")
                 self.assertFalse(rejected["state"]["pending"])
                 self.assertEqual(rejected["state"]["last_ack"]["reason"],
-                                 "controller_not_attached")
+                                 "autopilot_controller_not_attached")
                 code, cross = post("autopilot", **{"Sec-Fetch-Site":"cross-site"})
                 self.assertEqual(code, 403)
                 code, invalid_origin = post("autopilot", **{"Origin":"http://bad.example"})
@@ -328,11 +328,236 @@ class ObserverUiTests(unittest.TestCase):
             self.assertEqual(detail["status"]["frames"]["budget_skipped"], 7)
             self.assertEqual(detail["status"]["frames"]["dropped"], 0)
 
+    def test_manual_actions_reject_invalid_unattached_and_cross_origin_posts(self):
+        with scratch_directory() as directory:
+            server = make_server(directory, 0)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(payload, origin=None):
+                request = Request(base + "/api/manual-actions", method="POST",
+                    data=json.dumps(payload).encode(), headers={"Content-Type":"application/json",
+                        "Origin":origin or base})
+                try:
+                    with urlopen(request, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                with urlopen(base + "/api/manual-actions") as response:
+                    state = json.load(response)
+                self.assertEqual(state["actual_mode"], "manual")
+                self.assertFalse(state["routines"]["scan_nearby_unscanned"]["ready"])
+                self.assertFalse(state["routines"]["scan_selected"]["ready"])
+                self.assertFalse(state["routines"]["approach_current_target"]["ready"])
+                self.assertEqual(post({"action":"mine","routine":"scan_nearby_unscanned"})[0], 400)
+                self.assertEqual(post({"action":"start","routine":"unlisted"})[0], 400)
+                self.assertEqual(post({"action":"start","routine":"scan_nearby_unscanned",
+                                       "request":[]})[0], 400)
+                self.assertEqual(post({"action":"start","routine":"scan_nearby_unscanned"},
+                                      origin="http://bad.example")[0], 403)
+                self.assertEqual(post({"action":"start","routine":"scan_selected"})[0], 409)
+                code, blocked = post({"action":"start","routine":"scan_nearby_unscanned"})
+                self.assertEqual(code, 409)
+                self.assertEqual(blocked["reason"], "controller_not_attached")
+                self.assertIsNone(blocked["state"]["ownership"]["owner"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
+    def test_manual_action_ownership_serializes_conflicts_and_stop(self):
+        class FakeActions:
+            owner = None
+            state = "idle"
+            starts = 0
+
+            def actions_snapshot(self):
+                return {"actual_mode":"manual", "paused":False,
+                    "app_control_enabled":self.owner is not None,
+                    "ownership":{"owner":self.owner,"state":self.state,
+                                 "input_scope":"navigation" if self.owner else None,"run_id":"fake"},
+                    "routines":{name:{"available":True,"ready":True,"reason":None}
+                        for name in ("scan_nearby_unscanned","scan_selected","approach_current_target")}}
+
+            def start_action(self, name, request=None):
+                self.starts += 1
+                time.sleep(.04)
+                self.owner = name
+                self.state = "active"
+                return {"accepted":True,"reason":None,"state":self.actions_snapshot()}
+
+            def stop_action(self, name):
+                self.state = "stopping"
+                return {"accepted":True,"reason":None,"state":self.actions_snapshot()}
+
+        with scratch_directory() as directory:
+            actions = FakeActions()
+            server = make_server(directory, 0, action_adapter=actions)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(action, routine, request=None):
+                payload = {"action":action,"routine":routine,"request":request or {}}
+                req = Request(base + "/api/manual-actions", method="POST",
+                    data=json.dumps(payload).encode(), headers={"Content-Type":"application/json",
+                        "Origin":base})
+                try:
+                    with urlopen(req, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                requests = []
+                from threading import Barrier
+                barrier = Barrier(3)
+                def simultaneous(name):
+                    barrier.wait()
+                    requests.append(post("start", name))
+                first = Thread(target=simultaneous, args=("scan_nearby_unscanned",))
+                second = Thread(target=simultaneous, args=("approach_current_target",))
+                first.start(); second.start(); barrier.wait()
+                first.join(3); second.join(3)
+                self.assertEqual(sorted(code for code, _ in requests), [200, 409])
+                self.assertEqual(actions.starts, 1)
+                owner = actions.owner
+                other = "approach_current_target" if owner == "scan_nearby_unscanned" else "scan_nearby_unscanned"
+                self.assertEqual(post("stop", other)[0], 409)
+                self.assertEqual(post("stop", owner)[0], 200)
+                self.assertEqual(actions.state, "stopping")
+                self.assertEqual(post("start", other)[0], 409)
+                with urlopen(base + "/api/control-mode") as response:
+                    mode = json.load(response)
+                self.assertEqual(mode["actual_mode"], "manual")
+                self.assertTrue(mode["app_control_enabled"])
+                self.assertEqual(mode["mission_decisions_owner"], "human")
+                self.assertEqual(mode["routine_ownership"]["owner"], owner)
+                manual_request = Request(base + "/api/control-mode", method="POST",
+                    data=b'{"mode":"manual"}', headers={"Content-Type":"application/json",
+                                                    "Origin":base})
+                with urlopen(manual_request, timeout=3) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(json.load(response)["state"]["actual_mode"], "manual")
+                self.assertEqual(actions.owner, owner)
+                self.assertEqual(actions.state, "stopping")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
+    def test_waiting_scan_without_input_lease_can_stop_but_blocks_new_start(self):
+        class WaitingScan:
+            stopped = False
+
+            def actions_snapshot(self):
+                return {"actual_mode":"manual","paused":False,
+                    "ownership":{"owner":None,"state":"idle","input_scope":None},
+                    "routines":{"scan_nearby_unscanned":{"active":not self.stopped,
+                        "state":"waiting_for_ship_stop"},
+                        "approach_current_target":{"active":False,"ready":True}}}
+
+            def start_action(self, name, request=None):
+                raise AssertionError("competing start reached native adapter")
+
+            def stop_action(self, name):
+                self.stopped = True
+                return {"accepted":True,"reason":None,"state":self.actions_snapshot()}
+
+        with scratch_directory() as directory:
+            adapter = WaitingScan()
+            server = make_server(directory, 0, action_adapter=adapter)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(action, routine):
+                req = Request(base + "/api/manual-actions", method="POST",
+                    data=json.dumps({"action":action,"routine":routine}).encode(),
+                    headers={"Content-Type":"application/json","Origin":base})
+                try:
+                    with urlopen(req, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                self.assertEqual(post("start", "approach_current_target")[0], 409)
+                code, stopped = post("stop", "scan_nearby_unscanned")
+                self.assertEqual(code, 200)
+                self.assertTrue(adapter.stopped)
+                self.assertFalse(stopped["state"]["routines"]["scan_nearby_unscanned"]["active"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
+    def test_manual_start_rejects_autopilot_or_pending_mode_but_stop_still_works(self):
+        class Mode:
+            actual = "autopilot"
+            pending = False
+
+            def snapshot(self):
+                return {"actual_mode": self.actual, "pending": self.pending,
+                        "reason": None}
+
+            def request(self, mode):
+                raise AssertionError("mode request not part of this test")
+
+        class Actions:
+            owner = None
+            starts = 0
+            stopped = False
+
+            def actions_snapshot(self):
+                return {"actual_mode":"manual","paused":False,
+                    "ownership":{"owner":self.owner,"state":"active" if self.owner else "idle"},
+                    "routines":{"scan_selected":{"active":self.owner == "scan_selected",
+                        "ready":True,"available":True}}}
+
+            def start_action(self, name, request=None):
+                self.starts += 1
+                raise AssertionError("start must not reach adapter")
+
+            def stop_action(self, name):
+                self.stopped = True
+                self.owner = None
+                return {"accepted":True,"reason":"stopping","state":self.actions_snapshot()}
+
+        with scratch_directory() as directory:
+            mode, actions = Mode(), Actions()
+            server = make_server(directory, 0, mode_controller=mode, action_adapter=actions)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(action):
+                req = Request(base + "/api/manual-actions", method="POST",
+                    data=json.dumps({"action":action,"routine":"scan_selected"}).encode(),
+                    headers={"Content-Type":"application/json","Origin":base})
+                try:
+                    with urlopen(req, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                with urlopen(base + "/api/manual-actions") as response:
+                    self.assertEqual(json.load(response)["actual_mode"], "autopilot")
+                self.assertEqual(post("start")[1]["reason"], "manual_mode_required")
+                mode.actual, mode.pending = "manual", True
+                self.assertEqual(post("start")[1]["reason"], "manual_mode_required")
+                self.assertEqual(actions.starts, 0)
+                actions.owner = "scan_selected"
+                code, stopped = post("stop")
+                self.assertEqual(code, 200)
+                self.assertTrue(actions.stopped)
+                self.assertEqual(stopped["state"]["actual_mode"], "manual")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
     def test_canceled_budget_skip_renders_canceled_but_true_blocker_renders_blocked(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text()).group(1)
-        script = script.replace("  refresh();\n  refreshMode();",
-                                "  globalThis.testRender = render;")
+        script = script.replace("  refresh();\n  refreshMode();\n  refreshActions();",
+                                "  globalThis.testRender = render; globalThis.testActions = renderActions;")
         harness = f"""
 const elements = {{}};
 globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
@@ -358,7 +583,32 @@ common.status.execution.phase='blocked'; common.status.execution.first_blocker='
 common.status.result.state='blocked'; common.report.result.state='blocked';
 testRender(common);
 const blocked = {{badge:elements.lifecycle.textContent, outcome:elements.outcome.textContent}};
-console.log(JSON.stringify({{canceled,recovered,blocked}}));
+const actions = {{actual_mode:'manual',paused:false,ownership:{{owner:null,state:'idle'}},
+  current_observation:{{target_identity:'asteroid:4500',distance:700,speed:0,
+    fields:{{distance:{{valid:true,fresh:true}},speed:{{valid:true,fresh:true}}}}}},
+  assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',wheel_point:{{x:1280,y:400}}}},
+  routines:{{scan_nearby_unscanned:{{available:false,ready:false,reason:'discovery_provider_missing'}},
+    scan_selected:{{available:true,ready:true}},
+    approach_current_target:{{available:true,ready:true}}}}}};
+testActions(actions);
+const independent = {{nearDisabled:elements.scanbutton.disabled,
+  selectedDisabled:elements.selectedscanbutton.disabled,
+  approachDisabled:elements.approachbutton.disabled,
+  target:elements.currenttarget.textContent}};
+elements.scanselectedsafe.checked=true;
+testActions(actions);
+const selectedAssessedEnabled = !elements.selectedscanbutton.disabled;
+for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) elements[id].checked=true;
+testActions(actions);
+const assessedEnabled = !elements.approachbutton.disabled;
+actions.assessment_context={{token:'t2',context_key:'target-B',target_identity:'asteroid:5000',wheel_point:{{x:1280,y:400}}}};
+testActions(actions);
+const changedDisabled = elements.approachbutton.disabled && !elements.clearcorridor.checked;
+actions.routines.scan_nearby_unscanned.active=true;
+testActions(actions);
+const waitingScan = {{button:elements.scanbutton.textContent,
+  canStop:!elements.scanbutton.disabled, approachDisabled:elements.approachbutton.disabled}};
+console.log(JSON.stringify({{canceled,recovered,blocked,independent,selectedAssessedEnabled,assessedEnabled,changedDisabled,waitingScan}}));
 """
         result = subprocess.run(["node", "-e", harness], capture_output=True,
                                 text=True, check=True)
@@ -373,6 +623,16 @@ console.log(JSON.stringify({{canceled,recovered,blocked}}));
         self.assertEqual(rendered["recovered"]["firstCause"], "invalid_speed_glyph")
         self.assertIn("BLOCKED", rendered["blocked"]["badge"])
         self.assertEqual(rendered["blocked"]["outcome"], "BLOCKED")
+        self.assertTrue(rendered["independent"]["nearDisabled"])
+        self.assertTrue(rendered["independent"]["selectedDisabled"])
+        self.assertTrue(rendered["independent"]["approachDisabled"])
+        self.assertEqual(rendered["independent"]["target"], "asteroid:4500")
+        self.assertTrue(rendered["selectedAssessedEnabled"])
+        self.assertTrue(rendered["assessedEnabled"])
+        self.assertTrue(rendered["changedDisabled"])
+        self.assertEqual(rendered["waitingScan"]["button"], "Stop scanning")
+        self.assertTrue(rendered["waitingScan"]["canStop"])
+        self.assertTrue(rendered["waitingScan"]["approachDisabled"])
 
 
 if __name__ == "__main__":
