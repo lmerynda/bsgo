@@ -823,3 +823,41 @@ Fresh supervision at game clock 00:51:45 confirmed 2598 m, speed 0.0 and full
 hull/energy. Hull remained full throughout; this run verifies integration and
 fault cleanup, not a hull-loss-triggered brake. The loop continues with
 stationary candidate work while the exact speed image is investigated.
+
+Inspection of approach-007 sequence 5 found genuine bright scene geometry
+intersecting the speed digits. The existing rejection is correct; no new digit
+template was invented from the overlap. A stopped camera adjustment and fresh
+route assessment are required for a meaningful retry.
+
+Commit `29250393` exposes the firing API's existing configurable minimum
+distance through native `--min-distance`, preserving the 480 m default and
+760 m maximum. This permits an explicitly assessed stationary calibration
+at a closer target; it does not establish a minimum gun range. Thirty-three
+focused firing tests passed, including default rejection without a dispatcher
+at 240 m and explicit 200 m configuration retaining delivery/image proof.
+The native CLI help was checked.
+
+`continuous-fire-006` (`21f95899d6014dbc836fc15f404ec954`) exercised that
+200 m lower-bound setting on the known Tylium HP3724 at a stable 240 m, with
+fresh zero speed, full hull/energy and no preexisting firing. One G proved
+damage, and continuous observation retained natural target disappearance and
+complete diagnostics. Its original result remains blocked by invalid identity,
+with 50 HP-fault images retained for inspection. Sequence 100 visibly shows
+0/3724 just before disappearance; zero HP was not accepted as firing proof.
+The actual `+5903 X TYLIUM` and 112 experience popup is archived in sequence
+102, directly reviewed by both miner and parent. Hull is 5005/5005 and speed
+0.0 in that image; energy is 771/800 and subsequently recovers to 800/800.
+Fresh parent supervision at game clock 00:58:21 confirms target gone and full
+hull/energy while stopped. Quantified yield in this continuous loop is now
+3222 Water and 5903 Tylium; the earlier unquantified Tylium harvest is excluded.
+The loop continues with the next candidate while HP layout work proceeds.
+
+An offline radar audit of approaches 006 and 007 measured the native circle
+approximately at x1155–1405, y1078–1327, centered near (1280,1202), radius125.
+The top outline wedge is a candidate heading reference, not a calibrated one.
+The white `THREAT` label appears above the radar on approach-006's first
+hull-loss image and persists through sequences 6–8. This is observed coincidence,
+not a determination of damage cause or contact faction. Crowded marks and
+projected labels prevent associating one contact with the selected asteroid or
+an obstacle. Stopped select/deselect, ship turns versus camera-only turns, and
+depth comparisons remain necessary before radar contributes route decisions.
