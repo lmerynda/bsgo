@@ -203,6 +203,100 @@ class ObserverUiTests(unittest.TestCase):
             self.assertEqual(detail["report"]["result"]["first_blocker"],
                              "invalid_target_identity")
 
+    def test_mode_request_without_controller_never_claims_autopilot(self):
+        with scratch_directory() as directory:
+            server = make_server(directory, 0)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(mode, **headers):
+                request = Request(base + "/api/control-mode", method="POST",
+                    data=json.dumps({"mode": mode}).encode(), headers={
+                        "Content-Type": "application/json", "Origin": base, **headers})
+                try:
+                    with urlopen(request, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                with urlopen(base + "/api/control-mode") as response:
+                    initial = json.load(response)
+                self.assertEqual(initial["actual_mode"], "manual")
+                self.assertFalse(initial["app_control_enabled"])
+                code, rejected = post("autopilot")
+                self.assertEqual(code, 409)
+                self.assertFalse(rejected["accepted"])
+                self.assertEqual(rejected["state"]["actual_mode"], "manual")
+                self.assertEqual(rejected["state"]["requested_mode"], "autopilot")
+                self.assertFalse(rejected["state"]["pending"])
+                self.assertEqual(rejected["state"]["last_ack"]["reason"],
+                                 "controller_not_attached")
+                code, cross = post("autopilot", **{"Sec-Fetch-Site":"cross-site"})
+                self.assertEqual(code, 403)
+                code, invalid_origin = post("autopilot", **{"Origin":"http://bad.example"})
+                self.assertEqual(code, 403)
+                code, manual = post("manual")
+                self.assertEqual(code, 200)
+                self.assertEqual(manual["state"]["actual_mode"], "manual")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
+    def test_attached_controller_ack_is_sole_source_of_actual_mode(self):
+        class FakeController:
+            actual = "manual"
+            pending = False
+            ack = None
+
+            def snapshot(self):
+                return {"actual_mode": self.actual, "requested_mode": "autopilot",
+                    "pending": self.pending, "app_control_enabled": self.actual == "autopilot",
+                    "decisions_enabled": self.actual == "autopilot",
+                    "attached_controller": "fake", "autopilot_available": True,
+                    "reason": self.ack["reason"] if self.ack else None,
+                    "handover_blocker": self.ack["reason"] if self.ack else None,
+                    "last_ack": self.ack}
+
+            def request(self, mode):
+                self.pending = True
+                return {"accepted": False, "state": self.snapshot(), "reason": None}
+
+        with scratch_directory() as directory:
+            controller = FakeController()
+            server = make_server(directory, 0, mode_controller=controller)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                request = Request(base + "/api/control-mode", method="POST",
+                    data=b'{"mode":"autopilot"}', headers={"Content-Type":"application/json",
+                                                        "Origin":base})
+                with urlopen(request, timeout=3) as response:
+                    self.assertEqual(response.status, 202)
+                    pending = json.load(response)
+                self.assertEqual(pending["state"]["actual_mode"], "manual")
+                self.assertTrue(pending["state"]["pending"])
+                controller.pending = False
+                controller.ack = {"accepted": False, "reason": "readiness_rejected"}
+                with urlopen(base + "/api/control-mode", timeout=3) as response:
+                    rejected_ack = json.load(response)
+                self.assertEqual(rejected_ack["actual_mode"], "manual")
+                self.assertEqual(rejected_ack["last_ack"]["reason"], "readiness_rejected")
+                with urlopen(request, timeout=3) as response:
+                    self.assertEqual(response.status, 202)
+                controller.pending = False
+                controller.actual = "autopilot"  # explicit fake controller acknowledgment
+                controller.ack = {"accepted": True, "reason": None}
+                with urlopen(base + "/api/control-mode", timeout=3) as response:
+                    acknowledged = json.load(response)
+                self.assertEqual(acknowledged["actual_mode"], "autopilot")
+                self.assertTrue(acknowledged["app_control_enabled"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -17,6 +17,10 @@
     .controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     select,button { background:#182740; border:1px solid #435575; border-radius:10px; color:var(--text); padding:10px 13px; font:inherit; }
     button { cursor:pointer; } button:hover { border-color:var(--cyan); }
+    .modebar { display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:12px 15px; margin-bottom:17px; border:1px solid var(--line); border-radius:13px; background:#111b31; }
+    .modebar button[aria-pressed="true"] { border-color:var(--cyan); background:#20505a; }
+    .modebar .small { margin-left:auto; }
+    .passive { border:1px solid #725a30; border-radius:12px; background:#30291d; color:#ffe1a2; padding:10px 14px; margin-bottom:17px; font-weight:700; }
     .grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; }
     .panel { grid-column:span 4; min-width:0; background:linear-gradient(145deg,#17243b,#10192d); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 16px 40px #0002; }
     .wide { grid-column:span 8; } .full { grid-column:span 12; }
@@ -55,10 +59,12 @@
     <div><div class="eyebrow">Read-only · localhost</div><h1>Mining observer</h1><p class="sub">One run at a time. Live status refreshes every second.</p></div>
     <div class="controls"><label for="runs">Run</label><select id="runs"><option value="">Latest automatically</option></select><button id="privacy" type="button" aria-pressed="false">Show images</button></div>
   </header>
+  <div class="modebar" aria-label="Application control mode"><span class="label">Current control</span><button id="manualmode" type="button" aria-pressed="true">Manual</button><button id="automode" type="button" aria-pressed="false">Autopilot</button><strong id="actualmode">UNKNOWN</strong><span id="modeavailability" class="small">App input: UNKNOWN</span><span id="moderequest" class="small">Requested: UNKNOWN · Pending: UNKNOWN</span><span id="modeblocker" class="small warn">Handover: UNKNOWN</span><span id="modeack" class="small">Acknowledgment: UNKNOWN</span></div>
+  <div id="passivebanner" class="passive" hidden>PASSIVE OBSERVATION · App decisions disabled · App controls disabled</div>
   <div class="grid">
     <section class="panel wide"><div class="eyebrow">Execution</div><h2><span id="lifecycle" class="pill">UNKNOWN</span><span id="synthetic" class="pill synthetic" hidden>SYNTHETIC DEMO</span> <span id="phase">UNKNOWN</span></h2><div class="rows"><div><div class="label">Processing</div><div id="processing" class="value">UNKNOWN</div></div><div><div class="label">Waiting for</div><div id="waiting" class="value">UNKNOWN</div></div></div><p><span class="label">Expected next step</span><br><span id="next" class="text">UNKNOWN</span></p><div id="progress" class="small">No progress message</div></section>
     <section class="panel"><h2>Run and freshness</h2><div class="label">Selected package</div><div id="run" class="value mono">UNKNOWN</div><p class="small">Status age: <span id="age">UNKNOWN</span> · Worker: <span id="worker">UNKNOWN</span></p><div class="label">Run ID</div><div id="runid" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Code commit</div><div id="commit" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Supervisor assessed (not image verified)</div><div id="assessments" class="small text">UNKNOWN</div></section>
-    <section class="panel wide"><h2>Image readings at last status sample</h2><div class="rows"><div class="metric"><div class="label">Ship speed</div><div id="speed" class="value">UNKNOWN</div><div id="speedmeta" class="small"></div></div><div class="metric"><div class="label">Target range</div><div id="distance" class="value">UNKNOWN</div><div id="distancemeta" class="small"></div></div><div class="metric"><div class="label">Hull</div><div id="hull" class="value">UNKNOWN</div><div id="hullmeta" class="small"></div></div><div class="metric"><div class="label">Target HP</div><div id="hp" class="value">UNKNOWN</div><div id="hpmeta" class="small"></div></div></div><p class="small">Image observation: <span id="observation">UNKNOWN</span> · Target: <span id="target">UNKNOWN</span></p></section>
+    <section class="panel wide"><h2>Image readings at last status sample</h2><div class="rows"><div class="metric"><div class="label">Ship speed</div><div id="speed" class="value">UNKNOWN</div><div id="speedmeta" class="small"></div></div><div class="metric"><div class="label">Target range</div><div id="distance" class="value">UNKNOWN</div><div id="distancemeta" class="small"></div></div><div class="metric"><div class="label">Hull</div><div id="hull" class="value">UNKNOWN</div><div id="hullmeta" class="small"></div></div><div class="metric"><div class="label">Target HP</div><div id="hp" class="value">UNKNOWN</div><div id="hpmeta" class="small"></div></div></div><p class="small">Image observation: <span id="observation">UNKNOWN</span> · Recognition: <span id="health">UNKNOWN</span> · Target: <span id="target">UNKNOWN</span></p></section>
     <section class="panel"><h2>Outcome and blockers</h2><div class="label">Result</div><div id="outcome" class="value">UNKNOWN</div><p id="blocker" class="warn text">No blocker reported</p><div class="small">First blocker: <span id="firstblocker">UNKNOWN</span></div><div class="small">Diagnostics: <span id="diagnostics">UNKNOWN</span></div><div class="label" style="margin-top:12px">Warnings and continuing effects</div><div id="warnings" class="warn text">UNKNOWN</div></section>
     <section class="panel full"><h2>Command evidence</h2><div class="flow"><div><div class="label">Requested</div><div id="intent" class="text">UNKNOWN</div><details><summary>Raw request</summary><pre id="intentraw"></pre></details></div><div><div class="label">Delivered to input stream</div><div id="delivery" class="text">UNKNOWN</div><details><summary>Raw delivery</summary><pre id="deliveryraw"></pre></details></div><div><div class="label">Observed effect</div><div id="effect" class="text">UNKNOWN</div><details><summary>Raw effect</summary><pre id="effectraw"></pre></details></div></div><p class="small">Input insertion and image-observed effects are separate evidence.</p></section>
     <section class="panel full"><h2>Retained images <span class="small">(hidden until you choose Show images)</span></h2><div id="imagehint" class="small">Image previews are hidden.</div><div id="images" class="images" hidden><figure><img id="currentimg" alt="Latest retained game observation"><figcaption>Latest retained frame · <span id="currentpath"></span></figcaption></figure><figure><img id="failureimg" alt="First saved failed recognition"><figcaption>First saved recognition failure · <span id="failurepath"></span><br><a id="sidecar" target="_blank" rel="noopener">View sidecar</a> · <span id="failurereasons"></span></figcaption></figure></div></section>
@@ -84,6 +90,9 @@
     const status = data.status || {}, execution = status.execution || {}, observation = status.observation || {}, fields = observation.fields || {};
     const result = status.result || (data.report || {}).result || {};
     const synthetic = (data.manifest || {}).synthetic === true;
+    const passiveRun = String((data.manifest || {}).mode || '').includes('passive');
+    $('passivebanner').hidden = !passiveRun;
+    set('passivebanner', `PASSIVE OBSERVATION ${data.lifecycle === 'live' ? 'ACTIVE' : 'PACKAGE'} · App decisions disabled · App controls disabled`);
     $('synthetic').hidden = !synthetic;
     const blocked = Boolean(execution.first_blocker || execution.phase === 'blocked' || result.state === 'blocked');
     $('lifecycle').className = `pill ${blocked ? 'blocked' : data.lifecycle || ''}`;
@@ -102,6 +111,7 @@
     set('hull', hullCur[0] === 'UNKNOWN' || hullMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hullCur[0]} / ${hullMax[0]}`); set('hullmeta', temporal + hullCur[1]);
     set('hp', hpCur[0] === 'UNKNOWN' || hpMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hpCur[0]} / ${hpMax[0]}`); set('hpmeta', temporal + hpCur[1]);
     set('observation', observation.sequence === undefined ? null : `#${observation.sequence}, image age ${observation.age_seconds ?? 'UNKNOWN'}s`);
+    set('health', observation.healthy === true ? 'healthy' : observation.healthy === false ? `REJECTED · ${observation.reason || 'reason unknown'}` : null);
     set('target', evidence(fields.target_identity)[0]);
     set('outcome', blocked ? `BLOCKED${result.state && result.state !== 'blocked' ? ` (probe result: ${result.state})` : ''}` : result.state); set('blocker', execution.first_blocker || result.first_blocker || (blocked ? (execution.reason || result.reason || result.first_rejection?.read_error) : null) || 'No blocker reported');
     set('firstblocker', execution.first_blocker || result.first_blocker || result.first_rejection?.read_error); set('diagnostics', (data.report || {}).complete_diagnostics);
@@ -123,10 +133,36 @@
   function unavailable(error) {
     $('lifecycle').className = 'pill unavailable';
     $('synthetic').hidden = true;
-    for (const id of ['lifecycle','phase','processing','waiting','next','progress','run','age','worker','runid','commit','assessments','speed','speedmeta','distance','distancemeta','hull','hullmeta','hp','hpmeta','observation','target','outcome','firstblocker','diagnostics','warnings','intent','delivery','effect','intentraw','deliveryraw','effectraw','currentpath','failurepath','failurereasons']) set(id, 'UNAVAILABLE');
+    for (const id of ['lifecycle','phase','processing','waiting','next','progress','run','age','worker','runid','commit','assessments','speed','speedmeta','distance','distancemeta','hull','hullmeta','hp','hpmeta','observation','health','target','outcome','firstblocker','diagnostics','warnings','intent','delivery','effect','intentraw','deliveryraw','effectraw','currentpath','failurepath','failurereasons']) set(id, 'UNAVAILABLE');
     set('blocker', `Observer fetch failed: ${error}`);
     $('images').hidden = true; $('imagehint').hidden = false;
+    $('passivebanner').hidden = true;
     $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); $('sidecar').removeAttribute('href');
+  }
+  function renderMode(mode) {
+    set('actualmode', String(mode.actual_mode || 'unknown').toUpperCase());
+    set('modeavailability', `App input: ${mode.app_control_enabled === true ? 'ENABLED' : mode.app_control_enabled === false ? 'DISABLED' : 'UNKNOWN'} · Decisions: ${mode.decisions_enabled === true ? 'ENABLED' : mode.decisions_enabled === false ? 'DISABLED' : 'UNKNOWN'}`);
+    set('moderequest', `Requested: ${mode.requested_mode || 'UNKNOWN'} · Pending: ${mode.pending === true ? 'YES' : mode.pending === false ? 'NO' : 'UNKNOWN'}`);
+    set('modeblocker', `Handover: ${mode.handover_blocker || mode.reason || 'none reported'}`);
+    set('modeack', `Acknowledgment: ${mode.last_ack ? `${mode.last_ack.accepted ? 'accepted' : 'rejected'}${mode.last_ack.reason ? ' · ' + mode.last_ack.reason : ''}` : 'none'}`);
+    $('manualmode').setAttribute('aria-pressed', String(mode.actual_mode === 'manual'));
+    $('automode').setAttribute('aria-pressed', String(mode.actual_mode === 'autopilot'));
+  }
+  async function refreshMode() {
+    try {
+      const response = await fetch('/api/control-mode', {cache:'no-store'});
+      if (!response.ok) throw new Error(`mode unavailable (${response.status})`);
+      renderMode(await response.json());
+    } catch (error) { renderMode({actual_mode:'unknown', reason:String(error)}); }
+    finally { setTimeout(refreshMode, 1000); }
+  }
+  async function requestMode(mode) {
+    try {
+      const response = await fetch('/api/control-mode', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode})});
+      const decision = await response.json();
+      if (decision.state) renderMode(decision.state);
+      else throw new Error(decision.error || `request failed (${response.status})`);
+    } catch (error) { set('modeblocker', `Handover request failed: ${error}`); }
   }
   async function refresh() {
     try {
@@ -147,8 +183,11 @@
     finally { setTimeout(refresh, 1000); }
   }
   $('runs').addEventListener('change', event => { selected = event.target.value; });
+  $('manualmode').addEventListener('click', () => requestMode('manual'));
+  $('automode').addEventListener('click', () => requestMode('autopilot'));
   $('privacy').addEventListener('click', () => { imagesVisible = !imagesVisible; $('privacy').textContent = imagesVisible ? 'Hide images' : 'Show images'; $('privacy').setAttribute('aria-pressed', String(imagesVisible)); if (!imagesVisible) { $('images').hidden = true; $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); } });
   refresh();
+  refreshMode();
 })();
 </script>
 </body>

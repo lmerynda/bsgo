@@ -505,3 +505,10 @@ serves no control commands, and accepts image paths only from the selected
 run's retained frame directories. A synthetic demonstration is labeled in the
 run selector and display and never becomes the automatic latest run. Stop the
 observer with Ctrl+C.
+
+The top control-mode display is independent of the selected run. It shows the
+controller-acknowledged actual mode, app input and decision availability,
+requested/pending mode, and the handover blocker. With this standalone observer
+there is no attached game controller: an Autopilot request is rejected with
+`controller_not_attached`, while actual mode stays Manual and app input stays
+disabled. No observer button launches a probe or sends game input.

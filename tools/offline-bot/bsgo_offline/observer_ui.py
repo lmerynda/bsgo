@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path, PurePosixPath
 import re
+from threading import Lock
 import time
 from urllib.parse import parse_qs, urlsplit
 
@@ -15,6 +16,36 @@ RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 IMAGE_NAME = re.compile(r"observation-[0-9]{8}\.png\Z")
 HTML = Path(__file__).with_name("observer.html")
 MAX_JSON_BYTES = 8 * 1024 * 1024
+
+
+class UnattachedModeController:
+    """Explicitly rejects handover when the observer has no control owner."""
+
+    def __init__(self):
+        self._lock = Lock()
+        self._requested = "manual"
+        self._last_ack = None
+
+    def snapshot(self):
+        with self._lock:
+            return {"actual_mode": "manual", "requested_mode": self._requested,
+                    "pending": False, "app_control_enabled": False,
+                    "decisions_enabled": False, "attached_controller": None,
+                    "autopilot_available": False,
+                    "reason": "controller_not_attached",
+                    "handover_blocker": "controller_not_attached",
+                    "last_ack": self._last_ack}
+
+    def request(self, mode):
+        with self._lock:
+            self._requested = mode
+            self._last_ack = {"requested_mode": mode,
+                              "accepted": mode == "manual",
+                              "reason": None if mode == "manual" else "controller_not_attached",
+                              "at_utc": datetime.now(timezone.utc).isoformat()}
+        state = self.snapshot()
+        return {"accepted": mode == "manual", "state": state,
+                "reason": None if mode == "manual" else "controller_not_attached"}
 
 
 def _json_file(path: Path):
@@ -212,8 +243,9 @@ class ObserverIndex:
                         and _inside(path, directory)) else None
 
 
-def make_server(runs_root: Path, port: int = 8765):
+def make_server(runs_root: Path, port: int = 8765, mode_controller=None):
     index = ObserverIndex(runs_root)
+    controller = mode_controller or UnattachedModeController()
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code, body: bytes, mime: str):
@@ -247,6 +279,9 @@ def make_server(runs_root: Path, port: int = 8765):
                 return
             if request.path == "/api/runs":
                 self._json(200, {"runs": index.runs(), "runs_root": str(index.root)})
+                return
+            if request.path == "/api/control-mode":
+                self._json(200, controller.snapshot())
                 return
             if request.path == "/api/status":
                 run = query.get("run", [None])[0]
@@ -284,6 +319,39 @@ def make_server(runs_root: Path, port: int = 8765):
                            payload if payload is not None else {"error": "sidecar_not_found"})
                 return
             self._json(404, {"error": "not_found"})
+
+        def do_POST(self):
+            if self.headers.get("Host") != f"127.0.0.1:{self.server.server_port}":
+                self._json(403, {"error": "invalid_local_host"})
+                return
+            if self.headers.get("Sec-Fetch-Site") == "cross-site":
+                self._json(403, {"error": "cross_site_request_rejected"})
+                return
+            origin = self.headers.get("Origin")
+            if origin != f"http://127.0.0.1:{self.server.server_port}":
+                self._json(403, {"error": "invalid_origin"})
+                return
+            if urlsplit(self.path).path != "/api/control-mode":
+                self._json(404, {"error": "not_found"})
+                return
+            if self.headers.get("Content-Type") != "application/json":
+                self._json(415, {"error": "json_required"})
+                return
+            try:
+                size = int(self.headers.get("Content-Length", ""))
+                if not 0 < size <= 256:
+                    raise ValueError
+                data = json.loads(self.rfile.read(size))
+            except (ValueError, json.JSONDecodeError):
+                self._json(400, {"error": "invalid_mode_request"})
+                return
+            mode = data.get("mode") if isinstance(data, dict) else None
+            if mode not in ("manual", "autopilot"):
+                self._json(400, {"error": "invalid_mode"})
+                return
+            decision = controller.request(mode)
+            self._json(200 if decision["accepted"] else
+                       202 if decision["state"].get("pending") else 409, decision)
 
         def log_message(self, format, *args):
             pass
