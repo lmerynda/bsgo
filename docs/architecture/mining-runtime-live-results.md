@@ -1191,3 +1191,36 @@ loop totals are now 8217 Water and 24881 Tylium. This verifies useful mining
 from the improved stop under supervision while preserving the application's
 unresolved HP-recognition failure. Input ownership returned to the mining
 agent for the next candidate.
+
+The next app firing run, `continuous-fire-013`
+(`2106dce280744bb28bfd3925b158f711`), used Water HP3783 at 738 m and
+the configured 800 m bound. Its single delivered G pair produced enough
+recognized HP declines for `firing_effect_verified: true`. Observation 81
+then rejected target identity because of `invalid_target_hp_separator`;
+the original report remains blocked. Read-only recovery retained target
+disappearance and trailing images through observation 123, with complete
+diagnostics and all shutdown checks true. Supervisor review of image 123
+at game clock 03:20:42 showed 1367 Water and 112 experience, full hull,
+zero speed and energy 785/800. Quantified loop totals are 9584 Water and
+24881 Tylium. Reward reading remains supervisor evidence, not app recognition.
+
+Commits `62c44703` and `79b89127` implement the supervised moving transition
+from full thrust to one-notch reduced thrust: ordinary PageDown must actually
+be delivered before the wheel request, post-transition speeds must decelerate
+consistently, and three closing images must establish 5.0 m/s before holding
+that regime. The 439-test integration suite passed. Follow-up commits
+`579339a7`, `f4902d00` and `a51408d8` require both final stopped ranges to lie
+within 700–800 m with at most 5 m disagreement, and compare the first
+post-transition speed against the recorded cruise speed. Fifteen throttle
+tests and 55 approach/policy tests passed for the respective follow-ups;
+independent review exercised the transition and stopped-range regressions.
+
+Native moving-transition acceptance is still pending. `two-regime-approach-001`
+(`6e7e0f5ca65a4a86b5b19a3f6f9d5df7`) blocked before requesting any input:
+an Assignments overlay covered the speed HUD, producing `speed_not_anchored`.
+The next attempted launch was rejected by automatic approval review because
+it judged the visible corridor/safe-scene prerequisites unestablished in the
+presence of nearby contacts and clutter. It launched no process or inputs.
+The user then stopped gameplay; the persistent stop request remains set and
+manual mining is paused. Subsequent human gameplay is excluded from these
+app results and reward totals. UI development continues without game control.
