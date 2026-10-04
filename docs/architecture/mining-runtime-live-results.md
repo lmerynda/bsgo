@@ -1135,3 +1135,14 @@ confirmed zero speed with complete diagnostics and all shutdown checks true.
 Parent supervision at game clock 02:59:58 confirmed the same target at 1842 m,
 full hull/energy and speed 0.0. The observed brake-start-to-stop range difference
 was 7 m. Other wheel levels and continuous transitions remain uncalibrated.
+
+Native `speed-regime-cruise-001` (`20e9e28d9d7849618c0dc3723ce58870`)
+then used the existing app approach at a deliberate early 1300 m threshold.
+From 1842 m, images read 1817 m / 10.8 m/s, 1734 / 22.8, 1593 / 33,
+1434 / 33 and 1277 / 33. PageDown at 1277 m was followed by 1146 / 22,
+1072 / 9.8 and two fresh zeros at 1054 m. Observed braking distance was
+223 m; diagnostics and shutdown were complete. Parent supervision at game
+clock 03:01:41 confirmed the same Water HP3855, full hull/energy and zero
+speed. This is a deliberately separated cruise/slow-approach experiment,
+not acceptance of an uninterrupted speed transition. The final reduced-speed
+transit remains to be exercised.
