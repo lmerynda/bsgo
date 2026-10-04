@@ -107,6 +107,12 @@ class NativeInputTests(unittest.TestCase):
                 self.assertIn(self.deliver(backend, dispatcher).outcome, ("partial", "failed"))
                 self.assertEqual([len(batch) for batch in api.sent], [1])
 
+    def test_wheel_enforces_minimum_pointer_settle_even_at_default(self):
+        backend, api, dispatcher = self.setup_dispatcher()
+        backend.wheel_mouse(120, 160, steps=1)
+        self.assertEqual(self.deliver(backend, dispatcher).outcome, "injected")
+        self.assertGreaterEqual(api.sent_at[1] - api.sent_at[0], .045)
+
     def test_pointer_settles_before_button_down(self):
         backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_settle_seconds=.05,
                                                         minimum_mouse_hold_seconds=.05)

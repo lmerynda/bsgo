@@ -477,7 +477,7 @@ class NativeInputDispatcher:
             raise NativeDispatchError("invalid wheel pointer-move insertion count")
         if moved != 1:
             return moved
-        deadline = time.monotonic() + self.minimum_mouse_settle_seconds
+        deadline = time.monotonic() + max(.05, self.minimum_mouse_settle_seconds)
         while (remaining := deadline - time.monotonic()) > 0:
             if self.backend.canceled or self._stop_event.wait(min(remaining, .01)):
                 return moved
