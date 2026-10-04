@@ -501,7 +501,7 @@ delivery and observed effect, plus saved failure evidence. Images are hidden
 until **Show images** is selected because a game frame may include private chat.
 The page distinguishes a live run from a finalized, blocked, or stale package; missing
 execution evidence is labeled **UNKNOWN**. The server binds only to loopback,
-serves no control commands, and accepts image paths only from the selected
+dispatches no game input, and accepts image paths only from the selected
 run's retained frame directories. A synthetic demonstration is labeled in the
 run selector and display and never becomes the automatic latest run. Stop the
 observer with Ctrl+C.
