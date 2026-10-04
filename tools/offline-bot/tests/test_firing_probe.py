@@ -2,8 +2,12 @@
 from threading import Event, Lock, Thread
 import time
 import unittest
+import json
+import io
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from bsgo_offline.firing_probe import run_firing_probe
+from bsgo_offline.firing_probe import main, run_firing_probe
 from bsgo_offline.native_input import DeliveryRecord
 from bsgo_offline.recognition import RecognitionResult
 from bsgo_offline.state import FieldValue
@@ -205,7 +209,7 @@ class FiringProbeTests(unittest.TestCase):
 
     def run_probe(self, directory, source, *, ignore=False, after_seconds=.3,
                   cancel_file=None, cancel_on_G=False, observe_until_target_gone=False,
-                  delay_up=0., min_distance=480.):
+                  delay_up=0., min_distance=480., max_distance=760.):
         if observe_until_target_gone and cancel_file is None:
             cancel_file = directory / "stop.request"
         dispatchers = []
@@ -222,7 +226,8 @@ class FiringProbeTests(unittest.TestCase):
             safe_stopped_scene_assessed=True, wanted_resource_assessed="Tylium",
             no_preexisting_firing_assessed=True, scope="synthetic",
             baseline_seconds=.5, stable_seconds=.075,
-            after_seconds=after_seconds, min_distance=min_distance, cancel_file=cancel_file,
+            after_seconds=after_seconds, min_distance=min_distance,
+            max_distance=max_distance, cancel_file=cancel_file,
             observe_until_target_gone=observe_until_target_gone)
         return result, dispatchers
 
@@ -249,6 +254,80 @@ class FiringProbeTests(unittest.TestCase):
             self.assertEqual(result["state"], "blocked")
             self.assertEqual(result["requests"], [])
             self.assertEqual(dispatchers, [])
+
+    def test_default_upper_range_accepts_760_and_blocks_786_before_G(self):
+        for distance in (760.,786.):
+            with self.subTest(distance=distance), scratch_directory() as directory:
+                result,dispatchers = self.run_probe(directory,Source(distance=distance))
+                if distance == 760.:
+                    self.assertEqual(result['state'],'proved',result)
+                    self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
+                                     ['injected','injected'])
+                else:
+                    self.assertEqual(result['state'],'blocked')
+                    self.assertEqual(result['requests'],[])
+                    self.assertEqual(dispatchers,[])
+                manifest = json.loads((directory/'run'/'manifest.json').read_text())
+                self.assertEqual(manifest['configuration']['max_distance'],760.)
+
+    def test_explicit_upper_range_is_shared_by_baseline_and_actual_G_guard(self):
+        # Successful key delivery above760 proves the live delivery contract
+        # uses the same explicit bound as the baseline and feedback reader.
+        for maximum,distance in ((800.,786.),(800.,800.),(780.,780.),
+                                 (800.,800.01),(780.,780.01)):
+            with self.subTest(maximum=maximum,distance=distance), scratch_directory() as directory:
+                result,dispatchers = self.run_probe(directory,Source(distance=distance),
+                                                     max_distance=maximum)
+                if distance <= maximum:
+                    self.assertEqual(result['state'],'proved',result)
+                    self.assertTrue(result['firing_effect_verified'])
+                    self.assertTrue(result['complete_diagnostics'])
+                    self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
+                                     ['injected','injected'])
+                    self.assertTrue(all(row['distance']==distance for row in result['baseline']))
+                    self.assertFalse(result['mining_ready'])
+                else:
+                    self.assertEqual(result['state'],'blocked')
+                    self.assertEqual(result['requests'],[])
+                    self.assertEqual(dispatchers,[])
+                manifest = json.loads((directory/'run'/'manifest.json').read_text())
+                self.assertEqual(manifest['mode'],'synthetic_supervised_firing_probe')
+                self.assertEqual(manifest['configuration']['max_distance'],maximum)
+
+    def test_invalid_upper_range_settings_fail_before_source_or_artifacts(self):
+        for maximum in (True,None,'800',759.99,800.01,float('nan'),float('inf')):
+            with self.subTest(maximum=maximum), scratch_directory() as directory:
+                with self.assertRaisesRegex(ValueError,'max_distance'):
+                    self.run_probe(directory,Source(),max_distance=maximum)
+                self.assertFalse((directory/'run').exists())
+
+    @staticmethod
+    def firing_cli_args(*extra):
+        return ['firing_probe','--hwnd','17','--pid','42','--output','unused-fixture-output',
+                '--safe-stopped-scene-assessed','--wanted-resource-assessed','Water',
+                '--no-preexisting-firing-assessed',*extra]
+
+    def test_cli_invalid_upper_range_is_rejected_before_window_inspection(self):
+        for maximum in ('759','801','nan','inf','not-a-number'):
+            with self.subTest(maximum=maximum), patch('sys.argv',self.firing_cli_args(
+                    '--max-distance',maximum)), patch('sys.stderr',new=io.StringIO()), \
+                    patch('bsgo_offline.native_capture.inspect_window') as inspect:
+                with self.assertRaises(SystemExit) as error:
+                    main()
+                self.assertEqual(error.exception.code,2)
+                inspect.assert_not_called()
+
+    def test_cli_passes_explicit_upper_bound_and_preserves_default(self):
+        geometry = SimpleNamespace(title='Battlestar Galactica Online',
+                                   client_size=(2560,1440),screen_origin=(0,0))
+        for extra,maximum in (((),760.),(('--max-distance','800'),800.)):
+            with self.subTest(maximum=maximum), patch('sys.argv',self.firing_cli_args(*extra)), \
+                    patch('bsgo_offline.native_capture.inspect_window',return_value=geometry), \
+                    patch('bsgo_offline.firing_probe.run_firing_probe',return_value={
+                        'state':'proved','complete_diagnostics':True}) as run, \
+                    patch('builtins.print'):
+                self.assertEqual(main(),0)
+                self.assertEqual(run.call_args.kwargs['max_distance'],maximum)
 
     def test_explicit_close_range_calibration_preserves_image_and_delivery_proof(self):
         with scratch_directory() as directory:

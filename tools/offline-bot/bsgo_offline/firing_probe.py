@@ -18,6 +18,8 @@ from .state import SnapshotStore
 
 FIELDS = ("speed", "asteroid_selected", "distance", "target_identity",
           "target_portrait", "target_max_hp", "target_current_hp")
+DEFAULT_MAX_DISTANCE = 760.
+SUPERVISED_MAX_DISTANCE = 800.
 HP_MAX_OCR_REASONS = {"invalid_target_hp_separator", "invalid_target_hp_format",
                       "incomplete_numeric_glyph", "ambiguous_numeric_glyph"}
 HP_CURRENT_OCR_REASONS = {"unvalidated_current_hp_digit_count",
@@ -177,7 +179,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                      expected_window_id, frame_size, safe_stopped_scene_assessed,
                      wanted_resource_assessed, no_preexisting_firing_assessed,
                      scope="native", baseline_seconds=6., stable_seconds=4.,
-                     after_seconds=8., min_distance=480., max_distance=760.,
+                     after_seconds=8., min_distance=480., max_distance=DEFAULT_MAX_DISTANCE,
                      max_distance_change=5., cancel_file=None,
                      observe_until_target_gone=False):
     """Send one guarded G press and require two later, distinct falling HP reads."""
@@ -198,7 +200,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         ("stable_seconds", stable_seconds, 0, 6.),
         ("after_seconds", after_seconds, .1, 20.),
         ("min_distance", min_distance, 1, 760.),
-        ("max_distance", max_distance, 480, 760.),
+        ("max_distance", max_distance, DEFAULT_MAX_DISTANCE, SUPERVISED_MAX_DISTANCE),
         ("max_distance_change", max_distance_change, 0, 20.)):
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(name)
@@ -562,9 +564,14 @@ def main():
     parser.add_argument("--after-seconds", type=float, default=8.)
     parser.add_argument("--min-distance", type=float, default=480.,
                         help="Supervised stationary firing calibration lower bound in metres (default: 480)")
+    parser.add_argument("--max-distance", type=float, default=DEFAULT_MAX_DISTANCE,
+                        help="Supervised stationary firing upper bound in metres, 760 through 800 (default: 760)")
     parser.add_argument("--cancel-file", type=Path)
     parser.add_argument("--observe-until-target-gone", action="store_true")
     args = parser.parse_args()
+    if (not math.isfinite(args.max_distance)
+            or not DEFAULT_MAX_DISTANCE <= args.max_distance <= SUPERVISED_MAX_DISTANCE):
+        parser.error("--max-distance must be between 760 and 800")
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
     from .mining_recognition import MiningHudRecognizer
@@ -588,6 +595,7 @@ def main():
         wanted_resource_assessed=args.wanted_resource_assessed,
         no_preexisting_firing_assessed=args.no_preexisting_firing_assessed,
         after_seconds=args.after_seconds, min_distance=args.min_distance,
+        max_distance=args.max_distance,
         cancel_file=args.cancel_file,
         observe_until_target_gone=args.observe_until_target_gone)
     print(json.dumps(plain(result), indent=2))
