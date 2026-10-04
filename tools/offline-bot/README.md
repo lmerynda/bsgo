@@ -366,6 +366,14 @@ its lifetime count, while the trace and frame package retain the full sequence.
 The terminal trace event contains a short summary and a pointer to the full
 report. The supervisor must remain present because G's ongoing autofire state
 is still unverified when this probe exits.
+If a declared HP-only OCR rejection occurs after the delivered G pair, the
+continuous mode records the first blocker and switches to read-only fault
+observation. It never retries G or joins HP values across the unreadable span.
+Window identity, client geometry, capture context, fresh zero speed, stationary
+distance and portrait still have to validate. If the target later disappears,
+the report remains blocked with that first OCR cause while retaining the
+absence and follow-up frames for independent review. Other invalid readings
+end observation immediately.
 
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate

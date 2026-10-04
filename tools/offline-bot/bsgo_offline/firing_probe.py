@@ -18,6 +18,13 @@ from .state import SnapshotStore
 
 FIELDS = ("speed", "asteroid_selected", "distance", "target_identity",
           "target_portrait", "target_max_hp", "target_current_hp")
+HP_MAX_OCR_REASONS = {"invalid_target_hp_separator", "invalid_target_hp_format",
+                      "incomplete_numeric_glyph", "ambiguous_numeric_glyph"}
+HP_CURRENT_OCR_REASONS = {"unvalidated_current_hp_digit_count",
+                          "current_hp_geometry_incomplete",
+                          "current_hp_incomplete_numeric_glyph",
+                          "current_hp_ambiguous_numeric_glyph",
+                          "maximum_hp_context_unverified"}
 
 
 def _read(snapshot, now, window_id, frame_size, context, initial,
@@ -93,6 +100,54 @@ def _absent_target(snapshot, now, window_id, frame_size, context):
             "speed": 0, "asteroid_selected": False}
 
 
+def _hp_only_fault(snapshot, now, window_id, frame_size, context, initial,
+                   min_distance, max_distance, max_distance_change):
+    """Recognize declared HP OCR rejection only; authorize no control or proof."""
+    if (snapshot.window_id != window_id or snapshot.frame_size != tuple(frame_size)
+            or snapshot.context != context or not snapshot.healthy
+            or not 0 <= now - snapshot.acquired_at < 2):
+        raise RuntimeError("invalid_hp_fault_capture_context")
+    fields = snapshot.fields
+    def fresh(name):
+        field = fields.get(name)
+        if not field or field.observed_at != snapshot.acquired_at or not 0 <= now - field.observed_at < 2:
+            raise RuntimeError("invalid_hp_fault_field_age:" + name)
+        return field
+    speed, selected, distance, portrait = (fresh(name) for name in
+        ("speed", "asteroid_selected", "distance", "target_portrait"))
+    if (not all(field.valid for field in (speed, selected, distance, portrait))
+            or type(speed.value) not in (int, float) or speed.value != 0
+            or selected.value is not True
+            or type(distance.value) not in (int, float)
+            or not math.isfinite(distance.value)
+            or not min_distance <= distance.value <= max_distance
+            or abs(distance.value - initial["distance"]) > max_distance_change
+            or not isinstance(portrait.value, (tuple, list))
+            or len(portrait.value) != 144
+            or sum(abs(a-b) for a, b in zip(portrait.value,
+                                             initial["target_portrait"])) / 144 > .75):
+        raise RuntimeError("invalid_hp_fault_non_hp_guard")
+    identity, maximum, current = (fresh(name) for name in
+        ("target_identity", "target_max_hp", "target_current_hp"))
+    missing_max = (not identity.valid and identity.reason == "unreadable_or_absent"
+                   and not maximum.valid and maximum.reason in HP_MAX_OCR_REASONS
+                   and not current.valid and current.reason == "maximum_hp_context_unverified")
+    missing_current = (identity.valid and identity.value == initial["target_identity"]
+                       and maximum.valid and maximum.value == initial["target_max_hp"]
+                       and not current.valid and current.reason in HP_CURRENT_OCR_REASONS)
+    if not (missing_max or missing_current):
+        raise RuntimeError("unclassified_hp_or_target_reading_fault")
+    return {"sequence": snapshot.sequence,
+            "acquisition_sequence": snapshot.acquisition_sequence,
+            "acquired_at": snapshot.acquired_at,
+            "distance": distance.value, "speed": speed.value,
+            "asteroid_selected": True,
+            "target_portrait": portrait.value,
+            "hp_ocr_reasons": {name: fields[name].reason for name in
+                               ("target_identity", "target_max_hp", "target_current_hp")
+                               if not fields[name].valid}}
+
+
 def run_firing_probe(output, *, source_factory, recognizer_factory,
                      dispatcher_factory, configuration, profile,
                      expected_window_id, frame_size, safe_stopped_scene_assessed,
@@ -165,6 +220,8 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         "observe_until_target_gone": observe_until_target_gone,
         "after_observation_count": 0,
         "after_observations_scope": "recent_256" if observe_until_target_gone else "all",
+        "first_blocker": None, "hp_fault_image_count": 0,
+        "observation_end_reason": None,
         "unknown_current_hp_count": 0, "target_disappearance_observed": False,
         "target_disappearance_interpretation": "selection_absent_cause_unverified",
         "absent_target_images": absence,
@@ -255,9 +312,11 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                     "acquired_at": snapshot.acquired_at,
                     "asteroid_selected": selected.value if selected and selected.valid else None})
                 if len(post_disappearance) >= 2:
-                    result.update(state="recorded" if result["firing_effect_verified"] else "blocked",
-                        reason="selected_target_absent_cause_unverified" if result["firing_effect_verified"]
-                        else "selected_target_absent_without_firing_proof")
+                    result.update(state="blocked" if result["first_blocker"]
+                        or not result["firing_effect_verified"] else "recorded",
+                        reason=result["first_blocker"] or
+                        ("selected_target_absent_cause_unverified" if result["firing_effect_verified"]
+                         else "selected_target_absent_without_firing_proof"))
                     break
                 continue
             if (observe_until_target_gone and requests
@@ -276,10 +335,38 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                         "interpretation": "selection_absent_cause_unverified"})
                 continue
             absence.clear()
-            row = _read(snapshot, time.monotonic(), expected_window_id, frame_size,
-                context, initial, min_distance, max_distance, max_distance_change,
-                allow_unknown_current_hp=(observe_until_target_gone
-                                          and result["firing_effect_verified"]))
+            try:
+                row = _read(snapshot, time.monotonic(), expected_window_id, frame_size,
+                    context, initial, min_distance, max_distance, max_distance_change,
+                    allow_unknown_current_hp=(observe_until_target_gone
+                                              and result["firing_effect_verified"]
+                                              and result["first_blocker"] is None))
+            except RuntimeError as read_error:
+                if not (observe_until_target_gone and requests):
+                    raise
+                deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
+                linked = [deliveries.get(r.sequence) for r in requests]
+                if (len(linked) != 2 or not all(linked)
+                        or any(d.outcome != "injected" for d in linked)
+                        or snapshot.acquired_at <= linked[1].at):
+                    raise
+                fault = _hp_only_fault(snapshot, time.monotonic(),
+                    expected_window_id, frame_size, context, initial,
+                    min_distance, max_distance, max_distance_change)
+                if result["first_blocker"] is None:
+                    result["first_blocker"] = f"RuntimeError: {read_error}"
+                    result.update(state="blocked", reason=result["first_blocker"])
+                result["hp_fault_image_count"] += 1
+                after.append(fault)
+                after_total += 1
+                result["after_observation_count"] = after_total
+                if len(after) > 256:
+                    del after[0]
+                diagnostic.submit({"event": "firing_probe_hp_ocr_fault_observation",
+                    "observation_sequence": snapshot.sequence,
+                    "first_blocker": result["first_blocker"],
+                    "hp_ocr_reasons": fault["hp_ocr_reasons"]})
+                continue
             if context is None:
                 context, initial = snapshot.context, row
             if not requests:
@@ -320,6 +407,8 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                         and row["target_current_hp"] < initial["target_current_hp"]):
                     raise RuntimeError("target_hp_changed_before_G_delivery_complete")
                 continue
+            if result["first_blocker"] is not None:
+                continue  # An OCR gap breaks the causal HP proof chain forever.
             if row["target_current_hp"] is None:
                 result["unknown_current_hp_count"] += 1
                 continue
@@ -345,10 +434,12 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         result["deliveries"] = plain(dispatcher.deliveries())
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
-        result.update(state="blocked", reason=error)
+        result.update(state="blocked", reason=result["first_blocker"] or error,
+                      observation_end_reason=error)
     except KeyboardInterrupt:
         error = "KeyboardInterrupt: supervisor_cancelled"
-        result.update(state="blocked", reason=error)
+        result.update(state="blocked", reason=result["first_blocker"] or error,
+                      observation_end_reason=error)
     finally:
         if dispatcher:
             try:
@@ -386,13 +477,16 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
     if error and result["state"] in ("proved", "recorded"):
         result.update(state="blocked", reason=error, firing_effect_verified=False)
     if canceled():
-        result.update(state="blocked", reason="cancel_requested",
+        result.update(state="blocked", reason=result["first_blocker"] or "cancel_requested",
                       cancel_requested=True)
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if (not report["complete_diagnostics"] or not all(shutdown.values())
             or result.get("dispatcher_error")):
         result.update(state="blocked", reason="incomplete_probe_evidence",
                       firing_effect_verified=False)
+        if result["first_blocker"]:
+            result.update(reason=result["first_blocker"],
+                          observation_end_reason="incomplete_probe_evidence")
         report["result"] = plain(result)
         _write_json(diagnostic.directory / "report.json", report)
     result.update(run_id=diagnostic.journal.run_id, shutdown=shutdown,

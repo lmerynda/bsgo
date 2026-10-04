@@ -20,7 +20,8 @@ class Source:
                  cancel_path=None, effect_delay=0, gone_after=None,
                  unknown_after=None, invalid_after_step=None,
                  cancel_after_delivery=None, unknown_baseline=False,
-                 valid_none_baseline=False, post_gone_speed=0.):
+                 valid_none_baseline=False, post_gone_speed=0.,
+                 hp_reader_fault_after=None, motion_after=None):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -35,6 +36,8 @@ class Source:
         self.unknown_baseline = unknown_baseline
         self.valid_none_baseline = valid_none_baseline
         self.post_gone_speed = post_gone_speed
+        self.hp_reader_fault_after = hp_reader_fault_after
+        self.motion_after = motion_after
         self.delivery_sequence = None
 
     def next_sample(self, stop):
@@ -69,6 +72,11 @@ class Source:
             values["target_current_hp"] = None
         if after and self.change_target:
             values["target_max_hp"] = 4600
+        if after and self.hp_reader_fault_after is not None and step >= self.hp_reader_fault_after:
+            values.update(target_identity=None, target_max_hp=None,
+                          target_current_hp=None)
+        if after and self.motion_after is not None and step >= self.motion_after:
+            values["speed"] = 1.
         if after and self.gone_after is not None and step >= self.gone_after:
             values.update(asteroid_selected=False, distance=None, target_identity=None,
                           target_portrait=None, target_max_hp=None, target_current_hp=None)
@@ -80,6 +88,9 @@ class Source:
                              and step >= self.unknown_after)
                             or (self.unknown_baseline and self.sequence == 1))
         sample.valid_none_hp = self.valid_none_baseline and self.sequence == 1
+        sample.hp_reader_fault = (after and self.hp_reader_fault_after is not None
+                                  and step >= self.hp_reader_fault_after
+                                  and not (self.gone_after is not None and step >= self.gone_after))
         return sample
 
     def close(self):
@@ -89,7 +100,12 @@ class Source:
 def recognize(sample):
     return RecognitionResult((4, 3), {name: FieldValue(value, sample.acquired_at,
         valid=value is not None or (name == "target_current_hp" and sample.valid_none_hp),
-        reason=("unvalidated_current_hp_digit_count" if name == "target_current_hp"
+        reason=({"target_identity": "unreadable_or_absent",
+                 "target_max_hp": "invalid_target_hp_separator",
+                 "target_current_hp": "maximum_hp_context_unverified"}[name]
+                if sample.hp_reader_fault and name in ("target_identity", "target_max_hp",
+                                                       "target_current_hp") else
+                "unvalidated_current_hp_digit_count" if name == "target_current_hp"
                 and sample.unknown_hp else "fixture_rejection") if value is None else None)
         for name, value in sample.values.items()})
 
@@ -333,7 +349,7 @@ class FiringProbeTests(unittest.TestCase):
             result, dispatchers = self.run_probe(directory, source,
                 observe_until_target_gone=True)
             self.assertEqual(result["state"], "blocked")
-            self.assertIn("invalid_or_stale_target_current_hp", result["reason"])
+            self.assertIn("unclassified_hp_or_target_reading_fault", result["reason"])
             self.assertTrue(result["firing_effect_verified"])
             self.assertFalse(result["target_disappearance_observed"])
             self.assertEqual(len(dispatchers[0].deliveries()), 2)
@@ -382,6 +398,61 @@ class FiringProbeTests(unittest.TestCase):
             self.assertEqual(result["state"], "blocked")
             self.assertIn("stale_image_stream", result["reason"])
             self.assertFalse(result["target_disappearance_observed"])
+
+    def test_declared_hp_reader_fault_continues_read_only_to_ambiguous_absence(self):
+        with scratch_directory() as directory:
+            source = Source(hp_reader_fault_after=2, gone_after=7)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["first_blocker"],
+                             "RuntimeError: invalid_or_stale_target_identity")
+            self.assertEqual(result["reason"], result["first_blocker"])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(len(result["falling"]), 1)
+            self.assertGreaterEqual(result["hp_fault_image_count"], 1)
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(result["requests"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertTrue(result["complete_diagnostics"])
+            self.assertGreaterEqual(len(list((directory / "run" / "failed-recognition").glob("*.json"))), 1)
+            self.assertIn("resource_reward", result["unverified"])
+
+    def test_finite_mode_still_stops_on_declared_hp_reader_fault(self):
+        with scratch_directory() as directory:
+            result, _ = self.run_probe(directory,
+                Source(hp_reader_fault_after=2, gone_after=7))
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("invalid_or_stale_target_identity", result["reason"])
+            self.assertIsNone(result["first_blocker"])
+            self.assertFalse(result["target_disappearance_observed"])
+
+    def test_cancel_after_hp_fault_preserves_first_cause_and_no_second_G(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            source = Source(hp_reader_fault_after=2, cancel_path=marker,
+                            cancel_after_delivery=4)
+            result, dispatchers = self.run_probe(directory, source,
+                cancel_file=marker, observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "RuntimeError: invalid_or_stale_target_identity")
+            self.assertTrue(result["cancel_requested"])
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertTrue(marker.exists())
+
+    def test_motion_during_hp_fault_ends_observation_with_first_cause_preserved(self):
+        with scratch_directory() as directory:
+            source = Source(hp_reader_fault_after=2, motion_after=3)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "RuntimeError: invalid_or_stale_target_identity")
+            self.assertIn("invalid_hp_fault_non_hp_guard", result["observation_end_reason"])
+            self.assertFalse(result["target_disappearance_observed"])
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
 
 
 if __name__ == "__main__":
