@@ -24,7 +24,8 @@ class Source:
                  hp_reader_fault_after=None, hp_reader_fault_until=None,
                  motion_after=None, initial_hp=4500,
                  low_hp_after=None, low_hp_descend=False,
-                 low_hp_on_down=False, distance=677.):
+                 low_hp_on_down=False, zero_after=None, zero_until=None,
+                 zero_on_down=False, distance=677.):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -45,6 +46,8 @@ class Source:
         self.initial_hp, self.low_hp_after = initial_hp, low_hp_after
         self.low_hp_descend = low_hp_descend
         self.low_hp_on_down = low_hp_on_down
+        self.zero_after, self.zero_until = zero_after, zero_until
+        self.zero_on_down = zero_on_down
         self.distance = distance
         self.down_sequence = None
         self.delivery_sequence = None
@@ -72,9 +75,15 @@ class Source:
             hp = 4500 - 10 * (step - self.effect_delay)
         if after and self.low_hp_after is not None and step >= self.low_hp_after:
             hp = 351 - (101 * (step - self.low_hp_after) if self.low_hp_descend else 0)
+        if (after and self.zero_after is not None and step >= self.zero_after
+                and (self.zero_until is None or step < self.zero_until)):
+            hp = 0
         if (self.low_hp_on_down and self.down_sequence is not None
                 and self.delivery_sequence is None and self.sequence > self.down_sequence):
             hp = 351
+        if (self.zero_on_down and self.down_sequence is not None
+                and self.delivery_sequence is None and self.sequence > self.down_sequence):
+            hp = 0
         values = {"speed": 0., "asteroid_selected": True, "distance": self.distance,
             "target_identity": "asteroid:hp:4500", "target_portrait": tuple([1] * 144),
             "target_max_hp": 4500, "target_current_hp": hp}
@@ -475,6 +484,99 @@ class FiringProbeTests(unittest.TestCase):
             self.assertIn("four_digit_hp_required", result["reason"])
             self.assertEqual(result["requests"], [])
             self.assertEqual(dispatchers, [])
+
+    def test_zero_hp_baseline_cannot_authorize_G(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(initial_hp=0), observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("four_digit_hp_required", result["reason"])
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
+
+    def test_first_post_G_zero_is_observed_but_cannot_prove_effect(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(effect=False, zero_after=1, gone_after=4),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "selected_target_absent_without_firing_proof")
+            self.assertTrue(result["terminal_zero_observed"])
+            self.assertEqual(result["falling"], [])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+
+    def test_zero_cannot_be_second_distinct_decline(self):
+        with scratch_directory() as directory:
+            result, _ = self.run_probe(directory,
+                Source(zero_after=2, gone_after=5),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual([r["target_current_hp"] for r in result["falling"]],
+                             [4490])
+            self.assertTrue(result["terminal_zero_observed"])
+            self.assertFalse(result["firing_effect_verified"])
+
+    def test_proof_chain_cannot_resume_after_terminal_zero(self):
+        with scratch_directory() as directory:
+            result, _ = self.run_probe(directory,
+                Source(zero_after=2, zero_until=3, gone_after=5),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual([r["target_current_hp"] for r in result["falling"]],
+                             [4490])
+            self.assertTrue(result["terminal_zero_observed"])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertTrue(result["target_disappearance_observed"])
+
+    def test_zero_after_positive_proof_retains_absence_and_follow_up(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(zero_after=3, gone_after=5),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "recorded", result)
+            self.assertEqual([r["target_current_hp"] for r in result["falling"]],
+                             [4490, 4480])
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertTrue(result["terminal_zero_observed"])
+            self.assertTrue(any(r["target_current_hp"] == 0 for r in result["after"]))
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertEqual(result["target_disappearance_interpretation"],
+                             "selection_absent_cause_unverified")
+            self.assertIn("resource_reward", result["unverified"])
+            self.assertTrue(result["complete_diagnostics"])
+
+    def test_zero_before_G_up_cannot_be_accepted(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(zero_on_down=True), observe_until_target_gone=True,
+                delay_up=.12)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("four_digit_hp_required", result["reason"])
+            self.assertFalse(result["terminal_zero_observed"])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+
+    def test_zero_after_first_blocker_retains_cause_and_no_proof(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(hp_reader_fault_after=1, hp_reader_fault_until=2,
+                       zero_after=2, gone_after=5),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "RuntimeError: invalid_or_stale_target_identity")
+            self.assertTrue(result["terminal_zero_observed"])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(result["falling"], [])
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
 
     def test_continuous_mode_bad_hp_blocks_without_target_loss_inference(self):
         with scratch_directory() as directory:

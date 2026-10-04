@@ -29,7 +29,8 @@ HP_CURRENT_OCR_REASONS = {"unvalidated_current_hp_digit_count",
 
 def _read(snapshot, now, window_id, frame_size, context, initial,
           min_distance, max_distance, max_distance_change,
-          allow_unknown_current_hp=False, allow_subthousand_current_hp=False):
+          allow_unknown_current_hp=False, allow_subthousand_current_hp=False,
+          allow_terminal_zero_current_hp=False):
     if (snapshot.window_id != window_id or snapshot.frame_size != tuple(frame_size)
             or context is not None and snapshot.context != context):
         raise RuntimeError("capture_context_changed")
@@ -62,7 +63,8 @@ def _read(snapshot, now, window_id, frame_size, context, initial,
                 and "target_current_hp_reason" not in values)
             or (values["target_current_hp"] is not None
                 and (type(values["target_current_hp"]) not in (int, float)
-                     or not (1 if allow_subthousand_current_hp else 1000)
+                     or not (0 if allow_terminal_zero_current_hp else
+                             1 if allow_subthousand_current_hp else 1000)
                          <= values["target_current_hp"] <= values["target_max_hp"]))
             or not math.isfinite(values["target_max_hp"])
             or not isinstance(values["target_portrait"], (tuple, list))
@@ -224,6 +226,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         "first_blocker": None, "hp_fault_image_count": 0,
         "observation_end_reason": None,
         "unknown_current_hp_count": 0, "target_disappearance_observed": False,
+        "terminal_zero_observed": False, "terminal_zero_sequence": None,
         "target_disappearance_interpretation": "selection_absent_cause_unverified",
         "absent_target_images": absence,
         "post_disappearance_images": post_disappearance,
@@ -353,7 +356,9 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                                               and result["firing_effect_verified"]
                                               and result["first_blocker"] is None),
                     allow_subthousand_current_hp=(observe_until_target_gone
-                                                  and g_delivered_before(snapshot)))
+                                                  and g_delivered_before(snapshot)),
+                    allow_terminal_zero_current_hp=(observe_until_target_gone
+                                                    and g_delivered_before(snapshot)))
             except RuntimeError as read_error:
                 if not (observe_until_target_gone and requests):
                     raise
@@ -420,11 +425,21 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                         and row["target_current_hp"] < initial["target_current_hp"]):
                     raise RuntimeError("target_hp_changed_before_G_delivery_complete")
                 continue
+            if row["target_current_hp"] == 0:
+                if not result["terminal_zero_observed"]:
+                    result["terminal_zero_observed"] = True
+                    result["terminal_zero_sequence"] = row["sequence"]
+                    diagnostic.submit({"event": "firing_probe_terminal_zero_image",
+                        "observation_sequence": row["sequence"],
+                        "interpretation": "target_hp_zero_cause_unverified"})
+                continue  # Zero is terminal observation, never another HP decline.
             if result["first_blocker"] is not None:
                 continue  # An OCR gap breaks the causal HP proof chain forever.
             if row["target_current_hp"] is None:
                 result["unknown_current_hp_count"] += 1
                 continue
+            if result["terminal_zero_observed"]:
+                continue  # No later HP reading can resume the proof chain.
             if last_known_hp is not None and row["target_current_hp"] > last_known_hp:
                 raise RuntimeError("post_G_target_hp_reversed")
             last_known_hp = row["target_current_hp"]
