@@ -10,6 +10,7 @@ from threading import Condition, Event, Thread, Lock
 import time
 
 from .artifacts import plain
+from .execution_status import ExecutionStatus
 from .state import freeze
 from .trace import TraceJournal
 
@@ -146,6 +147,9 @@ class DiagnosticRun:
         self._journal_dropped = 0
         self._event_cursor = 0
         self._store = self._worker = self._coordinator = self._backend = None
+        self._dispatcher = None
+        self._last_retained_frame = None
+        self.execution = ExecutionStatus()
         self._capabilities = None
         self._status_interval = status_interval
         self._sampler_stop = Event()
@@ -186,6 +190,34 @@ class DiagnosticRun:
                         and not self._frame_error},
                 "write_complete": self._finished and self._accepted == self._written
                     and not self._dropped and not self._skipped and not self._frame_error}
+
+    def attach_dispatcher(self, dispatcher):
+        """Expose insertion records to the sampler, without altering delivery."""
+        self._dispatcher = dispatcher
+
+    def update_execution(self, **values):
+        self.execution.update(**values)
+
+    def _observation_status(self, snapshot, now):
+        if snapshot is None:
+            return None
+        maximum_age = self.manifest["configuration"].get("maximum_image_age", 2.)
+        evidence = snapshot.fields.get("ocr_evidence")
+        evidence = evidence.value if evidence and evidence.valid else {}
+        fields = {}
+        for name, field in snapshot.fields.items():
+            age = now - field.observed_at
+            fields[name] = {"value": plain(field.value), "valid": field.valid,
+                "reason": field.reason, "observed_at": field.observed_at,
+                "age_seconds": age, "fresh": 0 <= age < maximum_age,
+                "observed_in_current_image": field.observed_at == snapshot.acquired_at,
+                "confidence": evidence.get(name + "_confidence") if evidence else None}
+        return {"sequence": snapshot.sequence,
+            "acquisition_sequence": snapshot.acquisition_sequence,
+            "acquired_at": snapshot.acquired_at, "published_at": snapshot.published_at,
+            "age_seconds": now - snapshot.acquired_at, "context": plain(snapshot.context),
+            "healthy": snapshot.healthy, "reason": snapshot.reason,
+            "maximum_image_age_seconds": maximum_age, "fields": fields}
 
     def _retain_frame(self, snapshot, sample):
         failures = recognition_failures(snapshot)
@@ -265,6 +297,7 @@ class DiagnosticRun:
                 with self._condition:
                     self._written += 1
                     self._failed_written += bool(reference["recognition_failures"])
+                    self._last_retained_frame = {**retained, "state": "written"}
                 self.submit(retained)
         except Exception as error:
             with self._condition:
@@ -276,8 +309,17 @@ class DiagnosticRun:
 
     def read_status(self):
         snapshot = self._store.latest() if self._store else None
+        requests = self._backend.records() if self._backend else ()
+        deliveries = self._dispatcher.deliveries() if self._dispatcher else ()
+        with self._condition:
+            retained = self._last_retained_frame
         return plain({"run_id": self.journal.run_id, "mode": self.manifest["mode"],
             "sampled_utc": datetime.now(timezone.utc).isoformat(),
+            "sampled_monotonic": time.monotonic(),
+            "execution": self.execution.read(intent=requests[-1] if requests else None,
+                                             delivery=deliveries[-1] if deliveries else None),
+            "observation": self._observation_status(snapshot, time.monotonic()),
+            "last_retained_frame": retained,
             "runtime": self._coordinator.read_status() if self._coordinator else None,
             "preflight": self._coordinator.read_preflight(self._capabilities) if self._coordinator else None,
             "worker": self._worker.metrics() if self._worker else None,
@@ -329,6 +371,24 @@ class DiagnosticRun:
             and not (status["worker"] or {}).get("diagnostic_dropped", 0)
             and not (status["actions"] or {}).get("journal_dropped", 0)
             and not (status["input_history"] or {}).get("logging_gaps", 0))
+        result_data = result if isinstance(result, dict) else {}
+        reason = error or result_data.get("first_blocker") or result_data.get("reason")
+        if result_data.get("cancel_requested"):
+            phase = "canceled"
+        elif error or not telemetry_complete or result_data.get("state") == "blocked":
+            phase = "blocked"
+            reason = reason if error or result_data.get("state") == "blocked" else "incomplete_diagnostic_evidence"
+        else:
+            phase = "completed"
+        warnings = [result_data["warning"]] if result_data.get("warning") else []
+        if result_data.get("firing_state_after_probe"):
+            warnings.append("firing_state_after_probe: " + result_data["firing_state_after_probe"])
+        self.update_execution(phase=phase, reason=reason, terminal=True,
+            blocker=reason if phase in ("blocked", "canceled") else None,
+            warnings=warnings)
+        status["execution"] = self.execution.read(
+            intent=self._backend.records()[-1] if self._backend and self._backend.records() else None,
+            delivery=self._dispatcher.deliveries()[-1] if self._dispatcher and self._dispatcher.deliveries() else None)
         report = {**status, "result": plain(result), "error": error, "shutdown": shutdown,
                   "complete_diagnostics": telemetry_complete,
                   "input_requests": plain(self._backend.records()) if self._backend else [],

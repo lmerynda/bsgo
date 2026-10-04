@@ -7,6 +7,9 @@ import unittest
 from unittest.mock import patch
 
 from bsgo_offline.diagnostics import DiagnosticRun, recognition_failures
+from bsgo_offline.execution_status import ExecutionStatus
+from bsgo_offline.input import RecordingInputBackend
+from bsgo_offline.native_input import DeliveryRecord
 from bsgo_offline.diagnose import run_preflight
 from bsgo_offline.native_capture import NativeFrame, WindowGeometry
 from bsgo_offline.recognition import RecognitionResult, RecognitionWorker
@@ -35,6 +38,70 @@ def recognize_fixture(sample):
 
 
 class DiagnosticTests(unittest.TestCase):
+    def test_execution_phase_clock_blocker_and_image_proof_are_independent(self):
+        status = ExecutionStatus()
+        status.update(phase="baseline", waiting_for="two fresh stopped images")
+        entered = status.read()["phase_entered_monotonic"]
+        status.update(phase="baseline", blocker="unreadable_speed", progress="new image")
+        status.update(phase="braking", progress="brake requested")
+        value = status.read(intent={"sequence": 3}, delivery={"outcome": "inserted"})
+        self.assertEqual(value["first_blocker"], "unreadable_speed")
+        self.assertEqual(value["last_progress"]["message"], "brake requested")
+        self.assertIsNone(value["last_confirmed_effect"])
+        self.assertGreaterEqual(value["phase_entered_monotonic"], entered)
+        status.update(phase="completed", terminal=True,
+                      confirmed_effect={"observation_sequence": 9, "effect": "two_zero_images"})
+        status.update(phase="cruising")
+        self.assertEqual(status.read()["phase"], "completed")
+        self.assertEqual(status.read()["last_confirmed_effect"]["observation_sequence"], 9)
+
+    def test_status_exports_stale_current_and_unsupported_fields_honestly(self):
+        with scratch_directory() as directory:
+            run = DiagnosticRun(directory / "run", mode="fixture",
+                                configuration={"maximum_image_age": 7})
+            store = SnapshotStore()
+            store.publish(observation(at=10, fields={
+                "speed": FieldValue(5, 9),
+                "hull_current": FieldValue(5005, 10),
+                "scan_result": FieldValue(None, 10, False, "mining_recognizer_not_validated:scan_result"),
+                "ocr_evidence": FieldValue({"speed_confidence": .98}, 10)}))
+            run._store = store
+            with patch("bsgo_offline.diagnostics.time.monotonic", return_value=16.5):
+                value = run.read_status()["observation"]
+            self.assertTrue(value["fields"]["hull_current"]["fresh"])
+            self.assertFalse(value["fields"]["speed"]["fresh"])
+            self.assertFalse(value["fields"]["speed"]["observed_in_current_image"])
+            self.assertEqual(value["fields"]["speed"]["confidence"], .98)
+            self.assertIsNone(value["fields"]["hull_current"]["confidence"])
+            self.assertFalse(value["fields"]["scan_result"]["valid"])
+            self.assertEqual(value["maximum_image_age_seconds"], 7)
+            run.close(shutdown={})
+
+    def test_status_distinguishes_input_intent_partial_delivery_and_effect(self):
+        with scratch_directory() as directory:
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={})
+            backend = RecordingInputBackend(session_id="fixture")
+            backend.key_down("G", reason="test_request")
+            delivery = DeliveryRecord(1, time.monotonic(), "key_down", "partial", 1, 0, 0)
+            class Dispatcher:
+                def deliveries(self):
+                    return (delivery,)
+            run._backend = backend
+            run.attach_dispatcher(Dispatcher())
+            value = run.read_status()["execution"]
+            self.assertEqual(value["last_input_intent"]["key"], "G")
+            self.assertEqual(value["last_input_delivery"]["outcome"], "partial")
+            self.assertIsNone(value["last_confirmed_effect"])
+            backend.cancel(reason="fixture_cleanup")
+            backend.drain()
+            run.close(shutdown={}, result={"state": "blocked", "reason": "no_delivery",
+                "warning": "autofire may continue beyond probe",
+                "firing_state_after_probe": "unverified_supervisor_retains_control"})
+            final = json.loads((directory / "run" / "status.json").read_text())
+            self.assertEqual(final["execution"]["phase"], "blocked")
+            self.assertTrue(final["execution"]["terminal"])
+            self.assertIn("autofire may continue beyond probe", final["execution"]["warnings"])
+
     def test_explicit_unbounded_routine_frame_count_retains_all_frames(self):
         with scratch_directory() as directory:
             source = NativeFixtureSource(80)
@@ -103,12 +170,22 @@ class DiagnosticTests(unittest.TestCase):
                     bad = {"speed": FieldValue(None, 1., False, "unreadable")}
                     run.observation(observation(fields=bad), (), source.next_sample(Event()), {})
                     self.assertTrue(entered.wait(1))
+                    self.assertIsNone(run.read_status()["last_retained_frame"])
+                    run.update_execution(phase="ocr_blocked_readonly_recovery",
+                                         blocker="unreadable", waiting_for="a readable image")
+                    self.assertEqual(run.read_status()["execution"]["phase"],
+                                     "ocr_blocked_readonly_recovery")
                     for sequence in range(2, 6):
                         run.observation(observation(sequence, fields=bad), (), source.next_sample(Event()), {})
                 finally:
                     gate.set()
                     report = run.close(shutdown={})
             self.assertFalse(report["complete_diagnostics"])
+            retained = report["last_retained_frame"]
+            self.assertEqual(retained["state"], "written")
+            self.assertTrue((directory / "run" / retained["path"]).is_file())
+            self.assertTrue((directory / "run" / retained["sidecar"]).is_file())
+            self.assertEqual(report["execution"]["first_blocker"], "unreadable")
             self.assertEqual(report["frames"]["failed_recognition"]["observed"], 5)
             self.assertEqual(report["frames"]["failed_recognition"]["dropped"], 3)
             self.assertEqual(report["frames"]["failed_recognition"]["missing"], 3)
