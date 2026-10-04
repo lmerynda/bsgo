@@ -910,3 +910,14 @@ at 01:11:24 still showed zero speed and full hull/energy. No PageUp was sent,
 and this is an external execution rejection rather than an app acceptance run.
 The same rejected route was not retried; stationary candidate discovery and
 the continuing mining objective remain active while a clearer route is sought.
+
+Reader commit `f0204416` adds eleven complete measured fire-007 layout families
+and native glyph variants for 816. All 217 selected-target frames now replay
+with valid HP3788 maximum and current HP, including 3190,1904,1742,1615,1411,
+1233,1087,816,610,395 and248. Four following frames correctly lack an asteroid.
+Prior selected fire-006 (100 frames), fire-004 (60) and approach-001 (205)
+remain valid. A proposed generic centered-ratio fallback was rejected when a
+left-clipped 248 digit matched another complete raster phase; exact measured
+anchors remain required. Thirty-three HUD tests cover approximately 330 missing
+glyph and clipped-edge cases. Full integration passed 395 tests. These are
+reader replays; original blocked live runs and their proof flags are preserved.
