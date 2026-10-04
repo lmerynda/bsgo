@@ -65,7 +65,7 @@
     <section class="panel wide"><div class="eyebrow">Execution</div><h2><span id="lifecycle" class="pill">UNKNOWN</span><span id="synthetic" class="pill synthetic" hidden>SYNTHETIC DEMO</span> <span id="phase">UNKNOWN</span></h2><div class="rows"><div><div class="label">Processing</div><div id="processing" class="value">UNKNOWN</div></div><div><div class="label">Waiting for</div><div id="waiting" class="value">UNKNOWN</div></div></div><p><span class="label">Expected next step</span><br><span id="next" class="text">UNKNOWN</span></p><div id="progress" class="small">No progress message</div></section>
     <section class="panel"><h2>Run and freshness</h2><div class="label">Selected package</div><div id="run" class="value mono">UNKNOWN</div><p class="small">Status age: <span id="age">UNKNOWN</span> · Worker: <span id="worker">UNKNOWN</span></p><div class="label">Run ID</div><div id="runid" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Code commit</div><div id="commit" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Supervisor assessed (not image verified)</div><div id="assessments" class="small text">UNKNOWN</div></section>
     <section class="panel wide"><h2>Image readings at last status sample</h2><div class="rows"><div class="metric"><div class="label">Ship speed</div><div id="speed" class="value">UNKNOWN</div><div id="speedmeta" class="small"></div></div><div class="metric"><div class="label">Target range</div><div id="distance" class="value">UNKNOWN</div><div id="distancemeta" class="small"></div></div><div class="metric"><div class="label">Hull</div><div id="hull" class="value">UNKNOWN</div><div id="hullmeta" class="small"></div></div><div class="metric"><div class="label">Target HP</div><div id="hp" class="value">UNKNOWN</div><div id="hpmeta" class="small"></div></div></div><p class="small">Image observation: <span id="observation">UNKNOWN</span> · Recognition: <span id="health">UNKNOWN</span> · Target: <span id="target">UNKNOWN</span></p></section>
-    <section class="panel"><h2>Outcome and blockers</h2><div class="label">Result</div><div id="outcome" class="value">UNKNOWN</div><p id="blocker" class="warn text">No blocker reported</p><div class="small">First blocker: <span id="firstblocker">UNKNOWN</span></div><div class="small">Diagnostics: <span id="diagnostics">UNKNOWN</span></div><div class="label" style="margin-top:12px">Warnings and continuing effects</div><div id="warnings" class="warn text">UNKNOWN</div></section>
+    <section class="panel"><h2>Outcome and blockers</h2><div class="label">Result</div><div id="outcome" class="value">UNKNOWN</div><p id="blocker" class="warn text">No blocker reported</p><div class="small"><span id="firstcauselabel">First blocker</span>: <span id="firstblocker">UNKNOWN</span></div><div class="small">Diagnostics: <span id="diagnostics">UNKNOWN</span></div><div id="coverage" class="small text">Coverage UNKNOWN</div><div id="writerhealth" class="small text">Writer health UNKNOWN</div><div class="label" style="margin-top:12px">Warnings and continuing effects</div><div id="warnings" class="warn text">UNKNOWN</div></section>
     <section class="panel full"><h2>Command evidence</h2><div class="flow"><div><div class="label">Requested</div><div id="intent" class="text">UNKNOWN</div><details><summary>Raw request</summary><pre id="intentraw"></pre></details></div><div><div class="label">Delivered to input stream</div><div id="delivery" class="text">UNKNOWN</div><details><summary>Raw delivery</summary><pre id="deliveryraw"></pre></details></div><div><div class="label">Observed effect</div><div id="effect" class="text">UNKNOWN</div><details><summary>Raw effect</summary><pre id="effectraw"></pre></details></div></div><p class="small">Input insertion and image-observed effects are separate evidence.</p></section>
     <section class="panel full"><h2>Retained images <span class="small">(hidden until you choose Show images)</span></h2><div id="imagehint" class="small">Image previews are hidden.</div><div id="images" class="images" hidden><figure><img id="currentimg" alt="Latest retained game observation"><figcaption>Latest retained frame · <span id="currentpath"></span></figcaption></figure><figure><img id="failureimg" alt="First saved failed recognition"><figcaption>First saved recognition failure · <span id="failurepath"></span><br><a id="sidecar" target="_blank" rel="noopener">View sidecar</a> · <span id="failurereasons"></span></figcaption></figure></div></section>
   </div>
@@ -89,14 +89,18 @@
   function render(data) {
     const status = data.status || {}, execution = status.execution || {}, observation = status.observation || {}, fields = observation.fields || {};
     const result = status.result || (data.report || {}).result || {};
+    const frames = status.frames || {}, trace = status.trace || {}, report = data.report || {};
     const synthetic = (data.manifest || {}).synthetic === true;
     const passiveRun = String((data.manifest || {}).mode || '').includes('passive');
     $('passivebanner').hidden = !passiveRun;
     set('passivebanner', `PASSIVE OBSERVATION ${data.lifecycle === 'live' ? 'ACTIVE' : 'PACKAGE'} · App decisions disabled · App controls disabled`);
     $('synthetic').hidden = !synthetic;
-    const blocked = Boolean(execution.first_blocker || execution.phase === 'blocked' || result.state === 'blocked');
+    const firstCause = execution.first_blocker || result.first_blocker;
+    const substantiveCause = firstCause && firstCause !== 'cancel_requested';
+    const blocked = Boolean(execution.phase === 'blocked' || result.state === 'blocked' || report.error || status.error || (!passiveRun && substantiveCause));
+    const canceled = !blocked && (execution.phase === 'canceled' || result.state === 'canceled');
     $('lifecycle').className = `pill ${blocked ? 'blocked' : data.lifecycle || ''}`;
-    set('lifecycle', data.lifecycle === 'finalized' ? `FINALIZED · ${blocked ? 'BLOCKED' : result.state || 'outcome UNKNOWN'}` : blocked ? 'BLOCKED' : data.lifecycle);
+    set('lifecycle', data.lifecycle === 'finalized' ? `FINALIZED · ${blocked ? 'BLOCKED' : canceled ? 'CANCELED' : result.state || 'outcome UNKNOWN'}` : blocked ? 'BLOCKED' : canceled ? 'CANCELED' : data.lifecycle);
     set('phase', data.lifecycle === 'live' ? execution.phase : execution.phase ? `Last recorded: ${execution.phase}` : null);
     set('processing', execution.processing); set('waiting', execution.waiting_for); set('next', execution.expected_next_step);
     set('progress', execution.last_progress && execution.last_progress.message);
@@ -113,8 +117,12 @@
     set('observation', observation.sequence === undefined ? null : `#${observation.sequence}, image age ${Number.isFinite(observation.age_seconds) ? observation.age_seconds.toFixed(2) : 'UNKNOWN'}s`);
     set('health', observation.healthy === true ? 'healthy' : observation.healthy === false ? `REJECTED · ${observation.reason || 'reason unknown'}` : null);
     set('target', evidence(fields.target_identity)[0]);
-    set('outcome', blocked ? `BLOCKED${result.state && result.state !== 'blocked' ? ` (probe result: ${result.state})` : ''}` : result.state); set('blocker', execution.first_blocker || result.first_blocker || (blocked ? (execution.reason || result.reason || result.first_rejection?.read_error) : null) || 'No blocker reported');
+    set('outcome', blocked ? `BLOCKED${result.state && result.state !== 'blocked' ? ` (probe result: ${result.state})` : ''}` : canceled ? 'CANCELED (explicit stop)' : result.state); set('blocker', blocked ? (firstCause || execution.reason || result.reason || result.first_rejection?.read_error) : canceled ? 'Explicit observation stop; no control failure reported' : 'No blocker reported');
+    set('firstcauselabel', passiveRun && substantiveCause && !blocked ? 'First recognition issue' : canceled ? 'Stop reason' : 'First blocker');
     set('firstblocker', execution.first_blocker || result.first_blocker || result.first_rejection?.read_error); set('diagnostics', (data.report || {}).complete_diagnostics);
+    const skipped = frames.budget_skipped ?? 0;
+    set('coverage', `Retained ${frames.written ?? 'UNKNOWN'}/${frames.accepted ?? 'UNKNOWN'} accepted frames · ${skipped} routine budget-skipped${report.complete_diagnostics === false ? ' · diagnostic coverage incomplete' : ''}`);
+    set('writerhealth', `Frame queue dropped ${frames.dropped ?? 'UNKNOWN'}, unwritten ${frames.unwritten ?? 'UNKNOWN'}, error ${frames.error || 'none reported'} · Trace dropped ${trace.dropped ?? 'UNKNOWN'}, unwritten ${trace.unwritten ?? 'UNKNOWN'}, error ${trace.error || 'none reported'} · Status write errors ${status.status_write_errors ?? 'UNKNOWN'}`);
     set('warnings', pretty([...(execution.warnings || []), result.warning, result.firing_state_after_probe].filter(Boolean)));
     set('intent', compactIntent(execution.last_input_intent)); set('delivery', compactDelivery(execution.last_input_delivery)); set('effect', compactEffect(execution.last_confirmed_effect));
     set('intentraw', pretty(execution.last_input_intent)); set('deliveryraw', pretty(execution.last_input_delivery)); set('effectraw', pretty(execution.last_confirmed_effect));
@@ -133,7 +141,7 @@
   function unavailable(error) {
     $('lifecycle').className = 'pill unavailable';
     $('synthetic').hidden = true;
-    for (const id of ['lifecycle','phase','processing','waiting','next','progress','run','age','worker','runid','commit','assessments','speed','speedmeta','distance','distancemeta','hull','hullmeta','hp','hpmeta','observation','health','target','outcome','firstblocker','diagnostics','warnings','intent','delivery','effect','intentraw','deliveryraw','effectraw','currentpath','failurepath','failurereasons']) set(id, 'UNAVAILABLE');
+    for (const id of ['lifecycle','phase','processing','waiting','next','progress','run','age','worker','runid','commit','assessments','speed','speedmeta','distance','distancemeta','hull','hullmeta','hp','hpmeta','observation','health','target','outcome','firstcauselabel','firstblocker','diagnostics','coverage','writerhealth','warnings','intent','delivery','effect','intentraw','deliveryraw','effectraw','currentpath','failurepath','failurereasons']) set(id, 'UNAVAILABLE');
     set('blocker', `Observer fetch failed: ${error}`);
     $('images').hidden = true; $('imagehint').hidden = false;
     $('passivebanner').hidden = true;

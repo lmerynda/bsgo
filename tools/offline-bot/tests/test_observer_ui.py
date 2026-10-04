@@ -1,6 +1,9 @@
 """Read-only observer HTTP tests with local fixture packages only."""
 import json
 from pathlib import Path
+import re
+import shutil
+import subprocess
 from threading import Thread
 import time
 import unittest
@@ -296,6 +299,80 @@ class ObserverUiTests(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 thread.join(2)
+
+    def test_canceled_passive_package_keeps_partial_coverage_separate(self):
+        with scratch_directory() as directory:
+            run = package(directory, "passive", finished=True)
+            manifest = json.loads((run / "manifest.json").read_text())
+            manifest["mode"] = "synthetic_passive_observer"
+            manifest["synthetic"] = True
+            (run / "manifest.json").write_text(json.dumps(manifest))
+            status = json.loads((run / "status.json").read_text())
+            status["execution"].update(phase="canceled", reason="cancel_requested",
+                                        first_blocker="cancel_requested")
+            status["frames"] = {"accepted":64, "written":64, "budget_skipped":7,
+                "dropped":0, "unwritten":0, "error":None}
+            status["trace"] = {"dropped":0, "unwritten":0, "error":None}
+            status["status_write_errors"] = 0
+            status["result"] = {"state":"canceled", "reason":"cancel_requested"}
+            (run / "status.json").write_text(json.dumps(status))
+            report = json.loads((run / "report.json").read_text())
+            report["result"] = {"state":"canceled", "reason":"cancel_requested"}
+            report["complete_diagnostics"] = False
+            (run / "report.json").write_text(json.dumps(report))
+            detail = ObserverIndex(directory).detail("passive")
+            self.assertEqual(detail["lifecycle"], "finalized")
+            self.assertEqual(detail["status"]["execution"]["phase"], "canceled")
+            self.assertEqual(detail["report"]["result"]["state"], "canceled")
+            self.assertFalse(detail["report"]["complete_diagnostics"])
+            self.assertEqual(detail["status"]["frames"]["budget_skipped"], 7)
+            self.assertEqual(detail["status"]["frames"]["dropped"], 0)
+
+    @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
+    def test_canceled_budget_skip_renders_canceled_but_true_blocker_renders_blocked(self):
+        script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text()).group(1)
+        script = script.replace("  refresh();\n  refreshMode();",
+                                "  globalThis.testRender = render;")
+        harness = f"""
+const elements = {{}};
+globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
+  textContent:'', hidden:false, className:'', setAttribute(){{}}, removeAttribute(){{}},
+  addEventListener(){{}}
+}}; }} }};
+eval({json.dumps(script)});
+const common = {{run:'passive',run_path:'fixture',lifecycle:'finalized',
+  status_age_seconds:1,manifest:{{mode:'synthetic_passive_observer',synthetic:true}},
+  status:{{execution:{{phase:'canceled',first_blocker:'cancel_requested'}},
+    result:{{state:'canceled'}},frames:{{accepted:64,written:64,budget_skipped:7,
+    dropped:0,unwritten:0}},trace:{{dropped:0,unwritten:0}},status_write_errors:0}},
+  report:{{result:{{state:'canceled'}},complete_diagnostics:false}}}};
+testRender(common);
+const canceled = {{badge:elements.lifecycle.textContent, outcome:elements.outcome.textContent,
+  coverage:elements.coverage.textContent, writer:elements.writerhealth.textContent}};
+common.status.execution.first_blocker='invalid_speed_glyph';
+testRender(common);
+const recovered = {{badge:elements.lifecycle.textContent,
+  firstLabel:elements.firstcauselabel.textContent,
+  firstCause:elements.firstblocker.textContent}};
+common.status.execution.phase='blocked'; common.status.execution.first_blocker='failed_capture';
+common.status.result.state='blocked'; common.report.result.state='blocked';
+testRender(common);
+const blocked = {{badge:elements.lifecycle.textContent, outcome:elements.outcome.textContent}};
+console.log(JSON.stringify({{canceled,recovered,blocked}}));
+"""
+        result = subprocess.run(["node", "-e", harness], capture_output=True,
+                                text=True, check=True)
+        rendered = json.loads(result.stdout)
+        self.assertIn("CANCELED", rendered["canceled"]["badge"])
+        self.assertEqual(rendered["canceled"]["outcome"], "CANCELED (explicit stop)")
+        self.assertIn("64/64", rendered["canceled"]["coverage"])
+        self.assertIn("7 routine budget-skipped", rendered["canceled"]["coverage"])
+        self.assertIn("dropped 0", rendered["canceled"]["writer"])
+        self.assertIn("CANCELED", rendered["recovered"]["badge"])
+        self.assertEqual(rendered["recovered"]["firstLabel"], "First recognition issue")
+        self.assertEqual(rendered["recovered"]["firstCause"], "invalid_speed_glyph")
+        self.assertIn("BLOCKED", rendered["blocked"]["badge"])
+        self.assertEqual(rendered["blocked"]["outcome"], "BLOCKED")
 
 
 if __name__ == "__main__":
