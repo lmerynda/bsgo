@@ -861,3 +861,24 @@ not a determination of damage cause or contact faction. Crowded marks and
 projected labels prevent associating one contact with the selected asteroid or
 an obstacle. Stopped select/deselect, ship turns versus camera-only turns, and
 depth comparisons remain necessary before radar contributes route decisions.
+
+Commit `bdc6ad0c` adds the complete measured fire-006 HP layouts, including
+1937/3724, 1513/3724, 872/3724, 499/3724, 213/3724 and terminal 0/3724.
+All 100 selected-target frames replay with valid HP/identity; four following
+frames correctly lack an asteroid. The exact terminal-zero field is numeric
+0 with valid maximum3724 and identity `asteroid:hp:3724`. It does not authorize
+input or establish destruction. Thirty-one HUD tests passed, including 36
+clipped/missing current, maximum and separator cases. Matching observation-only
+zero handling is being added before another firing process uses this reader.
+
+`continuous-fire-007` (`58e3e9bad41d4705b11632bdcedf4062`) used the previously
+loaded reader on a scanned Water HP3788 at a stable 250 m with explicit 200 m
+lower bound. One G was delivered. An identity-reading fault interrupted the
+HP proof chain before two declines were established, so the original
+`firing_effect_verified` remains false. The fault observer retained 137 rejected
+images, target disappearance and complete diagnostics across 221 native frames.
+Sequence 220 directly shows `+1687 X WATER` and 112 experience, full hull
+5005/5005, speed 0.0 and energy782/800 recovering. The parent independently
+reviewed this archived popup. Quantified loop yield is now 4909 Water and
+5903 Tylium. Actual yield does not retroactively validate the failed HP proof;
+the completed archive supplies the next reader replay while the loop continues.
