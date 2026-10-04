@@ -120,6 +120,22 @@ class ApproachTests(unittest.TestCase):
         policy.decide(frame(sequence=100), 10)
         self.assertEqual(policy.decide(frame(12, 1100, 20, sequence=1000), 12), "continue")
 
+    def test_configured_five_second_cadence_accepts_closure_and_rejects_missed_sample(self):
+        policy = ApproachPolicy(max_frame_age=7, max_observation_gap=7)
+        self.assertEqual(policy.decide(frame(10, 1800, 0), 10), "accelerate")
+        self.assertEqual(policy.decide(frame(15, 1650, 33), 15), "continue")
+        self.assertEqual(policy.decide(frame(20, 1485, 33), 20), "continue")
+        with self.assertRaisesRegex(PolicyError, "Observation gap"):
+            policy.decide(frame(28, 1221, 33), 28)
+
+    def test_ten_second_cadence_does_not_create_elapsed_flight_limit(self):
+        policy = ApproachPolicy(max_frame_age=12, max_observation_gap=12)
+        self.assertEqual(policy.decide(frame(10, 8000, 0), 10), "accelerate")
+        for at in range(20, 230, 10):
+            self.assertEqual(policy.decide(frame(at, 8000 - (at - 10) * 33, 33), at),
+                             "continue")
+        self.assertEqual(policy.decide(frame(230, 740, 33), 230), "brake")
+
     def test_fast_ship_requires_measured_closing(self):
         policy = ApproachPolicy()
         policy.decide(frame(), 10)

@@ -65,10 +65,11 @@ class PixelSample:
 
 class PixelSource:
     def __init__(self, ship, *, stall_after=None, change_at=None, invalid_first=False,
-                 cancel_at=None, cancel_path=None):
+                 cancel_at=None, cancel_path=None, pause_after_baseline=0.):
         self.ship, self.stall_after = ship, stall_after
         self.change_at, self.invalid_first = change_at, invalid_first
         self.cancel_at, self.cancel_path = cancel_at, cancel_path
+        self.pause_after_baseline = pause_after_baseline
         self.sequence = 0
         self.closed = False
 
@@ -76,7 +77,8 @@ class PixelSource:
         if self.stall_after is not None and self.sequence >= self.stall_after:
             stop.wait(2)
             return None
-        if stop.wait(.025):
+        if stop.wait(self.pause_after_baseline if self.sequence == 2 and
+                     self.pause_after_baseline else .025):
             return None
         self.sequence += 1
         if self.cancel_at == self.sequence:
@@ -156,7 +158,7 @@ class ApproachProbeTests(unittest.TestCase):
     def run_fixture(self, directory, *, source_options=None, ignore_acceleration=False,
                     max_thrust_seconds=3., stop_seconds=.8,
                     brake_decay_seconds=0., cancel_file=None,
-                    cancel_on_acceleration=False):
+                    cancel_on_acceleration=False, sample_interval=.4):
         ship = Ship(brake_decay_seconds)
         source = PixelSource(ship, **(source_options or {}))
         dispatchers = []
@@ -175,7 +177,7 @@ class ApproachProbeTests(unittest.TestCase):
             safe_stopped_scene_assessed=True, scope="synthetic",
             baseline_seconds=.3, max_thrust_seconds=max_thrust_seconds,
             stop_seconds=stop_seconds, decision_interval=.1,
-            cancel_file=cancel_file)
+            cancel_file=cancel_file, sample_interval=sample_interval)
         return result, ship, source, dispatchers
 
     def test_threshold_approach_requires_image_closure_and_fresh_stop(self):
@@ -217,10 +219,11 @@ class ApproachProbeTests(unittest.TestCase):
     def test_thrust_limit_stops_even_if_input_never_moves_ship(self):
         with scratch_directory() as directory:
             result, ship, source, dispatchers = self.run_fixture(directory,
-                ignore_acceleration=True, max_thrust_seconds=.3)
+                ignore_acceleration=True, max_thrust_seconds=.1,
+                source_options={"stall_after": 2})
             self.assertEqual(result["state"], "blocked")
             self.assertEqual(result["brake_reason"], "thrust_limit")
-            self.assertTrue(result["final_stop_observed"])
+            self.assertFalse(result["final_stop_observed"])
             self.assertEqual(ship.speed, 0)
             self.assertTrue(source.closed)
 
@@ -255,7 +258,7 @@ class ApproachProbeTests(unittest.TestCase):
     def test_native_stop_budget_defaults_and_bounds(self):
         signature = inspect.signature(run_approach_probe)
         self.assertEqual(signature.parameters["stop_seconds"].default, 35.)
-        self.assertEqual(signature.parameters["max_thrust_seconds"].default, 12.)
+        self.assertIsNone(signature.parameters["max_thrust_seconds"].default)
         with scratch_directory() as directory:
             with self.assertRaisesRegex(ValueError, "max_thrust_seconds"):
                 run_approach_probe(directory / "unused", source_factory=lambda: None,
@@ -290,6 +293,38 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertGreaterEqual(report["frames"]["max_frames"],
                 math.ceil((.3 + 180 + .8 + 8) / .4))
 
+    def test_uncapped_approach_finishes_by_distance_and_retains_all_frames(self):
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory, max_thrust_seconds=None)
+            self.assertEqual(result["state"], "proved", result)
+            self.assertIn(result["brake_reason"], ("threshold", "threshold_watchdog"))
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+            report = json.loads((directory / "run" / "report.json").read_text())
+            self.assertIsNone(report["frames"]["max_frames"])
+
+    def test_uncapped_approach_detects_ignored_acceleration_from_images(self):
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                max_thrust_seconds=None, ignore_acceleration=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("Acceleration not observed", result["reason"])
+            self.assertEqual(result["brake_reason"], "image_evidence_rejected")
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+
+    def test_five_second_sample_does_not_trigger_old_two_second_watchdog(self):
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                max_thrust_seconds=None, sample_interval=5.,
+                source_options={"pause_after_baseline": 5.})
+            self.assertEqual(result["state"], "proved", result)
+            self.assertIn(result["brake_reason"], ("threshold", "threshold_watchdog"))
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+
     def test_existing_cancel_marker_prevents_all_input(self):
         with scratch_directory() as directory:
             marker = directory / "stop.request"
@@ -323,7 +358,7 @@ class ApproachProbeTests(unittest.TestCase):
             marker = directory / "stop.request"
             started = time.monotonic()
             result, ship, source, dispatchers = self.run_fixture(directory,
-                max_thrust_seconds=180., cancel_file=marker,
+                max_thrust_seconds=None, cancel_file=marker,
                 cancel_on_acceleration=True)
             self.assertLess(time.monotonic() - started, 1.)
             self.assertEqual(result["state"], "blocked")

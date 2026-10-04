@@ -1,4 +1,4 @@
-"""Supervised, bounded approach to one preselected asteroid and observed stop.
+"""Supervised distance-driven approach to one preselected asteroid and observed stop.
 
 This is a single experiment, not mining readiness. Scene, corridor and heading
 are supervisor assertions; the application does not recognize hull or combat.
@@ -30,9 +30,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                        dispatcher_factory, configuration, profile,
                        expected_window_id, frame_size, clear_corridor_assessed,
                        aligned_heading_assessed, safe_stopped_scene_assessed,
-                       scope="native", brake_at=900., max_thrust_seconds=12.,
+                       scope="native", brake_at=900., max_thrust_seconds=None,
                        baseline_seconds=4., stop_seconds=35.,
-                       decision_interval=2., cancel_file=None):
+                       decision_interval=2., cancel_file=None, sample_interval=.4):
     """Injectable supervised probe with an independent PageDown watchdog."""
     if (clear_corridor_assessed, aligned_heading_assessed,
             safe_stopped_scene_assessed) != (True, True, True):
@@ -42,23 +42,27 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     if cancel_file is not None and not str(cancel_file).strip():
         raise ValueError("cancel_file")
     cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
+    if max_thrust_seconds is not None and (type(max_thrust_seconds) not in (int, float)
+            or not math.isfinite(max_thrust_seconds) or not .1 <= max_thrust_seconds <= 180):
+        raise ValueError("max_thrust_seconds")
     for name, value, low, high in (("brake_at", brake_at, 600, 1400),
-        ("max_thrust_seconds", max_thrust_seconds, .1, 180),
-        ("baseline_seconds", baseline_seconds, .1, 8),
+        ("baseline_seconds", baseline_seconds, .1, 30),
         ("stop_seconds", stop_seconds, .1, 45),
-        ("decision_interval", decision_interval, .01, 2)):
+        ("decision_interval", decision_interval, .01, 10),
+        ("sample_interval", sample_interval, .01, 10)):
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(name)
-    policy = ApproachPolicy(brake_at=brake_at)
-    # Native capture runs every 0.4 seconds. Retain the complete explicitly
-    # bounded transit and coast-down, with headroom for cleanup captures.
-    frame_budget = max(256, math.ceil((baseline_seconds + max_thrust_seconds
-                                      + stop_seconds + 8) / .4))
+    maximum_image_age = max(2., sample_interval + 2.)
+    policy = ApproachPolicy(brake_at=brake_at, max_frame_age=maximum_image_age,
+                            max_observation_gap=max(4., sample_interval + 2.))
+    frame_budget = (None if max_thrust_seconds is None else max(256,
+        math.ceil((baseline_seconds + max_thrust_seconds + stop_seconds + 8) / sample_interval)))
     diagnostic = DiagnosticRun(output, mode=scope + "_supervised_approach_probe",
         configuration={**configuration, "supervisor_assumptions": {
             "clear_corridor": True, "aligned_heading": True,
             "safe_stopped_scene": True}, "brake_at": brake_at,
             "max_thrust_seconds": max_thrust_seconds,
+            "sample_interval": sample_interval, "maximum_image_age": maximum_image_age,
             "baseline_seconds": baseline_seconds, "stop_seconds": stop_seconds,
             "gun_optimal_range": 760, "gun_max_range": 800,
             "cancel_file": str(cancel_path) if cancel_path else None,
@@ -73,6 +77,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     context = initial = previous = None
     observed_sequence = 0
     previous_acquisition_sequence = -1
+    post_delivery_zero_samples = 0
     acceleration_at = brake_at_time = None
     brake_reason = blocker = error = None
     acceleration_records = brake_records = ()
@@ -127,7 +132,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         hp = snapshot.fields.get("target_max_hp")
         if (not hp or not hp.valid or type(hp.value) not in (int, float)
                 or not math.isfinite(hp.value) or hp.value <= 0
-                or not 0 <= now - hp.observed_at < 2):
+                or not 0 <= now - hp.observed_at < maximum_image_age):
             raise PolicyError("Missing or stale target maximum HP")
         if initial is not None:
             if hp.value != initial["target_max_hp"] or row.target_identity != initial["target_identity"]:
@@ -169,7 +174,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 continue
             now = time.monotonic()
             snapshot = store.latest()
-            if snapshot is None or now - snapshot.acquired_at >= 2:
+            if snapshot is None or now - snapshot.acquired_at >= maximum_image_age:
                 stop_ship("stale_image_watchdog")
                 continue
             try:
@@ -179,7 +184,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 continue
             if row.distance <= brake_at:
                 stop_ship("threshold_watchdog")
-            elif now >= acceleration_at + max_thrust_seconds:
+            elif max_thrust_seconds is not None and now >= acceleration_at + max_thrust_seconds:
                 stop_ship("thrust_limit")
 
     try:
@@ -195,8 +200,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         diagnostic.attach(worker=worker, store=store, coordinator=None, backend=backend)
         worker.start()
         baseline_deadline = started + baseline_seconds
-        overall_deadline = started + baseline_seconds + max_thrust_seconds + stop_seconds + 2
-        while time.monotonic() < overall_deadline:
+        overall_deadline = (None if max_thrust_seconds is None else
+            started + baseline_seconds + max_thrust_seconds + stop_seconds + 2)
+        while overall_deadline is None or time.monotonic() < overall_deadline:
             if canceled():
                 if acceleration_at is None:
                     blocker = "cancel_requested_before_input"
@@ -259,12 +265,22 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                     raise PolicyError("Target is not closing")
                             previous = row
                             motion.append(reading)
+                            acceleration_ups = [d for d in dispatcher.deliveries()
+                                if d.outcome == "injected" and d.kind == "key_up"
+                                and acceleration_records
+                                and d.request_sequence == acceleration_records[-1].sequence]
+                            if acceleration_ups and row.acquired_at > acceleration_ups[-1].at:
+                                post_delivery_zero_samples = (post_delivery_zero_samples + 1
+                                    if row.speed == 0 else 0)
+                                if post_delivery_zero_samples >= 2:
+                                    raise PolicyError("Acceleration not observed in two fresh images")
                             if row.distance <= brake_at:
                                 action = policy.decide(snapshot, now)
                                 if action != "brake":
                                     raise PolicyError("Policy did not request threshold brake")
                                 stop_ship("threshold")
-                            elif policy.last and row.acquired_at - policy.last.acquired_at >= decision_interval:
+                            elif policy.last and (sample_interval >= decision_interval or
+                                    row.acquired_at - policy.last.acquired_at >= decision_interval):
                                 action = policy.decide(snapshot, now)
                                 if action == "brake":
                                     stop_ship("threshold")
@@ -287,7 +303,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             if acceleration_at is None and now >= baseline_deadline:
                 blocker = blocker or "baseline_timeout"
                 break
-            if acceleration_at is not None and brake_at_time is None and now >= acceleration_at + max_thrust_seconds:
+            if (max_thrust_seconds is not None and acceleration_at is not None
+                    and brake_at_time is None and now >= acceleration_at + max_thrust_seconds):
                 stop_ship("thrust_limit")
             if brake_at_time is not None:
                 if len(stop_images) >= 2:
@@ -416,10 +433,15 @@ def main():
     parser.add_argument("--clear-corridor-assessed", action="store_true", required=True)
     parser.add_argument("--aligned-heading-assessed", action="store_true", required=True)
     parser.add_argument("--safe-stopped-scene-assessed", action="store_true", required=True)
-    parser.add_argument("--max-thrust-seconds", type=float, default=12.)
+    parser.add_argument("--max-thrust-seconds", type=float, default=None,
+                        help="Optional bounded diagnostic trial only; normal transit has no elapsed-time cap")
+    parser.add_argument("--sample-seconds", type=float, default=5.,
+                        help="Distance observation cadence, 5 to 10 seconds")
     parser.add_argument("--stop-seconds", type=float, default=35.)
     parser.add_argument("--cancel-file", type=Path)
     args = parser.parse_args()
+    if not math.isfinite(args.sample_seconds) or not 5 <= args.sample_seconds <= 10:
+        parser.error("--sample-seconds must be between 5 and 10")
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
     from .mining_recognition import MiningHudRecognizer
@@ -430,7 +452,7 @@ def main():
         raise ValueError("approach_requires_native_2560_client")
     result = run_approach_probe(args.output,
         source_factory=lambda: NativeSource(NativeCapture(geometry.hwnd, geometry.pid,
-            layout=args.profile), .4),
+            layout=args.profile), args.sample_seconds),
         recognizer_factory=lambda: MiningHudRecognizer(args.profile),
         dispatcher_factory=lambda backend, journal: NativeInputDispatcher(backend,
             geometry.hwnd, geometry.pid, expected_size=geometry.client_size,
@@ -443,6 +465,8 @@ def main():
         frame_size=geometry.client_size, clear_corridor_assessed=True,
         aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
         max_thrust_seconds=args.max_thrust_seconds,
+        baseline_seconds=args.sample_seconds * 2 + 2,
+        sample_interval=args.sample_seconds, decision_interval=args.sample_seconds,
         stop_seconds=args.stop_seconds, cancel_file=args.cancel_file)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "proved" and result["complete_diagnostics"] else 1

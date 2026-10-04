@@ -47,17 +47,18 @@ class ApproachPolicy:
 
     def __init__(self, *, brake_at: float = 900, max_speed: float = 44,
                  max_frame_age: float = 2.0, brake_ack: float = 4.0,
-                 max_braking: float = 30.0):
+                 max_braking: float = 30.0, max_observation_gap: float = 4.0):
         if not _number(brake_at) or not 600 <= brake_at <= 1400:
             raise PolicyError("Brake threshold must be 600..1400 m")
         if any(not _number(value) or value <= 0 for value in
-               (max_speed, max_frame_age, brake_ack, max_braking)):
+               (max_speed, max_frame_age, brake_ack, max_braking, max_observation_gap)):
             raise PolicyError("Speed and timing bounds must be positive finite numbers")
         self.brake_at = brake_at
         self.max_speed = max_speed
         self.max_frame_age = max_frame_age
         self.brake_ack = brake_ack
         self.max_braking = max_braking
+        self.max_observation_gap = max_observation_gap
         self.phase = "initial"
         self.identity: str | None = None
         self.portrait: tuple[int, ...] | None = None
@@ -133,7 +134,7 @@ class ApproachPolicy:
         assert self.last is not None
         previous = self.last
         dt = row.acquired_at - previous.acquired_at
-        if dt <= 0 or dt > 4 or row.acquisition_sequence <= previous.acquisition_sequence:
+        if dt <= 0 or dt > self.max_observation_gap or row.acquisition_sequence <= previous.acquisition_sequence:
             raise PolicyError("Observation gap exceeded or acquisition repeated")
         if abs(row.distance - previous.distance) > self.max_speed * dt + 30:
             raise PolicyError("Impossible distance change")

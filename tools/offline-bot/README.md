@@ -300,14 +300,17 @@ The native client must be exactly 2560×1440. The probe requires two fresh,
 consistent stopped target readings before one PageUp press. It validates target
 identity, portrait, maximum HP, context, distance and speed on every new image.
 At 900 m it requests a reserved PageDown brake. An independent watchdog also
-requests PageDown on stale or invalid images and after 12 seconds of thrust by
-default; `--max-thrust-seconds` accepts an explicit bound from 0.1 to 180 seconds
-for a longer supervised threshold transit. Continue to assess the clear route
-and aligned heading before using the longer bound. After PageDown, the probe
+requests PageDown on stale or invalid images. Normal transit has no elapsed-time
+cutoff and checks distance every 5 seconds; `--sample-seconds` accepts 5 to 10.
+Freshness and observation-gap guards allow that cadence while still rejecting
+missing samples. Two fresh zero-speed images after acceleration delivery block
+an ignored control. `--max-thrust-seconds` optionally bounds a diagnostic trial
+from 0.1 to 180 seconds. After PageDown, the probe
 watches deceleration for up to 35 seconds by default; `--stop-seconds` accepts
 a bounded value up to 45 seconds. This extends observation only, not thrust.
-The frame budget grows with the configured thrust and stop windows to retain
-the full 0.4-second capture sequence, including cleanup headroom. It reports success only
+Continuous approaches retain routine frames without a total frame-count cap.
+Bounded trials size their retention budget to the observation cadence and
+configured windows, including cleanup headroom. It reports success only
 after image-observed closure and speed, injected controls and two fresh zero
 speed images after the brake delivery. A short run that stops before 900 m is
 retained as a blocked, bounded segment. The gun ranges are recorded as 760 m
