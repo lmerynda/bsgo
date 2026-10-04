@@ -1406,3 +1406,22 @@ and remains unattached. No native discovery, game capture, game input or profit
 was generated during this work; `continuous-stop.request` remains present.
 Normal launcher attachment and the new native UI flow still require live game
 acceptance before claiming mining results.
+
+The first requested normal-launcher run exposed a Windows socket-binding
+defect: the new launcher and an older observer both listened on 127.0.0.1:8765
+because Windows permits duplicate SO_REUSEADDR binds. Commit `2bed0cd6`
+uses SO_EXCLUSIVEADDRUSE with address/port reuse disabled on Windows. Thirty-one
+focused checks passed, including real loopback duplicate-bind rejection and
+the actual launcher selecting a free port while preserving the legacy listener.
+Only the newly launched, paused conflicting process was stopped; the old
+observer remained running. The dashboard was then launched on a unique port
+and opened in the in-app browser.
+
+Native discovery found the exact game title and validated 2560x1440 geometry.
+The first passive capture failed its occlusion guard because another window
+covered a sampled game-client point. Run
+`manual-dashboard-20261004-080724-184703b1` retained that cause and reported all
+worker/source/writer shutdown checks true, no routine owner, app input disabled,
+and actions paused. The persistent launcher remains available for Retry after
+the game is uncovered. The mining pause marker was preserved; no game input,
+image-reading acceptance or mining result was claimed.
