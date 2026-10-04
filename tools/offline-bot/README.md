@@ -341,12 +341,31 @@ blocks the result. The diagnostic package retains frames, rejected reads,
 requests, deliveries and shutdown; `firing-probe.json` explicitly leaves
 autofire state, inventory and resource reward unverified, with `mining_ready`
 false. Current HP OCR is validated only for measured complete four-digit
-rasters; a drop below 1000 will block proof until that raster is calibrated.
+rasters; a drop below 1000 will block this finite probe until that raster is
+calibrated.
 Add `--cancel-file logs/mining/live-20261003/continuous-stop.request` when
 running under the continuous supervisor. An existing marker blocks G; a new
 marker ends the observation and releases any held input. It cannot establish
 that game autofire ended, so the supervisor must remain until a safe boundary.
 The marker persists for later probes.
+
+To keep observing the same selected asteroid after the first verified HP
+declines, add `--observe-until-target-gone` and a required `--cancel-file`.
+This mode has no total observation time or routine frame-count cap. It sends G
+only once, records the first two distinct post-delivery HP declines as an early
+firing proof, then continues read-only capture while the selected target and
+context remain stable. A declared unvalidated current-HP digit count after
+proof is kept as unknown rather than treated as a health value; rejected frames
+and sidecars remain in the package. Two fresh absent-selection images record
+target disappearance, followed by two more read-only frames that may show a
+reward popup. Disappearance does not prove destruction or reward. A stale
+image stream, changed context, bad unrelated HP reading or cancel marker ends
+the run as blocked; any earlier scoped firing proof remains visible separately.
+The `after` list in the report retains the most recent 256 observations and
+its lifetime count, while the trace and frame package retain the full sequence.
+The terminal trace event contains a short summary and a pointer to the full
+report. The supervisor must remain present because G's ongoing autofire state
+is still unverified when this probe exits.
 
 For a game client area that is exactly 3840×2160, add `--source-size 3840x2160`.
 The HUD adapter then explicitly resamples to its 2560×1440 crop coordinate

@@ -1,7 +1,7 @@
 """One supervised mining-gun command with image-observed asteroid HP feedback.
 
-G may assign persistent autofire. The supervisor must stay with the game after
-this bounded observation; this experiment has no evidenced ceasefire command.
+G may assign persistent autofire. The supervisor must stay with the game; this
+experiment has no evidenced ceasefire command.
 """
 import argparse
 import json
@@ -21,7 +21,8 @@ FIELDS = ("speed", "asteroid_selected", "distance", "target_identity",
 
 
 def _read(snapshot, now, window_id, frame_size, context, initial,
-          min_distance, max_distance, max_distance_change):
+          min_distance, max_distance, max_distance_change,
+          allow_unknown_current_hp=False):
     if (snapshot.window_id != window_id or snapshot.frame_size != tuple(frame_size)
             or context is not None and snapshot.context != context):
         raise RuntimeError("capture_context_changed")
@@ -30,6 +31,14 @@ def _read(snapshot, now, window_id, frame_size, context, initial,
     values = {}
     for name in FIELDS:
         field = snapshot.fields.get(name)
+        if (name == "target_current_hp" and allow_unknown_current_hp
+                and field and not field.valid
+                and field.reason == "unvalidated_current_hp_digit_count"
+                and field.observed_at == snapshot.acquired_at
+                and 0 <= now - field.observed_at < 2):
+            values[name] = None
+            values["target_current_hp_reason"] = field.reason
+            continue
         if (not field or not field.valid or field.observed_at != snapshot.acquired_at
                 or not 0 <= now - field.observed_at < 2):
             raise RuntimeError("invalid_or_stale_" + name)
@@ -42,8 +51,9 @@ def _read(snapshot, now, window_id, frame_size, context, initial,
             or not isinstance(values["target_identity"], str)
             or not values["target_identity"]
             or type(values["target_max_hp"]) not in (int, float)
-            or type(values["target_current_hp"]) not in (int, float)
-            or not 1000 <= values["target_current_hp"] <= values["target_max_hp"]
+            or (values["target_current_hp"] is not None
+                and (type(values["target_current_hp"]) not in (int, float)
+                     or not 1000 <= values["target_current_hp"] <= values["target_max_hp"]))
             or not math.isfinite(values["target_max_hp"])
             or not isinstance(values["target_portrait"], (tuple, list))
             or len(values["target_portrait"]) != 144):
@@ -64,13 +74,31 @@ def _read(snapshot, now, window_id, frame_size, context, initial,
             "context": plain(snapshot.context), **values}
 
 
+def _absent_target(snapshot, now, window_id, frame_size, context):
+    """Two such images mean selection disappeared, not why it disappeared."""
+    if (snapshot.window_id != window_id or snapshot.frame_size != tuple(frame_size)
+            or snapshot.context != context or not snapshot.healthy
+            or not 0 <= now - snapshot.acquired_at < 2):
+        raise RuntimeError("invalid_absent_target_capture_context")
+    for name, wanted in (("speed", 0), ("asteroid_selected", False)):
+        field = snapshot.fields.get(name)
+        if (not field or not field.valid or field.observed_at != snapshot.acquired_at
+                or not 0 <= now - field.observed_at < 2 or field.value != wanted):
+            raise RuntimeError("invalid_absent_target_" + name)
+    return {"sequence": snapshot.sequence,
+            "acquisition_sequence": snapshot.acquisition_sequence,
+            "acquired_at": snapshot.acquired_at, "context": plain(snapshot.context),
+            "speed": 0, "asteroid_selected": False}
+
+
 def run_firing_probe(output, *, source_factory, recognizer_factory,
                      dispatcher_factory, configuration, profile,
                      expected_window_id, frame_size, safe_stopped_scene_assessed,
                      wanted_resource_assessed, no_preexisting_firing_assessed,
                      scope="native", baseline_seconds=6., stable_seconds=4.,
                      after_seconds=8., min_distance=480., max_distance=760.,
-                     max_distance_change=5., cancel_file=None):
+                     max_distance_change=5., cancel_file=None,
+                     observe_until_target_gone=False):
     """Send one guarded G press and require two later, distinct falling HP reads."""
     if (safe_stopped_scene_assessed is not True
             or no_preexisting_firing_assessed is not True
@@ -78,6 +106,10 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         raise ValueError("fresh_supervisor_assessments_required")
     if scope not in ("native", "synthetic"):
         raise ValueError("scope")
+    if type(observe_until_target_gone) is not bool:
+        raise ValueError("observe_until_target_gone")
+    if observe_until_target_gone and cancel_file is None:
+        raise ValueError("continuous_observation_requires_cancel_file")
     if cancel_file is not None and not str(cancel_file).strip():
         raise ValueError("cancel_file")
     cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
@@ -95,17 +127,22 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         configuration={**configuration, "supervisor_assumptions": {
             "safe_stopped_scene": True, "wanted_resource": wanted_resource_assessed,
             "no_preexisting_firing": True}, "baseline_seconds": baseline_seconds,
-            "stable_seconds": stable_seconds, "after_seconds": after_seconds,
+            "stable_seconds": stable_seconds,
+            "after_seconds": None if observe_until_target_gone else after_seconds,
             "min_distance": min_distance, "max_distance": max_distance,
             "max_distance_change": max_distance_change,
             "cancel_file": str(cancel_path) if cancel_path else None,
+            "observe_until_target_gone": observe_until_target_gone,
+            "after_observations_scope": "recent_256" if observe_until_target_gone else "all",
             "mission_started": False},
-        frame_capacity=32, max_frames=96)
+        frame_capacity=32, max_frames=None if observe_until_target_gone else 96)
     source = worker = backend = dispatcher = None
     store = SnapshotStore()
     started = time.monotonic()
     context = initial = None
-    baseline, after, falling = [], [], []
+    baseline, after, falling, absence, post_disappearance = [], [], [], [], []
+    after_total = 0
+    last_known_hp = None
     requests = ()
     requested_at = None
     observed_sequence = 0
@@ -123,6 +160,13 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         "unverified": ["resource_classifier", "inventory", "resource_reward",
                        "autofire_state", "combat_detection", "hull_health"],
         "baseline": baseline, "after": after, "falling": falling,
+        "observe_until_target_gone": observe_until_target_gone,
+        "after_observation_count": 0,
+        "after_observations_scope": "recent_256" if observe_until_target_gone else "all",
+        "unknown_current_hp_count": 0, "target_disappearance_observed": False,
+        "target_disappearance_interpretation": "selection_absent_cause_unverified",
+        "absent_target_images": absence,
+        "post_disappearance_images": post_disappearance,
         "requests": [], "deliveries": []}
 
     cancel_seen = False
@@ -174,10 +218,14 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
             if canceled():
                 raise RuntimeError("cancel_requested")
             now = time.monotonic()
-            if now >= deadline:
+            if now >= deadline and (not observe_until_target_gone or not requests):
                 if not requests:
                     raise RuntimeError("stable_baseline_timeout")
                 raise RuntimeError("two_post_delivery_hp_declines_not_observed")
+            if observe_until_target_gone and requests:
+                latest = store.latest()
+                if latest is None or now - latest.acquired_at >= 1.5:
+                    raise RuntimeError("stale_image_stream")
             snapshot = store.wait_for_sequence(observed_sequence, .025)
             if snapshot is None:
                 if worker.end_reason:
@@ -188,8 +236,43 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                 raise RuntimeError("uninspected_or_repeated_image")
             observed_sequence = snapshot.sequence
             previous_acquisition = snapshot.acquisition_sequence
+            if observe_until_target_gone and result["target_disappearance_observed"]:
+                if (snapshot.window_id != expected_window_id
+                        or snapshot.frame_size != tuple(frame_size)
+                        or snapshot.context != context or not snapshot.healthy
+                        or not 0 <= time.monotonic() - snapshot.acquired_at < 2):
+                    raise RuntimeError("invalid_post_disappearance_capture")
+                selected = snapshot.fields.get("asteroid_selected")
+                post_disappearance.append({"sequence": snapshot.sequence,
+                    "acquisition_sequence": snapshot.acquisition_sequence,
+                    "acquired_at": snapshot.acquired_at,
+                    "asteroid_selected": selected.value if selected and selected.valid else None})
+                if len(post_disappearance) >= 2:
+                    result.update(state="recorded" if result["firing_effect_verified"] else "blocked",
+                        reason="selected_target_absent_cause_unverified" if result["firing_effect_verified"]
+                        else "selected_target_absent_without_firing_proof")
+                    break
+                continue
+            if (observe_until_target_gone and requests
+                    and snapshot.fields.get("asteroid_selected")
+                    and snapshot.fields["asteroid_selected"].valid
+                    and snapshot.fields["asteroid_selected"].value is False):
+                absent = _absent_target(snapshot, time.monotonic(),
+                    expected_window_id, frame_size, context)
+                absence.append(absent)
+                diagnostic.submit({"event": "firing_probe_target_absent_image",
+                                   "observation_sequence": snapshot.sequence})
+                if len(absence) >= 2:
+                    result["target_disappearance_observed"] = True
+                    diagnostic.submit({"event": "firing_probe_target_disappearance_observed",
+                        "observation_sequences": [r["sequence"] for r in absence],
+                        "interpretation": "selection_absent_cause_unverified"})
+                continue
+            absence.clear()
             row = _read(snapshot, time.monotonic(), expected_window_id, frame_size,
-                context, initial, min_distance, max_distance, max_distance_change)
+                context, initial, min_distance, max_distance, max_distance_change,
+                allow_unknown_current_hp=(observe_until_target_gone
+                                          and result["firing_effect_verified"]))
             if context is None:
                 context, initial = snapshot.context, row
             if not requests:
@@ -210,6 +293,10 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                 deadline = requested_at + after_seconds
                 continue
             after.append(row)
+            after_total += 1
+            result["after_observation_count"] = after_total
+            if observe_until_target_gone and len(after) > 256:
+                del after[0]
             deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
             linked = [deliveries.get(r.sequence) for r in requests]
             if any(d and d.outcome != "injected" for d in linked):
@@ -222,12 +309,20 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                     or linked[0].at > linked[1].at):
                 raise RuntimeError("invalid_G_delivery_pair")
             if row["acquired_at"] <= linked[1].at:
-                if row["target_current_hp"] < initial["target_current_hp"]:
+                if (row["target_current_hp"] is not None
+                        and row["target_current_hp"] < initial["target_current_hp"]):
                     raise RuntimeError("target_hp_changed_before_G_delivery_complete")
                 continue
+            if row["target_current_hp"] is None:
+                result["unknown_current_hp_count"] += 1
+                continue
+            if last_known_hp is not None and row["target_current_hp"] > last_known_hp:
+                raise RuntimeError("post_G_target_hp_reversed")
+            last_known_hp = row["target_current_hp"]
             if row["target_current_hp"] > initial["target_current_hp"]:
                 raise RuntimeError("target_hp_increased_after_G")
-            if row["target_current_hp"] < initial["target_current_hp"]:
+            if (not result["firing_effect_verified"]
+                    and row["target_current_hp"] < initial["target_current_hp"]):
                 if falling and row["target_current_hp"] > falling[-1]["target_current_hp"]:
                     raise RuntimeError("post_G_target_hp_reversed")
                 if not falling or row["target_current_hp"] < falling[-1]["target_current_hp"]:
@@ -235,11 +330,18 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                 if len(falling) >= 2:
                     result.update(state="proved", reason="two_fresh_post_G_hp_declines",
                                   firing_effect_verified=True)
-                    break
+                    diagnostic.submit({"event": "firing_effect_image_proof",
+                        "observation_sequences": [r["sequence"] for r in falling[:2]],
+                        "baseline_current_hp": initial["target_current_hp"]})
+                    if not observe_until_target_gone:
+                        break
         result["deliveries"] = plain(dispatcher.deliveries())
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
-        result.update(state="blocked", reason=error, firing_effect_verified=False)
+        result.update(state="blocked", reason=error)
+    except KeyboardInterrupt:
+        error = "KeyboardInterrupt: supervisor_cancelled"
+        result.update(state="blocked", reason=error)
     finally:
         if dispatcher:
             try:
@@ -274,11 +376,11 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
             except Exception as exc:
                 error = error or f"input_cancel_failure: {type(exc).__name__}: {exc}"
         shutdown["input_idle"] = not backend or (not backend.pending_requests and not backend.held_keys)
-    if error and result["state"] == "proved":
+    if error and result["state"] in ("proved", "recorded"):
         result.update(state="blocked", reason=error, firing_effect_verified=False)
     if canceled():
         result.update(state="blocked", reason="cancel_requested",
-                      firing_effect_verified=False, cancel_requested=True)
+                      cancel_requested=True)
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if (not report["complete_diagnostics"] or not all(shutdown.values())
             or result.get("dispatcher_error")):
@@ -304,6 +406,7 @@ def main():
     parser.add_argument("--no-preexisting-firing-assessed", action="store_true", required=True)
     parser.add_argument("--after-seconds", type=float, default=8.)
     parser.add_argument("--cancel-file", type=Path)
+    parser.add_argument("--observe-until-target-gone", action="store_true")
     args = parser.parse_args()
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
@@ -327,9 +430,10 @@ def main():
         safe_stopped_scene_assessed=args.safe_stopped_scene_assessed,
         wanted_resource_assessed=args.wanted_resource_assessed,
         no_preexisting_firing_assessed=args.no_preexisting_firing_assessed,
-        after_seconds=args.after_seconds, cancel_file=args.cancel_file)
+        after_seconds=args.after_seconds, cancel_file=args.cancel_file,
+        observe_until_target_gone=args.observe_until_target_gone)
     print(json.dumps(plain(result), indent=2))
-    return 0 if result["state"] == "proved" else 1
+    return 0 if result["state"] in ("proved", "recorded") and result["complete_diagnostics"] else 1
 
 
 if __name__ == "__main__":

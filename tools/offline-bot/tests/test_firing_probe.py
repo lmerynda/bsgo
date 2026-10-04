@@ -17,7 +17,9 @@ PROFILE = "largehud-20261003"
 class Source:
     def __init__(self, *, effect=True, baseline_damage=False, invalid_after=False,
                  change_target=False, stall_after=None, cancel_at=None,
-                 cancel_path=None):
+                 cancel_path=None, effect_delay=0, gone_after=None,
+                 unknown_after=None, invalid_after_step=None,
+                 cancel_after_delivery=None, unknown_baseline=False):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -26,6 +28,10 @@ class Source:
         self.change_target = change_target
         self.stall_after = stall_after
         self.cancel_at, self.cancel_path = cancel_at, cancel_path
+        self.effect_delay, self.gone_after = effect_delay, gone_after
+        self.unknown_after, self.invalid_after_step = unknown_after, invalid_after_step
+        self.cancel_after_delivery = cancel_after_delivery
+        self.unknown_baseline = unknown_baseline
         self.delivery_sequence = None
 
     def next_sample(self, stop):
@@ -39,20 +45,35 @@ class Source:
             self.cancel_path.touch()
         after = (self.delivery_sequence is not None
                  and self.sequence > self.delivery_sequence)
+        step = self.sequence - self.delivery_sequence if after else 0
+        if self.cancel_after_delivery == step:
+            self.cancel_path.touch()
         hp = 4500
         if self.baseline_damage and self.sequence >= 3:
             hp = 4490
-        if after and self.effect:
-            hp = 4500 - 10 * (self.sequence - self.delivery_sequence)
+        if self.unknown_baseline and self.sequence == 1:
+            hp = None
+        if after and self.effect and step > self.effect_delay:
+            hp = 4500 - 10 * (step - self.effect_delay)
         values = {"speed": 0., "asteroid_selected": True, "distance": 677.,
             "target_identity": "asteroid:hp:4500", "target_portrait": tuple([1] * 144),
             "target_max_hp": 4500, "target_current_hp": hp}
         if after and self.invalid_after:
             values["target_current_hp"] = None
+        if after and self.invalid_after_step is not None and step >= self.invalid_after_step:
+            values["target_current_hp"] = None
+        if after and self.unknown_after is not None and step >= self.unknown_after:
+            values["target_current_hp"] = None
         if after and self.change_target:
             values["target_max_hp"] = 4600
+        if after and self.gone_after is not None and step >= self.gone_after:
+            values.update(asteroid_selected=False, distance=None, target_identity=None,
+                          target_portrait=None, target_max_hp=None, target_current_hp=None)
         sample = PixelSample(self.sequence, time.monotonic(), values)
         sample.layout = PROFILE
+        sample.unknown_hp = ((after and self.unknown_after is not None
+                             and step >= self.unknown_after)
+                            or (self.unknown_baseline and self.sequence == 1))
         return sample
 
     def close(self):
@@ -61,7 +82,9 @@ class Source:
 
 def recognize(sample):
     return RecognitionResult((4, 3), {name: FieldValue(value, sample.acquired_at,
-        valid=value is not None, reason="fixture_rejection" if value is None else None)
+        valid=value is not None,
+        reason=("unvalidated_current_hp_digit_count" if name == "target_current_hp"
+                and sample.unknown_hp else "fixture_rejection") if value is None else None)
         for name, value in sample.values.items()})
 
 
@@ -112,8 +135,22 @@ class Dispatcher:
 
 
 class FiringProbeTests(unittest.TestCase):
+    def test_continuous_mode_requires_external_cancel_channel(self):
+        with scratch_directory() as directory:
+            with self.assertRaisesRegex(ValueError, "continuous_observation_requires_cancel_file"):
+                run_firing_probe(directory / "unused", source_factory=lambda: None,
+                    recognizer_factory=lambda: None,
+                    dispatcher_factory=lambda backend, journal: None,
+                    configuration={}, profile=PROFILE, expected_window_id="42:17",
+                    frame_size=(4, 3), safe_stopped_scene_assessed=True,
+                    wanted_resource_assessed="Tylium",
+                    no_preexisting_firing_assessed=True,
+                    scope="synthetic", observe_until_target_gone=True)
+
     def run_probe(self, directory, source, *, ignore=False, after_seconds=.3,
-                  cancel_file=None, cancel_on_G=False):
+                  cancel_file=None, cancel_on_G=False, observe_until_target_gone=False):
+        if observe_until_target_gone and cancel_file is None:
+            cancel_file = directory / "stop.request"
         dispatchers = []
         def factory(backend, journal):
             dispatcher = Dispatcher(backend, source, ignore=ignore,
@@ -127,7 +164,8 @@ class FiringProbeTests(unittest.TestCase):
             safe_stopped_scene_assessed=True, wanted_resource_assessed="Tylium",
             no_preexisting_firing_assessed=True, scope="synthetic",
             baseline_seconds=.5, stable_seconds=.075,
-            after_seconds=after_seconds, cancel_file=cancel_file)
+            after_seconds=after_seconds, cancel_file=cancel_file,
+            observe_until_target_gone=observe_until_target_gone)
         return result, dispatchers
 
     def test_two_distinct_post_delivery_declines_prove_narrow_effect(self):
@@ -222,6 +260,102 @@ class FiringProbeTests(unittest.TestCase):
             self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
                              ["injected"] * 2)
             self.assertTrue(all(result["shutdown"].values()))
+
+    def test_continuous_mode_waits_past_finite_deadline_and_records_ambiguous_absence(self):
+        with scratch_directory() as directory:
+            source = Source(effect_delay=6, gone_after=12)
+            result, dispatchers = self.run_probe(directory, source,
+                after_seconds=.1, observe_until_target_gone=True)
+            self.assertEqual(result["state"], "recorded", result)
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertEqual(result["reason"], "selected_target_absent_cause_unverified")
+            self.assertEqual(len(result["absent_target_images"]), 2)
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertFalse(result["mining_ready"])
+            self.assertIn("resource_reward", result["unverified"])
+            self.assertTrue(result["complete_diagnostics"])
+            from json import loads
+            report = loads((directory / "run" / "report.json").read_text())
+            self.assertIsNone(report["frames"]["max_frames"])
+            self.assertEqual(report["frames"]["budget_skipped"], 0)
+            self.assertEqual(report["frames"]["written"],
+                             len(list((directory / "run" / "frames").glob("*.png")))
+                             + len(list((directory / "run" / "failed-recognition").glob("*.png"))))
+            from bsgo_offline.trace import iter_trace_events
+            events = list(iter_trace_events(directory / "run" / "trace", result["run_id"]))
+            terminal = [event["payload"] for event in events
+                        if event["payload"]["event"] == "run_shutdown"]
+            self.assertEqual(len(terminal), 1)
+            self.assertNotIn("after", terminal[0])
+            self.assertEqual(terminal[0]["full_result"]["json_pointer"], "/result")
+
+    def test_continuous_mode_tolerates_only_declared_unknown_current_hp_after_proof(self):
+        with scratch_directory() as directory:
+            source = Source(unknown_after=5, gone_after=8)
+            result, _ = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "recorded", result)
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertGreater(result["unknown_current_hp_count"], 0)
+            self.assertTrue(any(row["target_current_hp"] is None for row in result["after"]))
+            self.assertGreater(len(list((directory / "run" / "failed-recognition").glob("*.json"))), 0)
+            self.assertTrue(result["complete_diagnostics"])
+
+    def test_continuous_mode_rejects_unknown_current_hp_before_G(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(unknown_baseline=True), observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("invalid_or_stale_target_current_hp", result["reason"])
+            self.assertEqual(dispatchers, [])
+            self.assertEqual(result["requests"], [])
+
+    def test_continuous_mode_bad_hp_blocks_without_target_loss_inference(self):
+        with scratch_directory() as directory:
+            source = Source(invalid_after_step=5)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("invalid_or_stale_target_current_hp", result["reason"])
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertFalse(result["target_disappearance_observed"])
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertGreater(len(list((directory / "run" / "failed-recognition").glob("*.json"))), 0)
+
+    def test_continuous_mode_absence_without_hp_proof_is_ambiguous_and_blocked(self):
+        with scratch_directory() as directory:
+            result, _ = self.run_probe(directory, Source(effect=False, gone_after=4),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "selected_target_absent_without_firing_proof")
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+
+    def test_continuous_mode_cancel_after_proof_preserves_proof_but_not_ceasefire_claim(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            source = Source(cancel_path=marker, cancel_after_delivery=5)
+            result, dispatchers = self.run_probe(directory, source,
+                cancel_file=marker, observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertFalse(result["target_disappearance_observed"])
+            self.assertEqual(result["firing_state_after_probe"],
+                             "unverified_supervisor_retains_control")
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertTrue(marker.exists())
+
+    def test_continuous_mode_has_stale_image_watchdog_without_total_elapsed_cap(self):
+        with scratch_directory() as directory:
+            result, _ = self.run_probe(directory, Source(effect=False, stall_after=5),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("stale_image_stream", result["reason"])
+            self.assertFalse(result["target_disappearance_observed"])
 
 
 if __name__ == "__main__":
