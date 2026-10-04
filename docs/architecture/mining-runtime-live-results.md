@@ -960,3 +960,20 @@ alongside Water HP3154 at 2595 m. A subsequent small grey-object selection did
 not prove a target change and was deferred. The loop continues scanning for
 nearby wanted resources or a clearer route; no flight on the rejected Water
 corridor has occurred.
+
+A third wanted candidate, Water HP3097 at 1955 m, was scanned and assessed
+from a freshly aligned chase view. Its central corridor was visually clear,
+with large rocks lateral and moving ships off-center; the speed HUD had a dark
+background. This distinct route received execution approval.
+`continuous-approach-009` (`f2f6925e46e24a22a6e91ed9be09c8fc`) then proved
+approach and stop with complete diagnostics, normal five-second samples and
+no elapsed flight or routine frame-count cap. Distance readings progressed
+1930, 1844, 1700, 1536, 1372, 1209, 1045 and 880 m, with speeds 10.9, 23.2
+and then 33.0. The threshold brake at 880 m was followed by fresh zeros on
+sequences 13 and 14, stopping at 644 m. Every motion row recorded full
+5005/5005 hull. Independent parent supervision at game clock 01:34:17 confirmed
+644 m, speed 0.0 and full hull/energy. This is a clean native integration run
+of the current hull-guarded approach; it does not exercise a hull-loss brake.
+The miner proceeded to continuous firing with the normal 480–760 m range
+guard. Choosing this safer distinct route resolved the earlier execution block
+without retrying the rejected corridor.
