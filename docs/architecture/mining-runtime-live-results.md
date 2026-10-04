@@ -1360,3 +1360,49 @@ its completed evidence; all nine focused execution checks pass. The dedicated
 synthetic session was stopped with ownership released, toggle OFF, observer
 worker stopped and app input disabled. Only its port-8766 server was removed;
 the standalone port-8765 dashboard remains available.
+
+Simple Manual dashboard startup is implemented in `594352bb`, `dbe75dc7`,
+`839805de` and `ba225287`. Double-clicking the project-root `Mining Dashboard.cmd`
+starts the hidden local launcher, opens the dashboard and discovers a unique
+visible exact-title game window at the validated 2560x1440 enlarged-HUD layout.
+No window handles, process IDs, coordinates or startup safety assertions are
+required. The HTTP dashboard binds before discovery, so a missing game,
+multiple windows or unsupported layout has a visible, retryable result.
+A nonce-identified listener in the same workspace is reused; an unrelated or
+legacy occupied port is left running and the new dashboard uses a free port.
+A workspace lease prevents two normal launchers from owning the same workspace.
+
+Every newly attached session starts in Manual with actions paused. The separate
+Enable/Pause buttons report acknowledged action availability independently of
+global mode and actual routine input ownership. Enable acknowledges only the
+current stop-marker fingerprint for this session, preserves the original file,
+and starts no routine or focus request. A changed marker blocks actions again.
+The configured upper-center flight point is an unassessed candidate; each
+approach still requires fresh scene and point assessments. Optional return-to-game
+focus remains off by default and applies only to explicit Start/Cancel actions.
+Window attachment, fresh image health and routine readiness are separate UI
+signals. The advanced pinned-session command exposes the same Enable/Pause UI.
+
+The final combined suite passed 108 tests covering launcher admission/reuse,
+Manual ownership, session execution, selected scanning, catalog/marker evidence
+and observer HTTP/UI behavior. Independent fake-resource review reproduced and
+verified fixes for unresolved reader shutdown, missing shutdown proof, session
+exceptions after resource startup and server setup failure before serving.
+Retry cannot create another session while previous cleanup is unproved.
+Malformed listener metadata and non-object startup responses are rejected
+without aborting startup. A PowerShell parsing and intercepted-process smoke
+check passed from a different
+working directory with spaces in the project path; no real process was launched
+by that fixture. Startup errors retain a log path and show an actionable message.
+
+Browser QA used only a labeled synthetic adapter: missing game, ambiguity,
+layout rejection, attached-but-paused, explicit Enable, focus preference changes
+and Pause all rendered correctly while app input stayed disabled and no routine
+owned controls. The local proof screenshot is
+`logs/offline-bot/observer-ui-qa/easy-launch-paused-synthetic.jpg`.
+The synthetic port-8767 service and its temporary browser tab were closed after
+verification. The standalone port-8765 observer was refreshed to the new UI/API
+and remains unattached. No native discovery, game capture, game input or profit
+was generated during this work; `continuous-stop.request` remains present.
+Normal launcher attachment and the new native UI flow still require live game
+acceptance before claiming mining results.
