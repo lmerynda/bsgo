@@ -1305,3 +1305,58 @@ label template are checked in; private full-screen images remain local.
 
 These checks used retained images and synthetic tests only. Gameplay remains
 paused and `continuous-stop.request` remains present.
+
+Manual building blocks are implemented in `a18c5ec2`, `dd0c576c`,
+`d405b96b`, `f22ff3e0` and `985d0f73`. Global Manual mode keeps mission
+decisions with the human; one requested routine can temporarily own scanner
+or navigation input. The dashboard reports that ownership, readiness,
+processing, wait, next step, acknowledgment, delivered input and image effect
+independently of the selected historical package. Original image-bound human
+assessment tokens expire after 15 seconds; same-target refreshes do not renew
+checked assessments. This bounds arming, not flight duration.
+
+The native session observes continuously until its independent stop request.
+Selected scanning sends a guarded Z; the selected-target toggle waits during
+human flight, attempts each continuous local selection once, skips supported
+image-known scanned markers, and blocks ambiguous continuity gaps. It never
+brakes or retargets. Nearby automatic discovery remains explicitly unavailable.
+Approach composes the previously proved cruise-to-1300-m full stop and the
+one-notch slow leg to an 800-m braking threshold, with five-second checks and
+no total flight-time cap. Combined native approach acceptance remains pending.
+Input-free already-in-range verification requires two new consistent zero-speed
+images. Neither approach completion nor Z delivery claims mining readiness.
+
+Controls retain exact window/focus guards and minimum 50-ms human-like holds.
+Optional exact-window focus handover is restricted to explicit user Start or
+Cancel; later automatic scans and internal shutdown do not activate the game.
+A focus-loss race can still invalidate an action capture before cancellation
+restores focus. Unobserved navigation stops retain faulted ownership. Stop and
+restart are fenced against delayed old scan workers; provider failures remain
+visible through cancellation cleanup and cannot supply cached fresh tokens.
+Completed command references persist, and action packages are discoverable as
+siblings under the configured run root.
+
+The root integration check passed 93 tests across Manual leases, actual injected
+probe composition/session execution, scan-toggle scheduling/execution, catalog,
+marker recognition and observer HTTP/rendering. Synthetic execution exercised
+both existing approach probes and stationary Z delivery; scan effect remained
+unverified. Independent review reproduced and verified fixes for delayed-worker
+Stop/Start and persistent provider failures. Browser checks verified global
+Manual plus temporary navigation ownership, historical-selector independence,
+missing-stop fault retention, clean canceled release, and a selected-target
+toggle that scanned once and suppressed repeats for over a minute. Its saved
+package link pinned the explicitly synthetic evidence; Stop returned it to OFF.
+Local screenshots include `manual-assist-active-synthetic.jpg`,
+`manual-assist-unproved-stop-synthetic.jpg` and
+`manual-assist-selected-toggle-synthetic.jpg` under the observer UI QA folder.
+The standalone dashboard stays open with no native controller attached; the
+README documents replacing it with the explicit native session. No game
+captures, inputs or profits were generated during this development work, and
+the mining pause request remains set. All new native-flow acceptance is pending.
+
+Final UI/docs integration is committed in `0997fba5`. Follow-up `d6ae44a7`
+clears the stopped toggle's current wait/process/next fields while retaining
+its completed evidence; all nine focused execution checks pass. The dedicated
+synthetic session was stopped with ownership released, toggle OFF, observer
+worker stopped and app input disabled. Only its port-8766 server was removed;
+the standalone port-8765 dashboard remains available.
