@@ -45,15 +45,19 @@ class ApproachPolicy:
     The coordinator must still check freshness and identity between decisions.
     """
 
-    def __init__(self, *, brake_at: float = 900, max_speed: float = 44,
+    def __init__(self, *, brake_at: float = 900, launch_clearance: float = 250,
+                 max_speed: float = 44,
                  max_frame_age: float = 2.0, brake_ack: float = 4.0,
                  max_braking: float = 30.0, max_observation_gap: float = 4.0):
         if not _number(brake_at) or not 600 <= brake_at <= 1400:
             raise PolicyError("Brake threshold must be 600..1400 m")
+        if not _number(launch_clearance) or not 75 <= launch_clearance <= 250:
+            raise PolicyError("Launch clearance must be 75..250 m")
         if any(not _number(value) or value <= 0 for value in
                (max_speed, max_frame_age, brake_ack, max_braking, max_observation_gap)):
             raise PolicyError("Speed and timing bounds must be positive finite numbers")
         self.brake_at = brake_at
+        self.launch_clearance = launch_clearance
         self.max_speed = max_speed
         self.max_frame_age = max_frame_age
         self.brake_ack = brake_ack
@@ -124,7 +128,7 @@ class ApproachPolicy:
         if self.phase == "initial":
             if row.speed != 0:
                 raise PolicyError("Approach must start stopped")
-            if row.distance < self.brake_at + 250:
+            if row.distance < self.brake_at + self.launch_clearance:
                 raise PolicyError("Initial target too close for full-speed approach")
             self.identity, self.portrait = row.target_identity, row.target_portrait
             self.context = (snapshot.session_epoch, snapshot.layout, tuple(snapshot.frame_size))

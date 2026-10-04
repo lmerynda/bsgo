@@ -34,7 +34,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                        dispatcher_factory, configuration, profile,
                        expected_window_id, frame_size, clear_corridor_assessed,
                        aligned_heading_assessed, safe_stopped_scene_assessed,
-                       scope="native", brake_at=900., max_thrust_seconds=None,
+                       scope="native", brake_at=900., launch_clearance=250.,
+                       max_thrust_seconds=None,
                        baseline_seconds=4., stop_seconds=35.,
                        decision_interval=2., cancel_file=None, sample_interval=.4):
     """Injectable supervised probe with an independent PageDown watchdog."""
@@ -50,6 +51,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             or not math.isfinite(max_thrust_seconds) or not .1 <= max_thrust_seconds <= 180):
         raise ValueError("max_thrust_seconds")
     for name, value, low, high in (("brake_at", brake_at, 600, 1400),
+        ("launch_clearance", launch_clearance, 75, 250),
         ("baseline_seconds", baseline_seconds, .1, 30),
         ("stop_seconds", stop_seconds, .1, 45),
         ("decision_interval", decision_interval, .01, 10),
@@ -57,7 +59,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(name)
     maximum_image_age = max(2., sample_interval + 2.)
-    policy = ApproachPolicy(brake_at=brake_at, max_frame_age=maximum_image_age,
+    policy = ApproachPolicy(brake_at=brake_at, launch_clearance=launch_clearance,
+                            max_frame_age=maximum_image_age,
                             max_observation_gap=max(4., sample_interval + 2.))
     frame_budget = (None if max_thrust_seconds is None else max(256,
         math.ceil((baseline_seconds + max_thrust_seconds + stop_seconds + 8) / sample_interval)))
@@ -65,6 +68,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         configuration={**configuration, "supervisor_assumptions": {
             "clear_corridor": True, "aligned_heading": True,
             "safe_stopped_scene": True}, "brake_at": brake_at,
+            "launch_clearance": launch_clearance,
             "max_thrust_seconds": max_thrust_seconds,
             "sample_interval": sample_interval, "maximum_image_age": maximum_image_age,
             "baseline_seconds": baseline_seconds, "stop_seconds": stop_seconds,
@@ -179,7 +183,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             return False
         try:
             row, _ = valid_target(snapshot, now)
-            return row.speed == 0 and row.distance >= brake_at + 250
+            return row.speed == 0 and row.distance >= brake_at + launch_clearance
         except PolicyError:
             return False
 
@@ -460,6 +464,10 @@ def main():
     parser.add_argument("--safe-stopped-scene-assessed", action="store_true", required=True)
     parser.add_argument("--max-thrust-seconds", type=float, default=None,
                         help="Optional bounded diagnostic trial only; normal transit has no elapsed-time cap")
+    parser.add_argument("--brake-at", type=float, default=900.,
+                        help="Distance brake threshold, 600 to 1400 metres")
+    parser.add_argument("--launch-clearance", type=float, default=250.,
+                        help="Supervised calibration only: minimum launch distance above brake threshold, 75 to 250 metres")
     parser.add_argument("--sample-seconds", type=float, default=5.,
                         help="Distance observation cadence, 5 to 10 seconds")
     parser.add_argument("--stop-seconds", type=float, default=35.)
@@ -489,6 +497,7 @@ def main():
         profile=args.profile, expected_window_id=f"{geometry.pid}:{geometry.hwnd}",
         frame_size=geometry.client_size, clear_corridor_assessed=True,
         aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
+        brake_at=args.brake_at, launch_clearance=args.launch_clearance,
         max_thrust_seconds=args.max_thrust_seconds,
         baseline_seconds=args.sample_seconds * 2 + 2,
         sample_interval=args.sample_seconds, decision_interval=args.sample_seconds,

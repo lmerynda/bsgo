@@ -306,6 +306,14 @@ block approach proof, while cleanup still verifies two fresh zero-speed images.
 The failed hull reading or loss remains in the diagnostic trace; the independent
 watchdog records its rejection cause. Combat and obstacle detection still
 require supervision.
+The normal launch guard requires at least 250 m beyond the brake threshold.
+For an explicitly supervised short-approach calibration, `--brake-at 800
+--launch-clearance 75` allows a stopped target at 875 m or farther to launch.
+Launch clearance accepts 75–250 m and defaults to 250 m; the same guard applies
+both to policy authorization and actual PageUp delivery. These settings are
+recorded in the report and do not establish a safe stopping distance. Full hull,
+fresh images, corridor/heading assessments, cancellation and observed stop
+remain required. Use five-second samples for the initial short-distance trial.
 At 900 m it requests a reserved PageDown brake. An independent watchdog also
 requests PageDown on stale or invalid images. Normal transit has no elapsed-time
 cutoff and checks distance every 5 seconds; `--sample-seconds` accepts 5 to 10.

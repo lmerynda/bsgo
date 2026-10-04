@@ -21,10 +21,10 @@ PROFILE = "largehud-20261003"
 
 
 class Ship:
-    def __init__(self, brake_decay_seconds=0.):
+    def __init__(self, brake_decay_seconds=0., distance=1155.):
         self.lock = Lock()
         self.speed = 0.
-        self.distance = 1155.
+        self.distance = distance
         self.brake_decay_seconds = brake_decay_seconds
         self.brake_due = None
 
@@ -164,8 +164,9 @@ class ApproachProbeTests(unittest.TestCase):
     def run_fixture(self, directory, *, source_options=None, ignore_acceleration=False,
                     max_thrust_seconds=3., stop_seconds=.8,
                     brake_decay_seconds=0., cancel_file=None,
-                    cancel_on_acceleration=False, sample_interval=.4):
-        ship = Ship(brake_decay_seconds)
+                    cancel_on_acceleration=False, sample_interval=.4,
+                    distance=1155., brake_at=900., launch_clearance=250.):
+        ship = Ship(brake_decay_seconds, distance)
         source = PixelSource(ship, **(source_options or {}))
         dispatchers = []
         def dispatcher_factory(backend, journal):
@@ -183,8 +184,57 @@ class ApproachProbeTests(unittest.TestCase):
             safe_stopped_scene_assessed=True, scope="synthetic",
             baseline_seconds=.3, max_thrust_seconds=max_thrust_seconds,
             stop_seconds=stop_seconds, decision_interval=.1,
-            cancel_file=cancel_file, sample_interval=sample_interval)
+            cancel_file=cancel_file, sample_interval=sample_interval,
+            brake_at=brake_at, launch_clearance=launch_clearance)
         return result, ship, source, dispatchers
+
+    def test_short_approach_requires_explicit_launch_clearance(self):
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                distance=880., brake_at=800., max_thrust_seconds=None)
+            self.assertEqual(result["state"], "blocked", result)
+            self.assertIn("Initial target too close", result["reason"])
+            self.assertEqual(result["acceleration_requests"], [])
+            self.assertEqual(dispatchers, [])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                distance=880., brake_at=800., launch_clearance=75.,
+                max_thrust_seconds=None, sample_interval=5.)
+            self.assertEqual(result["state"], "proved", result)
+            self.assertIn(result["brake_reason"], ("threshold", "threshold_watchdog"))
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual([d.outcome for d in dispatchers[0].deliveries()], ["injected"] * 4)
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+            report = json.loads((directory / "run" / "report.json").read_text())
+            manifest = json.loads((directory / "run" / "manifest.json").read_text())
+            self.assertEqual(manifest["configuration"]["launch_clearance"], 75.)
+            self.assertEqual(manifest["configuration"]["brake_at"], 800.)
+            self.assertIsNone(report["frames"]["max_frames"])
+
+    def test_short_approach_still_blocks_below_clearance_and_on_hull_loss(self):
+        with scratch_directory() as directory:
+            result, _, _, dispatchers = self.run_fixture(directory,
+                distance=874., brake_at=800., launch_clearance=75.)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["acceleration_requests"], [])
+            self.assertEqual(dispatchers, [])
+        with scratch_directory() as directory:
+            result, ship, _, _ = self.run_fixture(directory,
+                distance=880., brake_at=800., launch_clearance=75.,
+                max_thrust_seconds=None, source_options={"damage_at": 5})
+            self.assertEqual(result["state"], "blocked", result)
+            self.assertEqual(result["brake_reason"], "hull_guard")
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+
+    def test_launch_clearance_rejects_invalid_configuration_before_capture(self):
+        for value in (74.9, 250.1, True, math.nan, math.inf):
+            with self.subTest(value=value), scratch_directory() as directory:
+                with self.assertRaisesRegex(ValueError, "launch_clearance"):
+                    self.run_fixture(directory, launch_clearance=value)
 
     def test_threshold_approach_requires_image_closure_and_fresh_stop(self):
         with scratch_directory() as directory:

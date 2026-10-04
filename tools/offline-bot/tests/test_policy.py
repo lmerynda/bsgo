@@ -70,6 +70,18 @@ class ApproachTests(unittest.TestCase):
             with self.assertRaises(PolicyError):
                 ApproachPolicy().decide(frame(distance=distance, speed=speed), 10)
 
+    def test_explicit_short_clearance_keeps_distance_driven_braking(self):
+        policy = ApproachPolicy(brake_at=800, launch_clearance=75,
+                                max_observation_gap=7)
+        for time, distance, speed, action in (
+                (10, 880, 0, "accelerate"), (15, 855, 10.9, "continue"),
+                (20, 769, 23.2, "brake"), (25, 710, 10, "continue"),
+                (30, 680, 0, "complete")):
+            self.assertEqual(policy.decide(frame(time, distance, speed), time), action)
+        for value in (74.9, 250.1, True, math.nan, math.inf):
+            with self.subTest(value=value), self.assertRaisesRegex(PolicyError, "Launch clearance"):
+                ApproachPolicy(launch_clearance=value)
+
     def test_target_identity_and_portrait_changes_reject(self):
         for name, value in (("target_identity", "different-hp-signature"),
                             ("target_portrait", (1,) * 144)):
