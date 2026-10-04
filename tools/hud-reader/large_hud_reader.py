@@ -84,9 +84,13 @@ class LargeHudReader:
             return None, 'invalid_target_hp_format', 0.
         left, right, top, slash = gs[-5]
         ys, xs = np.where(slash)
-        # A measured narrow final one recenters the complete HP label by 5px.
+        # A measured narrow one on the maximum side recenters this complete
+        # four-digit HP label by 5px, whether it ends 3781 or contains 4102.
         narrow_one_layout = ((left, right) == (77, 84) and len(gs) == 9
-                             and gs[-1][3].shape == (11, 4)
+                             and any(top_ == 4 and glyph.shape == (11, 4)
+                                 and min(float(np.mean(normalized(glyph) != template))
+                                         for template in self.bank['1']) <= .02
+                                 for _, _, top_, glyph in gs[-4:])
                              and abs((gs[0][0]+gs[-1][1])/2-76) <= .5)
         if (((left, right) != (72, 79) and not narrow_one_layout)
                 or top != 3 or slash.shape != (12, 7)

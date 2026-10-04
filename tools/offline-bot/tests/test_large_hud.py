@@ -31,6 +31,27 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_internal_narrow_one_recenters_complete_hp_label(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for damage in (None, 'clip_one', 'remove_one', 'remove_current_digit'):
+            im = fixture_image()
+            with Image.open(FIXTURES/'hp-2446-4102.png') as crop:
+                im.paste(crop, tuple(data['hp_box'][:2]))
+            if damage == 'clip_one':
+                ImageDraw.Draw(im).rectangle((1036,92,1039,92),fill='black')
+            elif damage == 'remove_one':
+                ImageDraw.Draw(im).rectangle((1036,92,1039,102),fill='black')
+            elif damage == 'remove_current_digit':
+                ImageDraw.Draw(im).rectangle((936,92,947,102),fill='black')
+            fields = HudRecognizer(PROFILE)(native(im)).fields
+            if damage is None:
+                self.assertEqual(fields['target_current_hp'].value,2446)
+                self.assertEqual(fields['target_max_hp'].value,4102)
+                self.assertTrue(fields['target_identity'].valid)
+            else:
+                self.assertFalse(fields['target_current_hp'].valid,damage)
+                self.assertFalse(fields['target_max_hp'].valid,damage)
+
     def test_measured_star_wholly_in_margin_preserves_complete_speed(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()
