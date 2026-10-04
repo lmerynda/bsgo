@@ -187,9 +187,11 @@ class ApproachProbeTests(unittest.TestCase):
                     cancel_on_acceleration=False, sample_interval=.4,
                     distance=1155., brake_at=900., launch_clearance=250.,
                     reduced_transition_at=None, reduced_wheel_speed=5.,
-                    ignore_transition_down=False, cancel_on_transition_down=False):
+                    ignore_transition_down=False, cancel_on_transition_down=False,
+                    source_factory=None):
         ship = Ship(brake_decay_seconds, distance)
-        source = PixelSource(ship, **(source_options or {}))
+        source = (source_factory(ship) if source_factory else
+                  PixelSource(ship, **(source_options or {})))
         dispatchers = []
         def dispatcher_factory(backend, journal):
             dispatcher = FakeDispatcher(backend, ship,
@@ -615,6 +617,43 @@ class ApproachProbeTests(unittest.TestCase):
                 self.assertTrue(result["final_stop_observed"])
                 self.assertEqual(ship.speed, 0)
                 self.assertTrue(source.closed)
+
+    def test_two_regime_post_wheel_speed_increase_brakes(self):
+        class RisingSource(PixelSource):
+            def next_sample(self, stop):
+                sample = super().next_sample(stop)
+                if sample and sample.acquisition_sequence == 54:
+                    sample.speed = 15.
+                if sample and sample.acquisition_sequence == 55:
+                    sample.speed = 23.
+                return sample
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.,
+                source_factory=lambda ship: RisingSource(ship))
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("Speed increased after reduced-throttle", result["reason"])
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_after_proved_five_speed_change_brakes(self):
+        class DriftSource(PixelSource):
+            def next_sample(self, stop):
+                sample = super().next_sample(stop)
+                if sample and sample.acquisition_sequence == 58:
+                    sample.speed = 4.
+                return sample
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.,
+                source_factory=lambda ship: DriftSource(ship))
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("Observed reduced-speed regime changed", result["reason"])
+            self.assertGreaterEqual(len(result["reduced_speed_sequences"]), 3)
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
 
 
 if __name__ == "__main__":
