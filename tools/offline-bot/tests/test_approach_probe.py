@@ -71,7 +71,7 @@ class PixelSource:
     def __init__(self, ship, *, stall_after=None, change_at=None, invalid_first=False,
                  cancel_at=None, cancel_path=None, pause_after_baseline=0.,
                  damage_at=None, initial_hull=5005, damage_hull=4500,
-                 damage_after_brake=False):
+                 damage_after_brake=False, target_loss_after_brake=False):
         self.ship, self.stall_after = ship, stall_after
         self.change_at, self.invalid_first = change_at, invalid_first
         self.cancel_at, self.cancel_path = cancel_at, cancel_path
@@ -79,6 +79,7 @@ class PixelSource:
         self.damage_at, self.initial_hull = damage_at, initial_hull
         self.damage_hull = damage_hull
         self.damage_after_brake = damage_after_brake
+        self.target_loss_after_brake = target_loss_after_brake
         self.sequence = 0
         self.closed = False
 
@@ -96,7 +97,8 @@ class PixelSource:
         if self.invalid_first and self.sequence == 1:
             speed = None
         return PixelSample(self.sequence, time.monotonic(), speed, distance,
-            selected=self.change_at is None or self.sequence < self.change_at,
+            selected=(self.change_at is None or self.sequence < self.change_at)
+                and not (self.target_loss_after_brake and self.ship.brake_requested),
             hull=self.damage_hull if (self.damage_at and self.sequence >= self.damage_at
                 or self.damage_after_brake and self.ship.brake_requested) else self.initial_hull)
 
@@ -257,6 +259,11 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertTrue(all(result["shutdown"].values()))
             self.assertEqual(ship.speed, 0)
             self.assertTrue(source.closed)
+            self.assertEqual(result["final_stop_distance"], ship.distance)
+            self.assertEqual(result["brake_start_observation"]["speed"], 20.)
+            self.assertEqual(result["observed_braking_distance"],
+                result["brake_start_observation"]["distance"] - ship.distance)
+            self.assertTrue(result["braking_observations"])
 
     def test_invalid_baseline_never_requests_acceleration(self):
         with scratch_directory() as directory:
@@ -312,6 +319,21 @@ class ApproachProbeTests(unittest.TestCase):
                 self.assertTrue(result["complete_diagnostics"])
                 self.assertTrue(all(result["shutdown"].values()))
                 self.assertTrue(source.closed)
+
+    def test_target_loss_after_page_down_blocks_proof_but_keeps_speed_cleanup(self):
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                distance=880., brake_at=800., launch_clearance=75.,
+                max_thrust_seconds=None, brake_decay_seconds=.15,
+                source_options={"target_loss_after_brake": True})
+            self.assertEqual(result["state"], "blocked", result)
+            self.assertIn(result["brake_reason"], ("threshold", "threshold_watchdog"))
+            self.assertTrue(result["final_stop_observed"])
+            self.assertIsNone(result["final_stop_distance"])
+            self.assertIsNone(result["observed_braking_distance"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+            self.assertTrue(result["complete_diagnostics"])
 
     def test_target_loss_requests_brake_and_blocks_proof(self):
         with scratch_directory() as directory:

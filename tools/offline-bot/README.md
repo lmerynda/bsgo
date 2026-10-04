@@ -305,6 +305,12 @@ Missing or invalid hull readings and observed hull loss request PageDown and
 block approach proof, while cleanup still verifies two fresh zero-speed images.
 Hull checks continue during coast-down after PageDown; damage or unreadable hull
 there blocks proof even when the speed-only cleanup confirms a stop.
+The same selected-target checks also continue through coast-down; a lost,
+changed or unreadable target blocks approach proof while stop cleanup proceeds.
+Reports retain the observed brake-start range/speed, every valid coast-down row,
+actual brake request/delivery times and final same-target stopped range. The
+observed range difference is recorded separately as `observed_braking_distance`.
+These measurements support calibration; they do not estimate stopping physics.
 The failed hull reading or loss remains in the diagnostic trace; the independent
 watchdog records its rejection cause. Combat and obstacle detection still
 require supervision.

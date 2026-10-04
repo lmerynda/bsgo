@@ -82,6 +82,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     stop_lock = Lock()
     started = time.monotonic()
     baseline, motion, stop_images = [], [], []
+    braking_observations = []
     context = initial = previous = None
     observed_sequence = 0
     previous_acquisition_sequence = -1
@@ -98,6 +99,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         "acceleration_requests": [], "brake_requests": [], "deliveries": [],
         "post_acceleration_motion_sequences": [],
         "final_stop_observed": False,
+        "braking_observations": braking_observations,
+        "brake_start_observation": None, "final_stop_distance": None,
+        "observed_braking_distance": None,
         "cancel_requested": False,
         "unverified": ["combat_detection", "exclusive_input_ownership",
                        "scan_result", "resources", "mining", "inventory"]}
@@ -122,10 +126,22 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 return
             stop_attempts += 1
             at = time.monotonic()
+            snapshot = store.latest()
+            if snapshot is not None:
+                brake_start = {"observation_sequence": snapshot.sequence,
+                    "acquired_at": snapshot.acquired_at,
+                    "fresh": 0 <= at - snapshot.acquired_at < maximum_image_age}
+                for name in ("distance", "speed"):
+                    field = snapshot.fields.get(name)
+                    brake_start[name] = (field.value if field and field.valid
+                        and type(field.value) in (int, float) and math.isfinite(field.value)
+                        and field.observed_at == snapshot.acquired_at else None)
+                result["brake_start_observation"] = brake_start
             try:
                 brake_records = backend.request_cleanup_stop(reason="approach_" + reason)
                 brake_at_time, brake_reason = at, reason
                 result["brake_requests"] = plain(brake_records)
+                result["actual_brake_requested_at"] = at
                 diagnostic.submit({"event": "approach_brake_requested", "at": at,
                                    "reason": reason, "attempt": stop_attempts})
             except Exception as exc:
@@ -324,10 +340,14 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                       else "image_evidence_rejected")
                     else:
                         try:
-                            valid_hull(snapshot, now)
-                        except HullGuardError as exc:
+                            _, reading = valid_target(snapshot, now)
+                            braking_observations.append(reading)
+                            if reading["speed"] == 0:
+                                result["final_stop_distance"] = reading["distance"]
+                        except PolicyError as exc:
                             blocker = blocker or str(exc)
-                            diagnostic.submit({"event": "approach_braking_hull_rejected",
+                            diagnostic.submit({"event": "approach_braking_hull_rejected"
+                                if isinstance(exc, HullGuardError) else "approach_braking_target_rejected",
                                 "observation_sequence": snapshot.sequence,
                                 "acquisition_sequence": snapshot.acquisition_sequence,
                                 "reason": str(exc), "at": now})
@@ -448,6 +468,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             elif not (linked[0].at <= linked[1].at <= linked[2].at <= linked[3].at):
                 result.update(state="blocked", reason="control_delivery_order_invalid")
             else:
+                result["actual_brake_delivered_at"] = linked[2].at
                 post_motion = [r for r in motion if r["acquired_at"] > linked[1].at
                     and r["speed"] > 0 and initial
                     and r["distance"] < initial["distance"] - 5]
@@ -461,6 +482,10 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     if cancel_seen.is_set():
         result.update(state="blocked", reason="cancel_requested",
                       cancel_requested=True)
+    brake_start = result["brake_start_observation"]
+    if (brake_start and brake_start["fresh"] and brake_start["distance"] is not None
+            and result["final_stop_distance"] is not None):
+        result["observed_braking_distance"] = brake_start["distance"] - result["final_stop_distance"]
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if not report["complete_diagnostics"] or not all(shutdown.values()) or result.get("dispatcher_error"):
         result.update(state="blocked", reason="incomplete_diagnostic_evidence")
