@@ -1280,3 +1280,28 @@ all 136 trace events retained. Sixty-four routine images were retained and
 seven were deliberately skipped under the declared cap, so complete image
 diagnostics remain false. No failed image was missing. The mining stop marker
 stayed set and no game input was requested.
+
+Manual-assist scanning foundations are committed in `a137a105` and
+`203b5532`: an image-evidence candidate catalog and cancellable sweep planner
+over supplied, verified observations. The catalog expires old views, caps
+storage at 256 candidates, and rejects delayed acknowledgments after context
+invalidation. Twenty-two focused tests cover evidence continuity, freshness,
+range, duplicate suppression, cancellation and bounded storage. These modules
+emit intentions; they do not discover unselected rocks or dispatch native input.
+A delivered scan never marks a candidate visually scanned.
+
+Commit `915d3e10` adds a selected-world-marker locator for the native
+2560x1440 large-HUD profile and conservative bright blue/purple scan-texture
+recognition. Ten tests cover reviewed native marker fragments, new marker
+positions, cursor halo, missing/multiple labels, unsupported geometry and
+selection continuity. Read-only checks against six retained full frames from
+scan runs 036–038 located each selected marker dynamically: pre-scan textures
+remain unknown and the measured post-scan textures are classified scanned.
+Absence of color does not prove unscanned. A new scan-effect claim additionally
+requires a reviewed unscanned baseline and uninterrupted local selection-track
+evidence. Other mineral colors, automatic nearby rock discovery and live
+acceptance remain unproved. Only small marker crops, their annotations and the
+label template are checked in; private full-screen images remain local.
+
+These checks used retained images and synthetic tests only. Gameplay remains
+paused and `continuous-stop.request` remains present.
