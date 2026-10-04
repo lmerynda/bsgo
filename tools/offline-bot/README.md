@@ -339,6 +339,10 @@ and no preexisting fire or HP loss. Stay with the game after the command:
 validated ceasefire control. The native client must be 2560×1440. The probe
 requires a stable four-second image baseline with unchanged four-digit current
 HP, target identity/portrait/maximum HP, and distance between 480 and 760 m.
+For an independently assessed safe, stationary closer-target experiment,
+`--min-distance 200` explicitly sets a 200 m lower bound. This is a calibration
+setting, not a measured minimum gun range; the default remains 480 m and the
+maximum remains 760 m. All stopped-image, target and delivery guards still apply.
 It then sends one guarded G down/up pair with a 50 ms virtual-key hold. After
 confirmed delivery, two fresh images with distinct falling current HP are
 required for the narrow `firing_effect_verified` result. `--after-seconds`

@@ -24,7 +24,7 @@ class Source:
                  hp_reader_fault_after=None, hp_reader_fault_until=None,
                  motion_after=None, initial_hp=4500,
                  low_hp_after=None, low_hp_descend=False,
-                 low_hp_on_down=False):
+                 low_hp_on_down=False, distance=677.):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -45,6 +45,7 @@ class Source:
         self.initial_hp, self.low_hp_after = initial_hp, low_hp_after
         self.low_hp_descend = low_hp_descend
         self.low_hp_on_down = low_hp_on_down
+        self.distance = distance
         self.down_sequence = None
         self.delivery_sequence = None
 
@@ -74,7 +75,7 @@ class Source:
         if (self.low_hp_on_down and self.down_sequence is not None
                 and self.delivery_sequence is None and self.sequence > self.down_sequence):
             hp = 351
-        values = {"speed": 0., "asteroid_selected": True, "distance": 677.,
+        values = {"speed": 0., "asteroid_selected": True, "distance": self.distance,
             "target_identity": "asteroid:hp:4500", "target_portrait": tuple([1] * 144),
             "target_max_hp": 4500, "target_current_hp": hp}
         if after and self.invalid_after:
@@ -191,7 +192,7 @@ class FiringProbeTests(unittest.TestCase):
 
     def run_probe(self, directory, source, *, ignore=False, after_seconds=.3,
                   cancel_file=None, cancel_on_G=False, observe_until_target_gone=False,
-                  delay_up=0.):
+                  delay_up=0., min_distance=480.):
         if observe_until_target_gone and cancel_file is None:
             cancel_file = directory / "stop.request"
         dispatchers = []
@@ -208,7 +209,7 @@ class FiringProbeTests(unittest.TestCase):
             safe_stopped_scene_assessed=True, wanted_resource_assessed="Tylium",
             no_preexisting_firing_assessed=True, scope="synthetic",
             baseline_seconds=.5, stable_seconds=.075,
-            after_seconds=after_seconds, cancel_file=cancel_file,
+            after_seconds=after_seconds, min_distance=min_distance, cancel_file=cancel_file,
             observe_until_target_gone=observe_until_target_gone)
         return result, dispatchers
 
@@ -228,6 +229,25 @@ class FiringProbeTests(unittest.TestCase):
             self.assertTrue(all(result["shutdown"].values()))
             self.assertTrue(source.closed)
             self.assertIn("autofire may continue", result["warning"])
+
+    def test_default_lower_range_guard_blocks_close_stationary_target(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory, Source(distance=240.))
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
+
+    def test_explicit_close_range_calibration_preserves_image_and_delivery_proof(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory, Source(distance=240.),
+                                                 min_distance=200.)
+            self.assertEqual(result["state"], "proved", result)
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertTrue(result["complete_diagnostics"])
+            self.assertEqual([d.outcome for d in dispatchers[0].deliveries()],
+                             ["injected", "injected"])
+            self.assertEqual(len(result["falling"]), 2)
+            self.assertTrue(all(row["distance"] == 240. for row in result["baseline"]))
 
     def test_no_G_if_hp_changes_during_baseline(self):
         with scratch_directory() as directory:

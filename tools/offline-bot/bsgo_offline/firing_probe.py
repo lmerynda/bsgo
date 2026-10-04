@@ -519,6 +519,8 @@ def main():
     parser.add_argument("--wanted-resource-assessed", choices=["Water", "Tylium"], required=True)
     parser.add_argument("--no-preexisting-firing-assessed", action="store_true", required=True)
     parser.add_argument("--after-seconds", type=float, default=8.)
+    parser.add_argument("--min-distance", type=float, default=480.,
+                        help="Supervised stationary firing calibration lower bound in metres (default: 480)")
     parser.add_argument("--cancel-file", type=Path)
     parser.add_argument("--observe-until-target-gone", action="store_true")
     args = parser.parse_args()
@@ -544,7 +546,8 @@ def main():
         safe_stopped_scene_assessed=args.safe_stopped_scene_assessed,
         wanted_resource_assessed=args.wanted_resource_assessed,
         no_preexisting_firing_assessed=args.no_preexisting_firing_assessed,
-        after_seconds=args.after_seconds, cancel_file=args.cancel_file,
+        after_seconds=args.after_seconds, min_distance=args.min_distance,
+        cancel_file=args.cancel_file,
         observe_until_target_gone=args.observe_until_target_gone)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] in ("proved", "recorded") and result["complete_diagnostics"] else 1
