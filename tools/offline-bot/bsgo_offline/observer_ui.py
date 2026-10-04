@@ -5,8 +5,10 @@ import argparse
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
+import socket
 from threading import Lock
 import time
 from urllib.parse import parse_qs, urlsplit
@@ -19,6 +21,19 @@ HTML = Path(__file__).with_name("observer.html")
 MAX_JSON_BYTES = 8 * 1024 * 1024
 MANUAL_ROUTINES = ("scan_nearby_unscanned", "auto_scan_selected", "scan_selected",
                    "approach_current_target")
+
+
+class _DashboardHTTPServer(ThreadingHTTPServer):
+    # Windows SO_REUSEADDR permits a second listener on an occupied endpoint.
+    # Exclusive ownership must be requested before bind; other platforms keep
+    # their existing HTTP server reuse behavior.
+    allow_reuse_address = False if os.name == "nt" else ThreadingHTTPServer.allow_reuse_address
+    allow_reuse_port = False if os.name == "nt" else getattr(ThreadingHTTPServer,"allow_reuse_port",False)
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_EXCLUSIVEADDRUSE,1)
+        super().server_bind()
 
 
 class UnattachedManualActions:
@@ -589,7 +604,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
         def log_message(self, format, *args):
             pass
 
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = _DashboardHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     return server
 
