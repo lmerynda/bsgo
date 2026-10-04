@@ -512,3 +512,21 @@ requested/pending mode, and the handover blocker. With this standalone observer
 there is no attached game controller: an Autopilot request is rejected with
 `controller_not_attached`, while actual mode stays Manual and app input stays
 disabled. No observer button launches a probe or sends game input.
+
+For live manual play, start the input-free passive reader in a separate terminal
+with the current game window handle and PID (refresh these after a client
+restart):
+
+```powershell
+$env:PYTHONPATH = 'tools/offline-bot'
+& 'tools/model-runtimes/fastvlm-venv/Scripts/python.exe' -m bsgo_offline.passive_observer --hwnd CURRENT_HWND --pid CURRENT_PID --profile largehud-20261003 --interval 1 --output logs/mining/live-20261003/passive-observer-001 --cancel-file logs/mining/live-20261003/passive-observer-stop.request --routine-frames 64
+```
+
+It reads visible game pixels without foreground activation, input dispatch, or
+mining decisions. Its `native_passive_observer` package appears in the observer
+with a **PASSIVE OBSERVATION** banner, image-reading health, field rejection
+reasons, and saved failure images. Stop this reader with Ctrl+C or its separate
+`passive-observer-stop.request` marker. The first 64 routine frames are saved by
+default; later routine frames are budget-skipped and diagnostic completeness
+reflects that limit, while failed-recognition images remain retained. This
+cancel marker is separate from the mining pause marker.
