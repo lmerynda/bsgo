@@ -200,6 +200,34 @@ class DiagnosticTests(unittest.TestCase):
             self.assertLess(len(json.dumps(terminal[0]).encode()), 4096)
             self.assertEqual(report["trace"]["dropped"], 0)
 
+    def test_first_rejection_terminal_summary_is_bounded_and_report_keeps_detail(self):
+        with scratch_directory() as directory:
+            run_directory = directory / "run"
+            run = DiagnosticRun(run_directory, mode="fixture", configuration={})
+            rejection = {"observation_sequence": 7, "acquisition_sequence": 9,
+                         "read_error": "bad image " * 2000,
+                         "image_reference": "failed-recognition/" + "x" * 5000,
+                         "sidecar_reference": "failed-recognition/" + "y" * 5000,
+                         "fields": {f"field-{n}": {"present": True,
+                             "valid": False, "fresh": True, "reason": "z" * 2000}
+                             for n in range(20)}}
+            result = {"state": "blocked", "reason": "invalid_or_stale_target_identity",
+                      "first_rejection": rejection}
+            report = run.close(shutdown={"recognition": True}, result=result)
+            self.assertEqual(report["result"]["first_rejection"], rejection)
+            events = list(iter_trace_events(run_directory / "trace", report["run_id"]))
+            terminal = [e["payload"] for e in events
+                        if e["payload"]["event"] == "run_shutdown"]
+            self.assertEqual(len(terminal), 1)
+            summary = terminal[0]["result_summary"]["first_rejection"]
+            self.assertEqual(summary["observation_sequence"], 7)
+            self.assertEqual(len(summary["fields"]), 8)
+            self.assertEqual(len(summary["fields"]["field-0"]["reason"]), 160)
+            self.assertEqual(len(summary["image_reference"]), 256)
+            self.assertEqual(terminal[0]["full_result"]["json_pointer"], "/result")
+            self.assertLess(len(json.dumps(terminal[0]).encode()), 4096)
+            self.assertEqual(report["trace"]["dropped"], 0)
+
     def test_startup_failure_preserves_manifest_report_and_zero_requests(self):
         with scratch_directory() as directory:
             def fail():

@@ -10,7 +10,7 @@ from pathlib import Path
 import time
 
 from .artifacts import plain
-from .diagnostics import DiagnosticRun, _write_json
+from .diagnostics import DiagnosticRun, _write_json, recognition_failures
 from .input import RecordingInputBackend
 from .recognition import RecognitionWorker
 from .state import SnapshotStore
@@ -25,6 +25,27 @@ HP_CURRENT_OCR_REASONS = {"unvalidated_current_hp_digit_count",
                           "current_hp_incomplete_numeric_glyph",
                           "current_hp_ambiguous_numeric_glyph",
                           "maximum_hp_context_unverified"}
+
+
+def _first_rejection(snapshot, error):
+    """Point a compact field-reason record at the retained observation."""
+    failures = recognition_failures(snapshot)
+    stem = f"observation-{snapshot.sequence:08d}"
+    folder = "failed-recognition" if failures else "frames"
+    return {"observation_sequence": snapshot.sequence,
+            "acquisition_sequence": snapshot.acquisition_sequence,
+            "read_error": f"RuntimeError: {error}"[:512],
+            "image_reference": f"{folder}/{stem}.png",
+            "sidecar_reference": f"{folder}/{stem}.json" if failures else None,
+            "snapshot_healthy": snapshot.healthy,
+            "snapshot_reason": (snapshot.reason or "")[:160] if not snapshot.healthy else None,
+            "fields": {name: {"present": (field := snapshot.fields.get(name)) is not None,
+                              "valid": field.valid if field else False,
+                              "fresh": field.observed_at == snapshot.acquired_at if field else False,
+                              "reason": (field.reason or "invalid_image_read")[:160]
+                                  if field and not field.valid else
+                                  "missing_field" if field is None else None}
+                       for name in FIELDS}}
 
 
 def _read(snapshot, now, window_id, frame_size, context, initial,
@@ -224,6 +245,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         "after_observation_count": 0,
         "after_observations_scope": "recent_256" if observe_until_target_gone else "all",
         "first_blocker": None, "hp_fault_image_count": 0,
+        "first_rejection": None,
         "observation_end_reason": None,
         "unknown_current_hp_count": 0, "target_disappearance_observed": False,
         "terminal_zero_observed": False, "terminal_zero_sequence": None,
@@ -360,6 +382,10 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                     allow_terminal_zero_current_hp=(observe_until_target_gone
                                                     and g_delivered_before(snapshot)))
             except RuntimeError as read_error:
+                if result["first_rejection"] is None:
+                    result["first_rejection"] = _first_rejection(snapshot, read_error)
+                    diagnostic.submit({"event": "firing_probe_first_rejection",
+                                       **result["first_rejection"]})
                 if not (observe_until_target_gone and requests):
                     raise
                 deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}

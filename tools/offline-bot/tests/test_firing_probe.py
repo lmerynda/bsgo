@@ -25,7 +25,8 @@ class Source:
                  motion_after=None, initial_hp=4500,
                  low_hp_after=None, low_hp_descend=False,
                  low_hp_on_down=False, zero_after=None, zero_until=None,
-                 zero_on_down=False, distance=677.):
+                 zero_on_down=False, missing_current_hp_baseline=False,
+                 distance=677.):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -48,6 +49,7 @@ class Source:
         self.low_hp_on_down = low_hp_on_down
         self.zero_after, self.zero_until = zero_after, zero_until
         self.zero_on_down = zero_on_down
+        self.missing_current_hp_baseline = missing_current_hp_baseline
         self.distance = distance
         self.down_sequence = None
         self.delivery_sequence = None
@@ -87,6 +89,8 @@ class Source:
         values = {"speed": 0., "asteroid_selected": True, "distance": self.distance,
             "target_identity": "asteroid:hp:4500", "target_portrait": tuple([1] * 144),
             "target_max_hp": 4500, "target_current_hp": hp}
+        if self.missing_current_hp_baseline and self.sequence == 1:
+            del values["target_current_hp"]
         if after and self.invalid_after:
             values["target_current_hp"] = None
         if after and self.invalid_after_step is not None and step >= self.invalid_after_step:
@@ -439,6 +443,23 @@ class FiringProbeTests(unittest.TestCase):
             self.assertTrue(result["target_disappearance_observed"])
             self.assertTrue(any(row.get("target_current_hp") == 351
                                 for row in result["after"]))
+            rejection = result["first_rejection"]
+            self.assertEqual(rejection["read_error"], result["first_blocker"])
+            self.assertEqual(rejection["fields"]["target_max_hp"]["reason"],
+                             "invalid_target_hp_separator")
+            self.assertEqual(rejection["fields"]["target_identity"]["reason"],
+                             "unreadable_or_absent")
+            self.assertTrue((directory / "run" / rejection["image_reference"]).exists())
+            self.assertTrue((directory / "run" / rejection["sidecar_reference"]).exists())
+            from json import loads
+            from bsgo_offline.trace import iter_trace_events
+            report = loads((directory / "run" / "report.json").read_text())
+            self.assertEqual(report["result"]["first_rejection"], rejection)
+            events = list(iter_trace_events(directory / "run" / "trace", result["run_id"]))
+            terminal = [event["payload"] for event in events
+                        if event["payload"]["event"] == "run_shutdown"]
+            self.assertEqual(len(terminal), 1)
+            self.assertEqual(terminal[0]["result_summary"]["first_rejection"], rejection)
             self.assertEqual(len(result["post_disappearance_images"]), 2)
             self.assertEqual(len(dispatchers[0].deliveries()), 2)
 
@@ -464,8 +485,33 @@ class FiringProbeTests(unittest.TestCase):
                 Source(unknown_baseline=True), observe_until_target_gone=True)
             self.assertEqual(result["state"], "blocked")
             self.assertIn("invalid_or_stale_target_current_hp", result["reason"])
+            rejection = result["first_rejection"]
+            self.assertEqual(rejection["observation_sequence"], 1)
+            self.assertEqual(rejection["fields"]["target_current_hp"],
+                             {"present": True, "valid": False, "fresh": True,
+                              "reason": "unvalidated_current_hp_digit_count"})
+            self.assertTrue((directory / "run" / rejection["image_reference"]).exists())
+            self.assertTrue((directory / "run" / rejection["sidecar_reference"]).exists())
             self.assertEqual(dispatchers, [])
             self.assertEqual(result["requests"], [])
+
+    def test_missing_baseline_field_records_reason_without_input(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(missing_current_hp_baseline=True),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "RuntimeError: invalid_or_stale_target_current_hp")
+            rejection = result["first_rejection"]
+            self.assertEqual(rejection["observation_sequence"], 1)
+            self.assertEqual(rejection["fields"]["target_current_hp"],
+                             {"present": False, "valid": False, "fresh": False,
+                              "reason": "missing_field"})
+            self.assertTrue((directory / "run" / rejection["image_reference"]).exists())
+            self.assertIsNone(rejection["sidecar_reference"])
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
 
     def test_valid_none_current_hp_cannot_authorize_G(self):
         with scratch_directory() as directory:

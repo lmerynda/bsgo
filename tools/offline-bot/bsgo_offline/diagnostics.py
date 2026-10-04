@@ -48,6 +48,33 @@ def _terminal_result_summary(result):
         value = result.get(name)
         if type(value) in (str, int, float, bool) or value is None:
             summary[name] = value[:512] if isinstance(value, str) else value
+    rejection = result.get("first_rejection")
+    if isinstance(rejection, dict):
+        compact = {}
+        for name in ("observation_sequence", "acquisition_sequence",
+                     "snapshot_healthy"):
+            value = rejection.get(name)
+            if type(value) in (int, bool) or value is None:
+                compact[name] = value
+        for name in ("read_error", "image_reference", "sidecar_reference",
+                     "snapshot_reason"):
+            value = rejection.get(name)
+            if isinstance(value, str) or value is None:
+                compact[name] = value[:256] if isinstance(value, str) else None
+        fields = rejection.get("fields")
+        if isinstance(fields, dict):
+            compact["fields"] = {}
+            for name, field in list(fields.items())[:8]:
+                if not isinstance(name, str) or not isinstance(field, dict):
+                    continue
+                compact["fields"][name[:48]] = {
+                    key: field[key] for key in ("present", "valid", "fresh")
+                    if type(field.get(key)) is bool}
+                reason = field.get("reason")
+                if isinstance(reason, str) or reason is None:
+                    compact["fields"][name[:48]]["reason"] = (
+                        reason[:160] if isinstance(reason, str) else None)
+        summary["first_rejection"] = compact
     return summary
 
 
