@@ -1090,3 +1090,30 @@ cycle integration was paused before any edits; ordinary new flight/firing
 launches are held while approach experiments are prepared. Current wanted
 shortlist includes Water HP3154 at 1145 m and Water HP3855 at 1915 m, requiring
 fresh reacquisition and heading/corridor assessment for each launch.
+
+The next approach experiment follows the user's distance-based speed-regime
+proposal. Full-speed flight covers about 165 m between five-second images,
+and recent clean stops at 33 m/s coasted about 236 m after PageDown. The short
+approach at 22.8 m/s coasted 130 m. These are observed runs, not a general
+physics model. Reduced thrust near the target should improve the precision
+available at the same observation cadence; wheel direction, throttle step and
+stable speed must first be measured by the application. Predictive timed
+braking work was preserved as local research and parked without a production
+commit or native acceptance.
+
+Commit `2115aa9b` extends same-target validation through coast-down and retains
+brake-start range/speed, valid coast-down observations, actual request/delivery
+times, final same-target stopped range and observed braking distance. Target
+loss after PageDown blocks approach proof while speed-only cleanup can still
+confirm two fresh zeros. Forty-four focused approach/policy tests passed. The
+new telemetry is not yet exercised by a native run.
+
+Separately, commit `22bdb2a8` generalizes complete measured HP glyph layouts
+without loosening matching thresholds. Thirty-eight focused HUD tests and
+all 407 integration tests passed, including clipping and context-contradiction
+negatives. Replay of 2514 native frames across 124 completed runs changed no
+previous numeric result and introduced no old-valid-to-unknown regression.
+For fire-011, 31 of 60 selected frames now read correctly; 29 frames containing
+1707, 668 or 70 over 4062 still reject. Four absent-target frames remain
+unknown. The original native identity blocker is preserved. Additional HP
+expansion is held while approach calibration takes priority.
