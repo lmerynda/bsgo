@@ -106,6 +106,9 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
         backend.set_delivery_contract(guard)
         worker = RecognitionWorker(source, recognizer_factory(), store, diagnostics=diagnostic)
         diagnostic.attach(worker=worker, store=store, coordinator=None, backend=backend)
+        diagnostic.update_execution(phase='baseline', processing='checking stationary selection baseline',
+            waiting_for='two fresh stopped images',
+            expected_next_step='request the assessed click only if the baseline passes')
         worker.start()
         deadline, sequence = time.monotonic()+baseline_seconds, 0
         while time.monotonic() < deadline:
@@ -130,6 +133,10 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
                         or not 0 <= now-snapshot.acquired_at < 2):
                     raise RuntimeError('invalid_capture_context_or_age')
                 baseline.clear()
+                diagnostic.update_execution(phase='baseline', reason='unreadable_baseline_speed',
+                    processing='retaining unreadable speed evidence without selection input',
+                    waiting_for='two fresh images with readable zero speed',
+                    expected_next_step='retry the baseline while capture identity and age remain valid')
                 baseline_rejections.append({'sequence':snapshot.sequence,
                                             'reason':'unreadable_baseline_speed'})
                 diagnostic.submit({'event':'selection_baseline_retry',
@@ -143,9 +150,13 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
                     if canceled():
                         raise RuntimeError('cancel_requested')
                     dispatcher = dispatcher_factory(backend, diagnostic.journal)
+                    diagnostic.attach_dispatcher(dispatcher)
                     dispatcher.start()
                     requested_at = time.monotonic()
                     request = backend.click_mouse(x,y,reason='stationary_selection_probe')
+                    diagnostic.update_execution(phase='selecting', processing='checking click delivery and target change',
+                        waiting_for='two matching changed-target images after delivered click',
+                        expected_next_step='finalize the selection proof or blocker', progress='selection click requested')
                     deadline = requested_at+seconds
             else:
                 after.append(row)
@@ -163,6 +174,10 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
                     if len(matched) == 2:
                         result.update(state='proved',reason='changed_target_observed_after_click',
                                       selection_effect_verified=True)
+                        diagnostic.update_execution(phase='selecting', progress='two post-click target images matched',
+                            confirmed_effect={'effect':'changed_target_observed_after_click',
+                                'observation_sequences':[r['sequence'] for r in matched],
+                                'request_sequences':[request.sequence]})
                         break
                 else:
                     matched.clear()
@@ -173,6 +188,9 @@ def run_selection_probe(output, *, source_factory, recognizer_factory, dispatche
         error = f'{type(exc).__name__}: {exc}'
         result['reason'] = error
     finally:
+        diagnostic.update_execution(phase='cleanup', processing='stopping selection workers and flushing evidence',
+            waiting_for='dispatcher, recognition and diagnostic writers to stop',
+            expected_next_step='publish the checked selection outcome', blocker=error)
         if dispatcher:
             try:
                 shutdown['dispatcher'] = dispatcher.stop(2)

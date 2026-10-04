@@ -44,6 +44,7 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
     diagnostic = DiagnosticRun(output, mode=scope + "_throttle_probe",
         configuration={**configuration, "wheel_point": wheel_point,
             "wheel_steps": wheel_steps, "sample_interval": sample_interval,
+            "maximum_image_age": 7.,
             "travel_budget": None if transit_mode else travel_budget,
             "mode": "reduced_speed_transit" if transit_mode else "one_notch_calibration",
             "brake_at": range_threshold, "final_range_acceptance": [700, 800] if transit_mode else None,
@@ -91,6 +92,8 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
 
     def reject(reason, snapshot=None):
         nonlocal first_rejection
+        diagnostic.update_execution(reason=str(reason), blocker=str(reason),
+            waiting_for="fresh stop evidence" if wheel_requested_at is not None else None)
         if first_rejection is None:
             first_rejection = {"reason": str(reason)[:200],
                 "observation_sequence": snapshot.sequence if snapshot else None,
@@ -184,6 +187,10 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                 brake_at = time.monotonic()
                 brake_reason = reason
                 result["brake_requests"] = plain(records)
+                diagnostic.update_execution(phase="braking", processing="checking the requested stop",
+                    waiting_for="PageDown delivery and two fresh zero-speed images",
+                    expected_next_step="finalize the checked stop or blocker", reason=reason,
+                    blocker=blocker, progress="PageDown cleanup stop requested")
                 diagnostic.submit({"event": "throttle_brake_requested", "reason": reason,
                                    "at": brake_at})
             except Exception as exc:
@@ -232,6 +239,9 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
         backend.set_delivery_contract(input_guard)
         worker = RecognitionWorker(source, recognizer_factory(), store, diagnostics=diagnostic)
         diagnostic.attach(worker=worker, store=store, coordinator=None, backend=backend)
+        diagnostic.update_execution(phase="baseline", processing="checking stopped target and full hull",
+            waiting_for="two fresh stationary same-target images",
+            expected_next_step="request one wheel notch only if the baseline passes")
         worker.start()
         baseline_deadline = time.monotonic() + baseline_seconds
         while True:
@@ -266,6 +276,7 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                                 blocker = "cancel_requested_before_input"
                                 break
                             dispatcher = dispatcher_factory(backend, diagnostic.journal)
+                            diagnostic.attach_dispatcher(dispatcher)
                             dispatcher.start()
                             wheel_requested_at = time.monotonic()
                             watchdog = Thread(target=watchdog_run, name="throttle-safety-watchdog",
@@ -274,6 +285,11 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                             wheel_request = (backend.wheel_mouse(*wheel_point, steps=wheel_steps,
                                              reason="supervised_one_notch_thrust"),)
                             result["wheel_requests"] = plain(wheel_request)
+                            diagnostic.update_execution(phase="slow_approach",
+                                processing="checking wheel delivery and partial motion",
+                                waiting_for="three stable closing post-delivery motion images",
+                                expected_next_step="brake at the configured range or after the calibration evidence",
+                                progress="one wheel notch requested")
                     except ValueError as exc:
                         blocker = blocker or str(exc)
                         reject(str(exc), snapshot)
@@ -310,6 +326,15 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                                     stable.append(row["sequence"])
                                 if len(stable) >= 3:
                                     result["observed_partial_speed"] = row["speed"]
+                                    diagnostic.update_execution(phase="slow_approach",
+                                        processing="checking verified partial-speed closing motion",
+                                        waiting_for="the range threshold" if transit_mode else "a fresh stop after braking",
+                                        expected_next_step="request PageDown at the range threshold" if transit_mode
+                                            else "request the calibration cleanup stop",
+                                        progress="three stable closing motion images verified",
+                                        confirmed_effect={"effect": "post_delivery_stable_partial_motion",
+                                            "observation_sequences": stable[-3:],
+                                            "request_sequences": [r.sequence for r in wheel_request]})
                                     if not transit_mode:
                                         stop_ship("stable_partial_speed")
                         if transit_mode and row["distance"] <= range_threshold and brake_at is None:
@@ -389,6 +414,9 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
         result.update(state="blocked", reason=error)
     finally:
         stop_ship("shutdown")
+        diagnostic.update_execution(phase="cleanup", processing="stopping throttle workers and flushing evidence",
+            waiting_for="watchdog, dispatcher, recognition and diagnostic writers to stop",
+            expected_next_step="publish the checked throttle outcome", blocker=blocker or error)
         watchdog_end.set()
         if watchdog:
             watchdog.join(1)
@@ -458,6 +486,12 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
             result.update(state="blocked", reason="control_input_not_delivered")
     if canceled_seen.is_set():
         result.update(state="blocked", reason="cancel_requested")
+    if result["state"] == "proved":
+        diagnostic.update_execution(phase="cleanup", processing="finalizing checked partial motion and stop evidence",
+            confirmed_effect={"effect": "post_delivery_partial_motion_and_stop_verified",
+                "observation_sequences": stop_images[-2:],
+                "motion_observation_sequences": stable[-3:],
+                "request_sequences": [r.sequence for r in (*wheel_request, *brake_records)]})
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if not report["complete_diagnostics"] or not all(shutdown.values()) or result.get("dispatcher_error"):
         result.update(state="blocked", reason="incomplete_diagnostic_evidence")

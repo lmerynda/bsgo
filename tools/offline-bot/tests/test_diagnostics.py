@@ -64,7 +64,8 @@ class DiagnosticTests(unittest.TestCase):
                 "speed": FieldValue(5, 9),
                 "hull_current": FieldValue(5005, 10),
                 "scan_result": FieldValue(None, 10, False, "mining_recognizer_not_validated:scan_result"),
-                "ocr_evidence": FieldValue({"speed_confidence": .98}, 10)}))
+                "target_max_hp": FieldValue(4500, 10),
+                "ocr_evidence": FieldValue({"speed_confidence": .98, "target_hp_confidence": .99}, 10)}))
             run._store = store
             with patch("bsgo_offline.diagnostics.time.monotonic", return_value=16.5):
                 value = run.read_status()["observation"]
@@ -72,6 +73,7 @@ class DiagnosticTests(unittest.TestCase):
             self.assertFalse(value["fields"]["speed"]["fresh"])
             self.assertFalse(value["fields"]["speed"]["observed_in_current_image"])
             self.assertEqual(value["fields"]["speed"]["confidence"], .98)
+            self.assertEqual(value["fields"]["target_max_hp"]["confidence"], .99)
             self.assertIsNone(value["fields"]["hull_current"]["confidence"])
             self.assertFalse(value["fields"]["scan_result"]["valid"])
             self.assertEqual(value["maximum_image_age_seconds"], 7)
@@ -101,6 +103,58 @@ class DiagnosticTests(unittest.TestCase):
             self.assertEqual(final["execution"]["phase"], "blocked")
             self.assertTrue(final["execution"]["terminal"])
             self.assertIn("autofire may continue beyond probe", final["execution"]["warnings"])
+
+    def test_broken_delivery_telemetry_is_unknown_and_cannot_break_cleanup(self):
+        with scratch_directory() as directory:
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={})
+            class Dispatcher:
+                def deliveries(self):
+                    raise OSError("fixture delivery read failure")
+            run.attach_dispatcher(Dispatcher())
+            status = run.read_status()
+            self.assertIsNone(status["execution"]["last_input_delivery"])
+            self.assertIn("fixture delivery read failure", status["input_delivery_read_error"])
+            report = run.close(shutdown={}, result={"state": "proved", "reason": "fixture_proof"})
+            self.assertFalse(report["complete_diagnostics"])
+            self.assertEqual(report["execution"]["phase"], "blocked")
+
+    def test_nonfinite_observation_is_unknown_and_status_remains_serializable(self):
+        with scratch_directory() as directory:
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={})
+            store = SnapshotStore()
+            store.publish(observation(at=time.monotonic(), fields={
+                "hull_current": FieldValue(float("inf"), time.monotonic()),
+                "ocr_evidence": FieldValue({"speed_confidence": float("nan")}, time.monotonic())}))
+            run._store = store
+            status = run._publish_status()
+            field = status["observation"]["fields"]["hull_current"]
+            self.assertIsNone(field["value"])
+            self.assertFalse(field["valid"])
+            self.assertTrue(field["source_valid"])
+            self.assertEqual(field["reason"], "nonfinite_observation_value")
+            self.assertIsNone(status["observation"]["fields"]["speed"]["confidence"])
+            run.close(shutdown={}, result={"state": "blocked", "reason": "invalid_hull"})
+
+    def test_status_replacement_recovers_brief_reader_sharing_conflict(self):
+        with scratch_directory() as directory:
+            run = DiagnosticRun(directory / "run", mode="fixture", configuration={})
+            replace = Path.replace
+            attempts = []
+            def transient(path, target):
+                attempts.append(path)
+                if len(attempts) < 3:
+                    raise PermissionError("reader sharing conflict")
+                return replace(path, target)
+            with patch.object(Path, "replace", transient):
+                run._publish_status()
+            self.assertEqual(len(attempts), 3)
+            self.assertEqual(run.read_status()["status_write_errors"], 0)
+            self.assertTrue((directory / "run" / "status.json").is_file())
+            with patch.object(Path, "replace", side_effect=PermissionError("persistent denial")) as failed:
+                with self.assertRaisesRegex(PermissionError, "persistent denial"):
+                    run._publish_status()
+                self.assertEqual(failed.call_count, 5)
+            run.close(shutdown={})
 
     def test_explicit_unbounded_routine_frame_count_retains_all_frames(self):
         with scratch_directory() as directory:

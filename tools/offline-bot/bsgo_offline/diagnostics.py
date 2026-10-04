@@ -3,6 +3,7 @@ from collections import deque
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 import shutil
 import subprocess
@@ -34,7 +35,30 @@ def recognition_failures(snapshot):
 def _write_json(path, payload):
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(plain(payload), indent=2, allow_nan=False), encoding="utf-8")
-    temporary.replace(path)
+    # A Windows reader can briefly deny replacement while its file handle is
+    # open. Retry on the writer/sampler only; capture and control never call it.
+    for attempt in range(5):
+        try:
+            temporary.replace(path)
+            break
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(.01)
+
+
+def _finite_observation_value(value):
+    """Malformed numeric reads stay unknown and cannot break status cleanup."""
+    value = plain(value)
+    if isinstance(value, float) and not math.isfinite(value):
+        return None, False
+    if isinstance(value, dict):
+        rows = {key: _finite_observation_value(item) for key, item in value.items()}
+        return {key: row[0] for key, row in rows.items()}, all(row[1] for row in rows.values())
+    if isinstance(value, list):
+        rows = [_finite_observation_value(item) for item in value]
+        return [row[0] for row in rows], all(row[1] for row in rows)
+    return value, True
 
 
 def _terminal_result_summary(result):
@@ -124,6 +148,7 @@ class DiagnosticRun:
         if any(self.directory.iterdir()):
             raise ValueError("diagnostic_directory_must_be_empty")
         self.manifest = {"schema_version": 1, "mode": mode,
+            "synthetic": mode.startswith("synthetic_") or configuration.get("synthetic") is True,
             "started_utc": datetime.now(timezone.utc).isoformat(),
             "configuration": plain(freeze(configuration)), **source_manifest(),
             "retention": {"frame_queue_capacity": frame_capacity, "max_frames": max_frames,
@@ -207,11 +232,17 @@ class DiagnosticRun:
         fields = {}
         for name, field in snapshot.fields.items():
             age = now - field.observed_at
-            fields[name] = {"value": plain(field.value), "valid": field.valid,
-                "reason": field.reason, "observed_at": field.observed_at,
+            value, finite = _finite_observation_value(field.value)
+            confidence = evidence.get("target_hp_confidence" if name == "target_max_hp"
+                else name + "_confidence") if evidence else None
+            if type(confidence) not in (int, float) or not math.isfinite(confidence):
+                confidence = None
+            fields[name] = {"value": value if finite else None, "valid": field.valid and finite,
+                "reason": field.reason or (None if finite else "nonfinite_observation_value"),
+                "source_valid": field.valid, "observed_at": field.observed_at,
                 "age_seconds": age, "fresh": 0 <= age < maximum_age,
                 "observed_in_current_image": field.observed_at == snapshot.acquired_at,
-                "confidence": evidence.get(name + "_confidence") if evidence else None}
+                "confidence": confidence}
         return {"sequence": snapshot.sequence,
             "acquisition_sequence": snapshot.acquisition_sequence,
             "acquired_at": snapshot.acquired_at, "published_at": snapshot.published_at,
@@ -310,7 +341,12 @@ class DiagnosticRun:
     def read_status(self):
         snapshot = self._store.latest() if self._store else None
         requests = self._backend.records() if self._backend else ()
-        deliveries = self._dispatcher.deliveries() if self._dispatcher else ()
+        delivery_error = None
+        try:
+            deliveries = self._dispatcher.deliveries() if self._dispatcher else ()
+        except Exception as exc:
+            deliveries = ()
+            delivery_error = f"{type(exc).__name__}: {exc}"
         with self._condition:
             retained = self._last_retained_frame
         return plain({"run_id": self.journal.run_id, "mode": self.manifest["mode"],
@@ -326,6 +362,7 @@ class DiagnosticRun:
             "latest_observation_sequence": snapshot.sequence if snapshot else None,
             "input_pending": self._backend.pending_requests if self._backend else 0,
             "input_history": self._backend.history_stats() if self._backend else None,
+            "input_delivery_read_error": delivery_error,
             "actions": self._coordinator.executor.telemetry_stats() if self._coordinator else None,
             "frames": self.frame_stats(), "trace": self.journal.stats(),
             "diagnostic_journal_dropped": self._journal_dropped,
@@ -370,14 +407,19 @@ class DiagnosticRun:
             and not self._status_errors
             and not (status["worker"] or {}).get("diagnostic_dropped", 0)
             and not (status["actions"] or {}).get("journal_dropped", 0)
+            and not status["input_delivery_read_error"]
             and not (status["input_history"] or {}).get("logging_gaps", 0))
         result_data = result if isinstance(result, dict) else {}
         reason = error or result_data.get("first_blocker") or result_data.get("reason")
         if result_data.get("cancel_requested"):
             phase = "canceled"
-        elif error or not telemetry_complete or result_data.get("state") == "blocked":
+        elif (error or not telemetry_complete or result_data.get("state") == "blocked"
+              or result_data.get("capture_published") is False
+              or result_data.get("dispatcher_error")):
             phase = "blocked"
             reason = reason if error or result_data.get("state") == "blocked" else "incomplete_diagnostic_evidence"
+            if telemetry_complete and result_data.get("capture_published") is False and not error:
+                reason = "capture_not_verified"
         else:
             phase = "completed"
         warnings = [result_data["warning"]] if result_data.get("warning") else []
@@ -387,8 +429,8 @@ class DiagnosticRun:
             blocker=reason if phase in ("blocked", "canceled") else None,
             warnings=warnings)
         status["execution"] = self.execution.read(
-            intent=self._backend.records()[-1] if self._backend and self._backend.records() else None,
-            delivery=self._dispatcher.deliveries()[-1] if self._dispatcher and self._dispatcher.deliveries() else None)
+            intent=status["execution"]["last_input_intent"],
+            delivery=status["execution"]["last_input_delivery"])
         report = {**status, "result": plain(result), "error": error, "shutdown": shutdown,
                   "complete_diagnostics": telemetry_complete,
                   "input_requests": plain(self._backend.records()) if self._backend else [],

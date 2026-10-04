@@ -136,6 +136,9 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
         backend.set_delivery_contract(input_guard)
         worker = RecognitionWorker(source, recognizer, store, diagnostics=diagnostic)
         diagnostic.attach(worker=worker, store=store, coordinator=None, backend=backend)
+        diagnostic.update_execution(phase="baseline", processing="checking stopped selected asteroid",
+            waiting_for="two fresh stationary same-target images",
+            expected_next_step="request Z only if the stationary baseline passes")
         worker.start()
         baseline_deadline = started + baseline_seconds
         overall_deadline = started + baseline_seconds + after_seconds + 2
@@ -165,10 +168,15 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
                         if canceled():
                             raise RuntimeError("cancel_requested")
                         dispatcher = dispatcher_factory(backend, diagnostic.journal)
+                        diagnostic.attach_dispatcher(dispatcher)
                         dispatcher.start()
                         request_at = time.monotonic()
                         requests = backend.press_key("Z", reason="stationary_scan_probe")
                         result["scan_requests"] = plain(requests)
+                        diagnostic.update_execution(phase="scanning", processing="retaining post-scan images",
+                            waiting_for="Z delivery and fresh post-delivery observations",
+                            expected_next_step="finalize the scan recording; resource classification remains unsupported",
+                            progress="one Z press requested")
                         diagnostic.submit({"event": "scan_probe_requested", "at": request_at,
                                            "baseline_sequences": [row["sequence"] for row in baseline]})
                 else:
@@ -198,6 +206,9 @@ def run_scan_probe(output, *, source_factory, recognizer_factory, dispatcher_fac
         error = f"{type(exc).__name__}: {exc}"
         result.update(state="blocked", reason=error)
     finally:
+        diagnostic.update_execution(phase="cleanup", processing="stopping scan workers and flushing evidence",
+            waiting_for="dispatcher, recognition and diagnostic writers to stop",
+            expected_next_step="publish the scan recording or blocker", blocker=error)
         if dispatcher:
             try:
                 shutdown["dispatcher"] = dispatcher.stop(2)

@@ -309,6 +309,10 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         worker = RecognitionWorker(source, recognizer_factory(), store,
             diagnostics=diagnostic)
         diagnostic.attach(worker=worker, store=store, coordinator=None, backend=backend)
+        diagnostic.update_execution(phase="baseline", processing="checking stationary selected target and unchanged HP",
+            waiting_for="stable fresh baseline images within the configured gun range",
+            expected_next_step="request G only if the baseline and delivery guard pass",
+            warnings=[result["warning"]])
         worker.start()
         deadline = started + baseline_seconds
         while True:
@@ -368,6 +372,12 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                                    "observation_sequence": snapshot.sequence})
                 if len(absence) >= 2:
                     result["target_disappearance_observed"] = True
+                    diagnostic.update_execution(phase="fire_observation",
+                        processing="checking stopped images after target disappearance",
+                        waiting_for="two fresh post-disappearance images",
+                        expected_next_step="finalize observations; disappearance cause and reward remain unverified",
+                        confirmed_effect={"effect": "selection_absent_cause_unverified",
+                            "observation_sequences": [r["sequence"] for r in absence]})
                     diagnostic.submit({"event": "firing_probe_target_disappearance_observed",
                         "observation_sequences": [r["sequence"] for r in absence],
                         "interpretation": "selection_absent_cause_unverified"})
@@ -389,6 +399,8 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                     diagnostic.submit({"event": "firing_probe_first_rejection",
                                        **result["first_rejection"]})
                 if not (observe_until_target_gone and requests):
+                    diagnostic.update_execution(phase="blocked", reason=f"RuntimeError: {read_error}",
+                                                blocker=f"RuntimeError: {read_error}")
                     raise
                 deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
                 linked = [deliveries.get(r.sequence) for r in requests]
@@ -403,6 +415,12 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                     result["first_blocker"] = f"RuntimeError: {read_error}"
                     result.update(state="blocked", reason=result["first_blocker"])
                 result["hp_fault_image_count"] += 1
+                diagnostic.update_execution(phase="ocr_blocked_readonly_recovery",
+                    processing="retaining images; issuing no additional firing input",
+                    waiting_for="readable target evidence or stopped target disappearance",
+                    expected_next_step="continue observation only while non-HP guards remain valid",
+                    reason=f"RuntimeError: {read_error}", blocker=result["first_blocker"],
+                    progress=f"retained HP OCR fault observation {snapshot.sequence}")
                 after.append(fault)
                 after_total += 1
                 result["after_observation_count"] = after_total
@@ -424,15 +442,27 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                 if canceled():
                     raise RuntimeError("cancel_requested")
                 dispatcher = dispatcher_factory(backend, diagnostic.journal)
+                diagnostic.attach_dispatcher(dispatcher)
                 dispatcher.start()
                 requested_at = time.monotonic()
                 requests = backend.press_key("G", reason="supervised_firing_effect_probe")
                 result["requests"] = plain(requests)
+                diagnostic.update_execution(phase="fire_observation",
+                    processing="checking G delivery and target HP images",
+                    waiting_for="two fresh distinct HP declines after delivered G-up",
+                    expected_next_step="continue supervised observation if configured; otherwise finalize effect evidence",
+                    progress="one G press requested")
                 diagnostic.submit({"event": "firing_probe_requested", "at": requested_at,
                     "baseline_sequences": [b["sequence"] for b in baseline]})
                 deadline = requested_at + after_seconds
                 continue
             after.append(row)
+            if result["first_blocker"] is not None:
+                diagnostic.update_execution(phase="ocr_blocked_readonly_recovery",
+                    processing="retaining readable images after the earlier OCR fault",
+                    waiting_for="stopped target disappearance or observation termination",
+                    expected_next_step="finalize with the first blocker preserved; the HP proof chain cannot resume",
+                    reason=result["first_blocker"], progress=f"readable observation {snapshot.sequence}")
             after_total += 1
             result["after_observation_count"] = after_total
             if observe_until_target_gone and len(after) > 256:
@@ -482,6 +512,14 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                 if len(falling) >= 2:
                     result.update(state="proved", reason="two_fresh_post_G_hp_declines",
                                   firing_effect_verified=True)
+                    diagnostic.update_execution(phase="fire_observation",
+                        processing="observing the already-requested firing effect",
+                        waiting_for="target disappearance" if observe_until_target_gone else None,
+                        expected_next_step="finalize the probe when observation ends",
+                        progress="two fresh post-delivery HP declines verified",
+                        confirmed_effect={"effect": "two_fresh_post_G_hp_declines",
+                            "observation_sequences": [r["sequence"] for r in falling[:2]],
+                            "request_sequences": [r.sequence for r in requests]})
                     diagnostic.submit({"event": "firing_effect_image_proof",
                         "observation_sequences": [r["sequence"] for r in falling[:2]],
                         "baseline_current_hp": initial["target_current_hp"]})
@@ -497,6 +535,10 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         result.update(state="blocked", reason=result["first_blocker"] or error,
                       observation_end_reason=error)
     finally:
+        diagnostic.update_execution(phase="cleanup", processing="stopping observation workers and flushing evidence",
+            waiting_for="dispatcher, recognition and diagnostic writers to stop",
+            expected_next_step="publish the final outcome; supervisor retains autofire control",
+            blocker=result["first_blocker"] or error)
         if dispatcher:
             try:
                 shutdown["dispatcher"] = dispatcher.stop(2)

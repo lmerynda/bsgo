@@ -36,6 +36,9 @@ def run_preflight(output, *, source_factory, recognizer_factory, configuration,
         worker = RecognitionWorker(source, recognizer, store, diagnostics=diagnostics)
         diagnostics.attach(worker=worker, store=store, coordinator=coordinator, backend=backend,
                            capabilities=getattr(recognizer, "capabilities", None))
+        diagnostics.update_execution(phase="baseline", processing="read-only capture and recognition diagnostics",
+            waiting_for="the requested number of observations or the capture diagnostic deadline",
+            expected_next_step="publish calibration evidence; no ship-control input is enabled")
         worker.start()
         deadline = time.monotonic() + duration
         sequence = 0
@@ -43,6 +46,10 @@ def run_preflight(output, *, source_factory, recognizer_factory, configuration,
             snapshot = store.wait_for_sequence(sequence, min(.1, max(0, deadline - time.monotonic())))
             if snapshot:
                 sequence = snapshot.sequence
+                diagnostics.update_execution(phase="baseline", processing="read-only capture and recognition diagnostics",
+                    waiting_for="remaining requested observations or capture completion",
+                    expected_next_step="publish calibration evidence; control checks remain separate",
+                    progress=f"capture observation {snapshot.sequence} published")
             if worker.end_reason:
                 break
         latest = store.latest()
@@ -55,6 +62,9 @@ def run_preflight(output, *, source_factory, recognizer_factory, configuration,
         error = f"{type(exc).__name__}: {exc}"
         diagnostics.submit({"event": "experiment_failure", "reason": error})
     finally:
+        diagnostics.update_execution(phase="cleanup", processing="stopping read-only capture and flushing evidence",
+            waiting_for="recognition and diagnostic writers to stop",
+            expected_next_step="publish capture and calibration results", blocker=error)
         if worker:
             worker.stop()
             shutdown["recognition"] = worker.join(2)

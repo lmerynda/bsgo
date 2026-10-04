@@ -170,6 +170,13 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 brake_at_time, brake_reason = at, reason
                 result["brake_requests"] = plain(brake_records)
                 result["actual_brake_requested_at"] = at
+                diagnostic.update_execution(phase="braking",
+                    processing="monitoring the requested stop", reason=reason,
+                    waiting_for="delivered PageDown and two fresh zero-speed images",
+                    expected_next_step="finalize the probe after stop checks or a blocker",
+                    blocker=watchdog_rejection or blocker or
+                        (reason if reason not in ("threshold", "threshold_watchdog", "shutdown") else None),
+                    progress="PageDown cleanup stop requested")
                 diagnostic.submit({"event": "approach_brake_requested", "at": at,
                                    "reason": reason, "attempt": stop_attempts})
             except Exception as exc:
@@ -283,6 +290,10 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 wheel_records = (backend.wheel_mouse(*wheel_point, steps=1,
                     reason="supervised_one_notch_after_idle"),)
                 result["wheel_requests"] = plain(wheel_records)
+                diagnostic.update_execution(phase="reducing",
+                    processing="checking idle then one wheel delivery",
+                    waiting_for="post-wheel deceleration and three closing images near speed 5",
+                    expected_next_step="continue slowly if the reduced regime is verified")
                 diagnostic.submit({"event": "approach_reduced_transition_requested",
                     "observation_sequence": snapshot.sequence,
                     "transition_sequences": [r.sequence for r in transition_records],
@@ -334,6 +345,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         backend.set_delivery_contract(input_guard)
         worker = RecognitionWorker(source, recognizer, store, diagnostics=diagnostic)
         diagnostic.attach(worker=worker, store=store, coordinator=None, backend=backend)
+        diagnostic.update_execution(phase="baseline", processing="checking selected target and full hull",
+            waiting_for="two fresh stopped images of the same selected target",
+            expected_next_step="request PageUp only if the baseline and launch clearance pass")
         worker.start()
         baseline_deadline = started + baseline_seconds
         overall_deadline = (None if max_thrust_seconds is None else
@@ -377,6 +391,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                             if action != "accelerate":
                                 raise PolicyError("Initial policy did not authorize acceleration")
                             dispatcher = dispatcher_factory(backend, diagnostic.journal)
+                            diagnostic.attach_dispatcher(dispatcher)
                             dispatcher.start()
                             acceleration_at = time.monotonic()
                             watchdog = Thread(target=watchdog_run,
@@ -385,11 +400,17 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                             acceleration_records = backend.press_key("PageUp",
                                 reason="supervised_approach_accelerate")
                             result["acceleration_requests"] = plain(acceleration_records)
+                            diagnostic.update_execution(phase="cruising",
+                                processing="checking distance, speed, target continuity and full hull",
+                                waiting_for="PageUp delivery and closing motion in fresh images",
+                                expected_next_step="reduce at 1300 m if using two regimes; otherwise brake at the configured threshold",
+                                progress="PageUp acceleration requested")
                             diagnostic.submit({"event": "approach_acceleration_requested",
                                 "at": acceleration_at,
                                 "baseline_sequences": [r["sequence"] for r in baseline]})
                     except PolicyError as exc:
                         blocker = blocker or str(exc)
+                        diagnostic.update_execution(phase="blocked", reason=str(exc), blocker=str(exc))
                         break
                 else:
                     if brake_at_time is None and blocker is None:
@@ -409,6 +430,17 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                 and d.request_sequence == acceleration_records[-1].sequence]
                             if (transition_requested_at is None and acceleration_ups
                                     and row.acquired_at > acceleration_ups[-1].at):
+                                if row.speed > 0 and row.distance < initial["distance"] - 5:
+                                    diagnostic.update_execution(phase="cruising",
+                                        processing="checking closing motion, target continuity and full hull",
+                                        waiting_for="the 1300 m reduction threshold" if two_regime
+                                            else "the configured braking distance",
+                                        expected_next_step="request the guarded reduction" if two_regime
+                                            else "request PageDown at the braking threshold",
+                                        progress=f"closing motion observed in image {snapshot.sequence}",
+                                        confirmed_effect={"effect": "post_delivery_closing_motion_image",
+                                            "observation_sequences": [snapshot.sequence],
+                                            "request_sequences": [r.sequence for r in acceleration_records]})
                                 post_delivery_zero_samples = (post_delivery_zero_samples + 1
                                     if row.speed == 0 else 0)
                                 if post_delivery_zero_samples >= 2:
@@ -453,6 +485,15 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                         reduced_speed_sequences.clear()
                                     if len(reduced_speed_sequences) >= 3:
                                         result["observed_reduced_speed"] = row.speed
+                                        diagnostic.update_execution(phase="slow_approach",
+                                            processing="checking the verified reduced-speed regime",
+                                            waiting_for="the configured braking distance in a fresh image",
+                                            expected_next_step="request PageDown at the braking threshold",
+                                            progress="three closing reduced-speed images observed",
+                                            confirmed_effect={"effect": "post_wheel_reduced_speed_regime_verified",
+                                                "observation_sequences": reduced_speed_sequences[-3:],
+                                                "request_sequences": [r.sequence for r in
+                                                    (*transition_records, *wheel_records)]})
                             if row.distance <= brake_at:
                                 action = policy.decide(snapshot, now)
                                 if action != "brake":
@@ -467,6 +508,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                     stop_ship("threshold")
                         except PolicyError as exc:
                             blocker = blocker or str(exc)
+                            diagnostic.update_execution(reason=str(exc), blocker=str(exc))
                             stop_ship("hull_guard" if isinstance(exc, HullGuardError)
                                       else "image_evidence_rejected")
                     else:
@@ -477,6 +519,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                 result["final_stop_distance"] = reading["distance"]
                         except PolicyError as exc:
                             blocker = blocker or str(exc)
+                            diagnostic.update_execution(phase="braking", reason=str(exc), blocker=str(exc),
+                                waiting_for="fresh stop evidence; rejected target or hull remains blocked")
                             diagnostic.submit({"event": "approach_braking_hull_rejected"
                                 if isinstance(exc, HullGuardError) else "approach_braking_target_rejected",
                                 "observation_sequence": snapshot.sequence,
@@ -553,6 +597,10 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         result.update(state="blocked", reason=error)
     finally:
         stop_ship("shutdown")
+        diagnostic.update_execution(phase="cleanup", processing="stopping probe workers and flushing evidence",
+            waiting_for="watchdog, dispatcher, recognition and diagnostic writers to stop",
+            expected_next_step="publish the final checked probe outcome",
+            blocker=blocker or error or watchdog_rejection)
         watchdog_stop.set()
         if watchdog:
             watchdog.join(1)
@@ -638,6 +686,13 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     if (brake_start and brake_start["fresh"] and brake_start["distance"] is not None
             and result["final_stop_distance"] is not None):
         result["observed_braking_distance"] = brake_start["distance"] - result["final_stop_distance"]
+    if result["state"] == "proved":
+        diagnostic.update_execution(phase="cleanup", processing="finalizing checked motion and stop evidence",
+            confirmed_effect={"effect": "post_delivery_motion_and_stop_verified",
+                "observation_sequences": stop_images[-2:],
+                "motion_observation_sequences": result["post_acceleration_motion_sequences"],
+                "request_sequences": [r.sequence for r in
+                    (*acceleration_records, *transition_records, *wheel_records, *brake_records)]})
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     if not report["complete_diagnostics"] or not all(shutdown.values()) or result.get("dispatcher_error"):
         result.update(state="blocked", reason="incomplete_diagnostic_evidence")
