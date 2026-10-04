@@ -1052,3 +1052,41 @@ possible explanations, not established causes. The next useful selection
 experiment uses a fresh isolated asteroid or resource marker clear of large
 silhouettes, HUD and the ship. These outcomes do not indicate a general input
 delivery defect and do not rewrite the original blocked reports.
+
+The short-approach request was twice rejected before execution by automatic
+approval review: first for the earlier code-review hold, then because it did
+not accept the agent's prerequisite-resolution evidence. Neither request sent
+PageUp. The parent independently inspected the committed coast-down guard,
+actual 43/402 passing test logs, absent cancellation marker and fresh game
+scene, took exclusive input ownership, and submitted through the same approval
+tool. This verified request was approved; no alternate input path was used.
+
+`continuous-approach-010` (`8ae9e51e78984c58b859ce24d55c7ea0`) proved the
+explicit 800 m / 75 m short calibration with normal five-second captures and
+no elapsed flight cap. Starting at 883 m, sequence 3 read 858 m / 10.6 m/s;
+sequence 4 read 772 m / 22.8 m/s and triggered PageDown. Coast-down read
+678 m / 13.5 m/s, then 642 m / 1.3 m/s, followed by fresh zeros on sequences
+7 and 8. All eight frames and event evidence were retained, and shutdown
+confirmed watchdog, input dispatcher, recognition, capture and input idle.
+Parent supervision at game clock 02:16:53 confirmed full hull/energy, speed
+0.0 and 642 m. This establishes one native short-approach stop, not arbitrary
+range calibration or obstacle avoidance.
+
+The app then ran `continuous-fire-011`
+(`106796b33a3e4907b5f50bb40a1a1f22`) on wanted Tylium HP4062 at 642 m.
+One G produced verified early firing effect and retained target disappearance
+with complete diagnostics. The original sequence 32 identity error remains,
+with its upstream HP separator reason and saved image/sidecar. Both parent
+and miner reviewed retained sequence 64: 5445 Tylium and 112 experience at
+game clock 02:19:30, full hull, speed 0.0 and energy 112/800 recovering.
+Fresh miner supervision at 02:19:45 confirmed target gone, full hull, zero
+speed and energy 574/800 recovering. Quantified loop totals are 6146 Water
+and 24881 Tylium. The reward remains visually verified by supervision, not
+parsed by the application.
+
+The user then narrowed the priority to reliable approaches and confirmed
+that the upgraded guns are useful at 800 m without much penalty. New native
+cycle integration was paused before any edits; ordinary new flight/firing
+launches are held while approach experiments are prepared. Current wanted
+shortlist includes Water HP3154 at 1145 m and Water HP3855 at 1915 m, requiring
+fresh reacquisition and heading/corridor assessment for each launch.
