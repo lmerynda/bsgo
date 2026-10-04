@@ -23,7 +23,8 @@ class Source:
                  valid_none_baseline=False, post_gone_speed=0.,
                  hp_reader_fault_after=None, hp_reader_fault_until=None,
                  motion_after=None, initial_hp=4500,
-                 low_hp_after=None):
+                 low_hp_after=None, low_hp_descend=False,
+                 low_hp_on_down=False):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -42,6 +43,9 @@ class Source:
         self.hp_reader_fault_until = hp_reader_fault_until
         self.motion_after = motion_after
         self.initial_hp, self.low_hp_after = initial_hp, low_hp_after
+        self.low_hp_descend = low_hp_descend
+        self.low_hp_on_down = low_hp_on_down
+        self.down_sequence = None
         self.delivery_sequence = None
 
     def next_sample(self, stop):
@@ -66,6 +70,9 @@ class Source:
         if after and self.effect and step > self.effect_delay:
             hp = 4500 - 10 * (step - self.effect_delay)
         if after and self.low_hp_after is not None and step >= self.low_hp_after:
+            hp = 351 - (101 * (step - self.low_hp_after) if self.low_hp_descend else 0)
+        if (self.low_hp_on_down and self.down_sequence is not None
+                and self.delivery_sequence is None and self.sequence > self.down_sequence):
             hp = 351
         values = {"speed": 0., "asteroid_selected": True, "distance": 677.,
             "target_identity": "asteroid:hp:4500", "target_portrait": tuple([1] * 144),
@@ -119,9 +126,11 @@ def recognize(sample):
 
 
 class Dispatcher:
-    def __init__(self, backend, source, *, ignore=False, cancel_on_G=None):
+    def __init__(self, backend, source, *, ignore=False, cancel_on_G=None,
+                 delay_up=0.):
         self.backend, self.source, self.ignore = backend, source, ignore
         self.cancel_on_G = cancel_on_G
+        self.delay_up = delay_up
         self._stop, self._lock = Event(), Lock()
         self._thread = None
         self._deliveries = []
@@ -137,11 +146,14 @@ class Dispatcher:
             request = self.backend.get_action(timeout=.005)
             if request is None:
                 continue
+            if request.kind == "key_up" and self.delay_up:
+                time.sleep(self.delay_up)
             permitted = (request.kind == "key_up" and request.key in self._held)
             permitted = (permitted or self.backend.delivery_allowed(request)) and not self.ignore
             outcome = "injected" if permitted else "skipped_dependency"
             if permitted and request.kind == "key_down":
                 self._held.add(request.key)
+                self.source.down_sequence = self.source.sequence
             elif permitted and request.kind == "key_up":
                 self._held.discard(request.key)
                 self.source.delivery_sequence = self.source.sequence
@@ -178,13 +190,15 @@ class FiringProbeTests(unittest.TestCase):
                     scope="synthetic", observe_until_target_gone=True)
 
     def run_probe(self, directory, source, *, ignore=False, after_seconds=.3,
-                  cancel_file=None, cancel_on_G=False, observe_until_target_gone=False):
+                  cancel_file=None, cancel_on_G=False, observe_until_target_gone=False,
+                  delay_up=0.):
         if observe_until_target_gone and cancel_file is None:
             cancel_file = directory / "stop.request"
         dispatchers = []
         def factory(backend, journal):
             dispatcher = Dispatcher(backend, source, ignore=ignore,
-                cancel_on_G=cancel_file if cancel_on_G else None)
+                cancel_on_G=cancel_file if cancel_on_G else None,
+                delay_up=delay_up)
             dispatchers.append(dispatcher)
             return dispatcher
         result = run_firing_probe(directory / "run", source_factory=lambda: source,
@@ -347,6 +361,42 @@ class FiringProbeTests(unittest.TestCase):
             self.assertEqual(len(dispatchers[0].deliveries()), 2)
             self.assertTrue(result["complete_diagnostics"])
 
+    def test_valid_three_digit_hp_after_G_can_be_first_then_second_decline(self):
+        with scratch_directory() as directory:
+            source = Source(low_hp_after=1, low_hp_descend=True, gone_after=4)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "recorded", result)
+            self.assertEqual([row["target_current_hp"] for row in result["falling"]],
+                             [351, 250])
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+
+    def test_one_post_G_three_digit_read_does_not_prove_firing_alone(self):
+        with scratch_directory() as directory:
+            source = Source(low_hp_after=1, gone_after=4)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "selected_target_absent_without_firing_proof")
+            self.assertEqual([row["target_current_hp"] for row in result["falling"]],
+                             [351])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+
+    def test_three_digit_hp_before_G_up_cannot_be_accepted(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(low_hp_on_down=True), observe_until_target_gone=True,
+                delay_up=.12)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("four_digit_hp_required", result["reason"])
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertEqual(len(result["requests"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+
     def test_valid_three_digit_hp_after_prior_ocr_fault_keeps_first_blocker(self):
         with scratch_directory() as directory:
             source = Source(hp_reader_fault_after=3, hp_reader_fault_until=5,
@@ -360,6 +410,22 @@ class FiringProbeTests(unittest.TestCase):
             self.assertTrue(result["target_disappearance_observed"])
             self.assertTrue(any(row.get("target_current_hp") == 351
                                 for row in result["after"]))
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+
+    def test_valid_three_digit_hp_after_first_blocker_stays_read_only(self):
+        with scratch_directory() as directory:
+            source = Source(hp_reader_fault_after=1, hp_reader_fault_until=2,
+                            low_hp_after=2, gone_after=5)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "RuntimeError: invalid_or_stale_target_identity")
+            self.assertFalse(result["firing_effect_verified"])
+            self.assertTrue(any(row.get("target_current_hp") == 351
+                                for row in result["after"]))
+            self.assertTrue(result["target_disappearance_observed"])
             self.assertEqual(len(result["post_disappearance_images"]), 2)
             self.assertEqual(len(dispatchers[0].deliveries()), 2)
 

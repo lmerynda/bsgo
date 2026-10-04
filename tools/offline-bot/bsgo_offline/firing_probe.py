@@ -261,6 +261,16 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
         except Exception:
             return False
 
+    def g_delivered_before(snapshot):
+        if not dispatcher or len(requests) != 2:
+            return False
+        deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
+        down, up = (deliveries.get(record.sequence) for record in requests)
+        return bool(down and up and requests[0].key == requests[1].key == "G"
+                    and down.kind == "key_down" and up.kind == "key_up"
+                    and down.outcome == up.outcome == "injected"
+                    and down.at <= up.at < snapshot.acquired_at)
+
     try:
         if canceled():
             raise RuntimeError("cancel_requested")
@@ -343,7 +353,7 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                                               and result["firing_effect_verified"]
                                               and result["first_blocker"] is None),
                     allow_subthousand_current_hp=(observe_until_target_gone
-                                                  and result["firing_effect_verified"]))
+                                                  and g_delivered_before(snapshot)))
             except RuntimeError as read_error:
                 if not (observe_until_target_gone and requests):
                     raise
