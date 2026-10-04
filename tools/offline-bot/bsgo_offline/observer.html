@@ -110,7 +110,7 @@
     set('distance', distance[0] === 'UNKNOWN' ? 'UNKNOWN' : `${distance[0]} m`); set('distancemeta', temporal + distance[1]);
     set('hull', hullCur[0] === 'UNKNOWN' || hullMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hullCur[0]} / ${hullMax[0]}`); set('hullmeta', temporal + hullCur[1]);
     set('hp', hpCur[0] === 'UNKNOWN' || hpMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hpCur[0]} / ${hpMax[0]}`); set('hpmeta', temporal + hpCur[1]);
-    set('observation', observation.sequence === undefined ? null : `#${observation.sequence}, image age ${observation.age_seconds ?? 'UNKNOWN'}s`);
+    set('observation', observation.sequence === undefined ? null : `#${observation.sequence}, image age ${Number.isFinite(observation.age_seconds) ? observation.age_seconds.toFixed(2) : 'UNKNOWN'}s`);
     set('health', observation.healthy === true ? 'healthy' : observation.healthy === false ? `REJECTED · ${observation.reason || 'reason unknown'}` : null);
     set('target', evidence(fields.target_identity)[0]);
     set('outcome', blocked ? `BLOCKED${result.state && result.state !== 'blocked' ? ` (probe result: ${result.state})` : ''}` : result.state); set('blocker', execution.first_blocker || result.first_blocker || (blocked ? (execution.reason || result.reason || result.first_rejection?.read_error) : null) || 'No blocker reported');
