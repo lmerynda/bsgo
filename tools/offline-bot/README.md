@@ -299,6 +299,13 @@ image evidence because hull, combat and heading are not yet validated fields.
 The native client must be exactly 2560×1440. The probe requires two fresh,
 consistent stopped target readings before one PageUp press. It validates target
 identity, portrait, maximum HP, context, distance and speed on every new image.
+It also requires fresh numeric `hull_current` and `hull_max` readings: full hull
+before acceleration, the same hull maximum throughout flight, and no damage.
+Missing or invalid hull readings and observed hull loss request PageDown and
+block approach proof, while cleanup still verifies two fresh zero-speed images.
+The failed hull reading or loss remains in the diagnostic trace; the independent
+watchdog records its rejection cause. Combat and obstacle detection still
+require supervision.
 At 900 m it requests a reserved PageDown brake. An independent watchdog also
 requests PageDown on stale or invalid images. Normal transit has no elapsed-time
 cutoff and checks distance every 5 seconds; `--sample-seconds` accepts 5 to 10.

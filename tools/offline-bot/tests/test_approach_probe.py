@@ -46,7 +46,7 @@ class Ship:
 
 
 class PixelSample:
-    def __init__(self, sequence, at, speed, distance, *, selected=True, epoch=1):
+    def __init__(self, sequence, at, speed, distance, *, selected=True, epoch=1, hull=5005):
         self.acquisition_sequence = sequence
         self.session_epoch = epoch
         self.layout = PROFILE
@@ -58,6 +58,7 @@ class PixelSample:
         self.width, self.height = (4, 3)
         self.rgb = bytes([sequence % 256] * 36)
         self.speed, self.distance, self.selected = speed, distance, selected
+        self.hull = hull
 
     def to_image(self):
         return Image.frombytes("RGB", (4, 3), self.rgb)
@@ -65,11 +66,14 @@ class PixelSample:
 
 class PixelSource:
     def __init__(self, ship, *, stall_after=None, change_at=None, invalid_first=False,
-                 cancel_at=None, cancel_path=None, pause_after_baseline=0.):
+                 cancel_at=None, cancel_path=None, pause_after_baseline=0.,
+                 damage_at=None, initial_hull=5005, damage_hull=4500):
         self.ship, self.stall_after = ship, stall_after
         self.change_at, self.invalid_first = change_at, invalid_first
         self.cancel_at, self.cancel_path = cancel_at, cancel_path
         self.pause_after_baseline = pause_after_baseline
+        self.damage_at, self.initial_hull = damage_at, initial_hull
+        self.damage_hull = damage_hull
         self.sequence = 0
         self.closed = False
 
@@ -87,7 +91,8 @@ class PixelSource:
         if self.invalid_first and self.sequence == 1:
             speed = None
         return PixelSample(self.sequence, time.monotonic(), speed, distance,
-            selected=self.change_at is None or self.sequence < self.change_at)
+            selected=self.change_at is None or self.sequence < self.change_at,
+            hull=self.damage_hull if self.damage_at and self.sequence >= self.damage_at else self.initial_hull)
 
     def close(self):
         self.closed = True
@@ -97,7 +102,8 @@ def recognize(sample):
     values = {"speed": sample.speed, "distance": sample.distance,
               "asteroid_selected": sample.selected,
               "target_identity": "asteroid:hp:3900",
-              "target_portrait": tuple([3] * 144), "target_max_hp": 3900}
+              "target_portrait": tuple([3] * 144), "target_max_hp": 3900,
+              "hull_current": sample.hull, "hull_max": 5005}
     return RecognitionResult((4, 3), {name: FieldValue(value, sample.acquired_at,
         valid=value is not None, reason="fixture_rejection" if value is None else None)
         for name, value in values.items()})
@@ -205,6 +211,34 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertEqual(result["acceleration_requests"], [])
             self.assertTrue(source.closed)
             self.assertEqual(len(list((directory / "run" / "failed-recognition").glob("*.json"))), 1)
+
+    def test_damaged_or_unreadable_hull_cannot_authorize_acceleration(self):
+        for hull in (4500, None):
+            with self.subTest(hull=hull), scratch_directory() as directory:
+                result, ship, source, dispatchers = self.run_fixture(directory,
+                    max_thrust_seconds=None, source_options={"initial_hull": hull})
+                self.assertEqual(result["state"], "blocked")
+                self.assertIn("hull", result["reason"])
+                self.assertEqual(result["acceleration_requests"], [])
+                self.assertEqual(dispatchers, [])
+                self.assertEqual(ship.speed, 0)
+                self.assertTrue(source.closed)
+
+    def test_flight_hull_loss_brakes_and_observes_stop_without_approach_proof(self):
+        for hull, reason in ((4500, "Hull loss observed"),
+                             (None, "Missing, invalid or stale hull_current")):
+            with self.subTest(hull=hull), scratch_directory() as directory:
+                result, ship, source, _ = self.run_fixture(directory,
+                    max_thrust_seconds=None,
+                    source_options={"damage_at": 5, "damage_hull": hull})
+                self.assertEqual(result["state"], "blocked", result)
+                self.assertEqual(result["reason"], reason)
+                self.assertEqual(result["brake_reason"], "hull_guard")
+                self.assertTrue(result["final_stop_observed"])
+                self.assertEqual(ship.speed, 0)
+                self.assertTrue(result["complete_diagnostics"])
+                self.assertTrue(all(result["shutdown"].values()))
+                self.assertTrue(source.closed)
 
     def test_target_loss_requests_brake_and_blocks_proof(self):
         with scratch_directory() as directory:

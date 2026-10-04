@@ -1,7 +1,7 @@
 """Supervised distance-driven approach to one preselected asteroid and observed stop.
 
 This is a single experiment, not mining readiness. Scene, corridor and heading
-are supervisor assertions; the application does not recognize hull or combat.
+are supervisor assertions; combat and route clearance remain unrecognized.
 """
 import argparse
 import json
@@ -16,6 +16,10 @@ from .input import RecordingInputBackend
 from .policy import ApproachPolicy, PolicyError
 from .recognition import RecognitionWorker
 from .state import SnapshotStore
+
+
+class HullGuardError(PolicyError):
+    """Fresh hull evidence cannot authorize continuing this approach."""
 
 
 def _speed_zero(snapshot, *, now, context, window_id, frame_size):
@@ -83,6 +87,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     acceleration_records = brake_records = ()
     stop_attempts = 0
     stop_failure = None
+    watchdog_rejection = None
     shutdown = {}
     result = {"state": "blocked", "reason": "not_started", "mining_ready": False,
         "baseline": baseline, "motion": motion, "stop_observation_sequences": stop_images,
@@ -90,7 +95,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         "post_acceleration_motion_sequences": [],
         "final_stop_observed": False,
         "cancel_requested": False,
-        "unverified": ["hull_health", "combat_detection", "exclusive_input_ownership",
+        "unverified": ["combat_detection", "exclusive_input_ownership",
                        "scan_result", "resources", "mining", "inventory"]}
 
     def canceled():
@@ -129,6 +134,19 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 or context is not None and snapshot.context != context):
             raise PolicyError("Capture window or context changed")
         row = policy.validate(snapshot, now)
+        hull = {}
+        for name in ("hull_current", "hull_max"):
+            field = snapshot.fields.get(name)
+            if (not field or not field.valid or type(field.value) not in (int, float)
+                    or not math.isfinite(field.value) or field.value <= 0
+                    or field.observed_at != snapshot.acquired_at
+                    or not 0 <= now - field.observed_at < maximum_image_age):
+                raise HullGuardError("Missing, invalid or stale " + name)
+            hull[name] = field.value
+        if initial is not None and hull["hull_max"] != initial["hull_max"]:
+            raise HullGuardError("Hull maximum changed")
+        if hull["hull_current"] != hull["hull_max"]:
+            raise HullGuardError("Hull loss observed" if initial else "Full hull required before approach")
         hp = snapshot.fields.get("target_max_hp")
         if (not hp or not hp.valid or type(hp.value) not in (int, float)
                 or not math.isfinite(hp.value) or hp.value <= 0
@@ -147,7 +165,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             "distance": row.distance, "speed": row.speed,
             "target_identity": row.target_identity, "target_max_hp": hp.value,
             "target_portrait": row.target_portrait,
-            "context": plain(snapshot.context)}
+            "context": plain(snapshot.context), **hull}
 
     def input_guard(record):
         if record.key != "PageUp" or record.kind != "key_down" or acceleration_at is None:
@@ -166,6 +184,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             return False
 
     def watchdog_run():
+        nonlocal watchdog_rejection
         while not watchdog_stop.wait(.05):
             if canceled():
                 stop_ship("cancel_requested")
@@ -179,8 +198,10 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 continue
             try:
                 row, _ = valid_target(snapshot, now)
-            except Exception:
-                stop_ship("invalid_image_watchdog")
+            except Exception as exc:
+                watchdog_rejection = str(exc)
+                stop_ship("hull_guard" if isinstance(exc, HullGuardError)
+                          else "invalid_image_watchdog")
                 continue
             if row.distance <= brake_at:
                 stop_ship("threshold_watchdog")
@@ -286,7 +307,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                     stop_ship("threshold")
                         except PolicyError as exc:
                             blocker = blocker or str(exc)
-                            stop_ship("image_evidence_rejected")
+                            stop_ship("hull_guard" if isinstance(exc, HullGuardError)
+                                      else "image_evidence_rejected")
                     else:
                         requests = {r.sequence: r for r in backend.records()}
                         ups = [d for d in dispatcher.deliveries()
@@ -324,6 +346,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             stop_ship("shutdown")
         if cancel_seen.is_set():
             blocker = "cancel_requested"
+        if blocker is None and watchdog_rejection:
+            blocker = watchdog_rejection
         if not blocker:
             if brake_reason not in ("threshold", "threshold_watchdog"):
                 blocker = "thrust_limit_before_brake_threshold"
@@ -389,6 +413,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         shutdown["input_idle"] = not backend or (not backend.pending_requests and not backend.held_keys)
         result.update(brake_reason=brake_reason, cleanup_attempts=stop_attempts,
                       cleanup_failure=stop_failure,
+                      watchdog_rejection=watchdog_rejection,
                       cancel_requested=cancel_seen.is_set())
         if stop_failure:
             result.update(state="blocked", reason=stop_failure)
