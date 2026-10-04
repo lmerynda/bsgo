@@ -104,7 +104,7 @@ class ObserverUiTests(unittest.TestCase):
             try:
                 code, headers, html = get("/")
                 self.assertEqual(code, 200)
-                self.assertIn(b"Show images", html)
+                self.assertIn(b"Show retained images", html)
                 self.assertIn(b"Latest automatically", html)
                 self.assertIn("no-store", headers["Cache-Control"])
                 _, _, runs = get("/api/runs")
@@ -803,194 +803,192 @@ class ObserverUiTests(unittest.TestCase):
                 thread.join(2)
 
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
-    def test_canceled_budget_skip_renders_canceled_but_true_blocker_renders_blocked(self):
-        script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text()).group(1)
-        script = script.replace("  refresh();\n  refreshMode();\n  refreshActions();\n  refreshStartup();",
-                                "  globalThis.testRender = render; globalThis.testActions = renderActions; globalThis.testStartup = renderStartup; globalThis.testCapture = captureAssessment; globalThis.testActionRequest = actionRequest;")
-        harness = f"""
-const elements = {{}};
-globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
-  textContent:'', hidden:false, className:'', dataset:{{}}, setAttribute(){{}}, removeAttribute(){{}},
-  addEventListener(){{}}
-}}; }} }};
-eval({json.dumps(script)});
-const startup = {{instance_id:'launcher-one',phase:'waiting_for_game',reason:'game_not_found',game:null,
-  focus_handover:{{enabled:false,available:false,reason:'game_not_connected'}},
-  action_control:{{paused:true,enabled:false,pause_reason:'startup_paused',
-    global_pause_present:true,acknowledgment_token:'pause-one'}}}};
-testStartup(startup);
-const waitingStartup = {{state:elements.startupstate.textContent,
-  enableDisabled:elements.startupenable.disabled,
-  notice:elements.startupacknotice.textContent}};
-startup.phase='blocked'; startup.reason='No visible game window found. Open or restore the game.';
-testStartup(startup);
-const missingGameStartup = elements.startupstate.textContent;
-startup.phase='blocked'; startup.reason='multiple_game_windows';
-testStartup(startup);
-const ambiguousStartup = elements.startupstate.textContent;
-startup.reason='unsupported_layout';
-testStartup(startup);
-const layoutStartup = elements.startupstate.textContent;
-startup.phase='connected'; startup.reason=null; startup.game={{connection_id:'game-one',window_attached:true,observation_healthy:false,observation_reason:'HUD waiting'}};
-startup.focus_handover={{enabled:false,available:true,reason:null}};
-testStartup(startup);
-const connectedStartup = {{state:elements.startupstate.textContent,
-  enableDisabled:elements.startupenable.disabled,
-  pauseDisabled:elements.startuppause.disabled,
-  focusDisabled:elements.startupfocus.disabled,
-  image:elements.startupimage.textContent}};
-startup.action_control.enabled=true; startup.action_control.paused=false;
-testStartup(startup);
-const enabledStartup = {{actions:elements.startupactions.textContent,
-  detail:elements.startupdetail.textContent,
-  pauseDisabled:elements.startuppause.disabled}};
-startup.action_control.enabled=false; startup.action_control.paused=true;
-testStartup(startup);
-const common = {{run:'passive',run_path:'fixture',lifecycle:'finalized',
-  status_age_seconds:1,manifest:{{mode:'synthetic_passive_observer',synthetic:true}},
-  status:{{execution:{{phase:'canceled',first_blocker:'cancel_requested'}},
-    result:{{state:'canceled'}},frames:{{accepted:64,written:64,budget_skipped:7,
-    dropped:0,unwritten:0}},trace:{{dropped:0,unwritten:0}},status_write_errors:0}},
-  report:{{result:{{state:'canceled'}},complete_diagnostics:false}}}};
-testRender(common);
-const canceled = {{badge:elements.lifecycle.textContent, outcome:elements.outcome.textContent,
-  coverage:elements.coverage.textContent, writer:elements.writerhealth.textContent}};
-common.status.execution.first_blocker='invalid_speed_glyph';
-testRender(common);
-const recovered = {{badge:elements.lifecycle.textContent,
-  firstLabel:elements.firstcauselabel.textContent,
-  firstCause:elements.firstblocker.textContent}};
-common.status.execution.phase='blocked'; common.status.execution.first_blocker='failed_capture';
-common.status.result.state='blocked'; common.report.result.state='blocked';
-testRender(common);
-const blocked = {{badge:elements.lifecycle.textContent, outcome:elements.outcome.textContent}};
-const actions = {{actual_mode:'manual',paused:false,server_monotonic:100,
-  focus_handover_enabled:true,focus_handover:{{accepted:false,reason:'game_focus_wait'}},
-  ownership:{{owner:null,state:'idle'}},
-  current_observation:{{target_identity:'asteroid:4500',distance:700,speed:0,
-    fields:{{distance:{{valid:true,fresh:true}},speed:{{valid:true,fresh:true}}}}}},
-  assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',expires_at:115,wheel_point:{{x:1280,y:400}},flight_point_description:'upper-center flight view'}},
-  action_artifacts:{{directory:'fixture/last-run',run:'last-run'}},
-  selected_scan_toggle:{{enabled:false,scope:'human_selected_target_only',waiting_for:'stationary_ship_required'}},
-  routines:{{scan_nearby_unscanned:{{available:false,ready:false,reason:'discovery_provider_missing'}},
-    auto_scan_selected:{{available:true,ready:true}},
-    scan_selected:{{available:true,ready:true}},
-    approach_current_target:{{available:true,ready:true}}}}}};
-elements.runs = {{options:[{{value:'last-run'}}]}};
-testActions(actions);
-const independent = {{nearDisabled:elements.scanbutton.disabled,
-  autoDisabled:elements.autoscanbutton.disabled,
-  selectedDisabled:elements.selectedscanbutton.disabled,
-  approachDisabled:elements.approachbutton.disabled,
-  target:elements.currenttarget.textContent,
-  assessment:elements.assessmentcontext.textContent,
-  selectedReadiness:elements.selectedscanreadiness.textContent,
-  flightCue:elements.flightpointvalue.textContent,
-  focus:elements.focushandover.textContent,
-  artifact:elements.actionartifactlink.dataset.run,
-  artifactLinkVisible:!elements.actionartifactlink.hidden,
-  toggle:elements.autoscantoggle.textContent}};
-elements.runs.options=[];
-testActions(actions);
-const missingArtifactOptionHidden = elements.actionartifactlink.hidden;
-elements.runs.options=[{{value:'last-run'}}];
-testActions(actions);
-elements.autoscansafe.checked=true;
-testCapture('auto_scan_selected');
-const autoAssessedEnabled = !elements.autoscanbutton.disabled;
-elements.scanselectedsafe.checked=true;
-testCapture('scan_selected');
-const selectedAssessedEnabled = !elements.selectedscanbutton.disabled;
-for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) elements[id].checked=true;
-testCapture('approach_current_target');
-const assessedEnabled = !elements.approachbutton.disabled;
-actions.assessment_context={{token:'t2',context_key:'target-A',target_identity:'asteroid:4500',expires_at:130,wheel_point:{{x:1280,y:400}}}};
-actions.server_monotonic=105;
-testActions(actions);
-const originalTokenHeld = testActionRequest('approach_current_target','start').assessment_token === 't1'
-  && testActionRequest('scan_selected','start').assessment_token === 't1'
-  && testActionRequest('auto_scan_selected','start').assessment_token === 't1'
-  && !elements.approachbutton.disabled;
-actions.server_monotonic=116;
-testActions(actions);
-const originalExpired = elements.approachbutton.disabled && elements.selectedscanbutton.disabled
-  && elements.autoscanbutton.disabled && !elements.clearcorridor.checked
-  && !elements.scanselectedsafe.checked && !elements.autoscansafe.checked;
-actions.assessment_context={{token:'t3',context_key:'target-B',target_identity:'asteroid:5000',expires_at:130,wheel_point:{{x:1280,y:400}}}};
-testActions(actions);
-const changedDisabled = elements.approachbutton.disabled && !elements.clearcorridor.checked;
-actions.routines.auto_scan_selected.active=true;
-testActions(actions);
-const waitingScan = {{button:elements.autoscanbutton.textContent,
-  canStop:!elements.autoscanbutton.disabled, approachDisabled:elements.approachbutton.disabled}};
-actions.routines.auto_scan_selected.active=false;
-actions.assessment_context={{token:'t4',context_key:'target-B',target_identity:'asteroid:5000',expires_at:145,wheel_point:{{x:1280,y:400}}}};
-actions.server_monotonic=120;
-testActions(actions);
-elements.scanselectedsafe.checked=true;
-testCapture('scan_selected');
-const beforeReconnect = !elements.selectedscanbutton.disabled;
-startup.game={{connection_id:'game-two'}};
-testStartup(startup);
-testActions(actions);
-const afterReconnect = elements.selectedscanbutton.disabled && !elements.scanselectedsafe.checked;
-console.log(JSON.stringify({{waitingStartup,missingGameStartup,ambiguousStartup,layoutStartup,connectedStartup,enabledStartup,canceled,recovered,blocked,independent,missingArtifactOptionHidden,autoAssessedEnabled,selectedAssessedEnabled,assessedEnabled,originalTokenHeld,originalExpired,changedDisabled,waitingScan,beforeReconnect,afterReconnect}}));
-"""
+    def test_cockpit_live_authority_fresh_fields_bound_assessment_and_recorded_history(self):
+        script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
+        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();", "  globalThis.setCockpit=(s,m,a)=>{startup=s;mode=m;actions=a;}; globalThis.cockpit={renderLive,captureAssessment,actionRequest,renderHistory};\n})();")
+        harness = """
+const elements = {};
+globalThis.document = {getElementById(id) { return elements[id] ||= {
+  textContent:'', hidden:false, checked:false, disabled:false, className:'', dataset:{}, style:{},
+  attributes:{}, addEventListener(){}, scrollIntoView(){}, removeAttribute(name){delete this.attributes[name]},
+  setAttribute(name,value){this.attributes[name]=String(value)}
+}; }};
+eval(SCRIPT);
+const field=(value,t=1)=>({value,valid:true,fresh:true,observed_at:t});
+const current={healthy:true,age_seconds:.4,acquired_at:1,sequence:1,fields:{
+  target_identity:field('asteroid:4500'),distance:field(800),speed:field(0),
+  hull_current:field(5005),hull_max:field(5005),target_current_hp:field(4500),target_max_hp:field(4500)}};
+const startup={phase:'connected',instance_id:'launcher-A',game:{connection_id:'game-A',client_size:[2560,1440],observation_healthy:true},
+  action_control:{enabled:true},focus_handover:{available:true,enabled:false}};
+const mode={actual_mode:'manual',pending:false};
+const actions={actual_mode:'manual',paused:false,server_monotonic:100,current_observation:current,
+  ownership:{owner:null,state:'idle'},assessment_context:{token:'first',context_key:'same-target',expires_at:115,
+    observation_sequence:1,wheel_point:[1280,400],flight_point_description:'upper-center flight view'},
+  routines:{approach_current_target:{available:true,ready:true},scan_selected:{available:true,ready:true},
+    auto_scan_selected:{available:true,ready:true,active:false}}};
+setCockpit(startup,mode,actions); cockpit.renderLive();
+const normal={range:elements.range.textContent,speed:elements.speed.textContent,mode:elements.actualmode.textContent,
+  owner:elements.inputowner.textContent,marker:elements.targetmarker.style.left,band:elements.workband.style.width,
+  startDisabled:elements.startbutton.disabled,pointHidden:elements.flightdiagram.hidden};
+for(const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) {elements[id].checked=true; cockpit.captureAssessment('approach_current_target')}
+const assessed=!elements.startbutton.disabled;
+actions.assessment_context={...actions.assessment_context,token:'renewed',expires_at:130,observation_sequence:2};
+actions.server_monotonic=105; cockpit.renderLive();
+const original=cockpit.actionRequest('approach_current_target','start').assessment_token;
+actions.server_monotonic=116; cockpit.renderLive();
+const expired={disabled:elements.startbutton.disabled,checked:elements.clearcorridor.checked};
+actions.current_observation={...current,age_seconds:3,fields:{...current.fields,speed:field(5)}};
+cockpit.renderLive();
+const stale={speed:elements.speed.textContent,range:elements.range.textContent};
+actions.current_observation={...current,fields:{...current.fields,distance:field(3400),target_current_hp:{valid:false,fresh:false,reason:'unreadable'}}};
+cockpit.renderLive();
+const offscale={marker:elements.targetmarker.textContent,flag:elements.offscale.hidden,hp:elements.hpvalue.textContent};
+actions.current_observation={...current,fields:{...current.fields,distance:field(-2)}};cockpit.renderLive();
+const invalidRange={range:elements.range.textContent,markerHidden:elements.targetmarker.hidden,
+  issues:elements.issuebutton.textContent,reason:elements.diagfields.textContent};
+actions.ownership={owner:'approach_current_target',state:'active',input_scope:'navigation'};
+startup.action_control.enabled=false;cockpit.renderLive();
+const pausedOwner={owner:elements.inputowner.textContent,cancelDisabled:elements.cancelbutton.disabled,startDisabled:elements.startbutton.disabled};
+const recorded={run:'sample',manifest:{synthetic:true},lifecycle:'FINALIZED',status:{execution:{phase:'canceled'},
+  result:{state:'canceled'},frames:{accepted:64,written:64,budget_skipped:7,dropped:0,unwritten:0,error:null},
+  trace:{dropped:0,unwritten:0,error:null},status_write_errors:0},report:{complete_diagnostics:false}};
+cockpit.renderHistory(recorded);
+const history={state:elements.historicstate.textContent,coverage:elements.historiccoverage.textContent,
+  synthetic:elements.historicsynthetic.hidden,liveRange:elements.range.textContent};
+console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,invalidRange,pausedOwner,history}));
+""".replace("SCRIPT", json.dumps(script))
         with scratch_directory() as directory:
-            path = Path(directory) / "observer-render-smoke.js"
+            path = Path(directory) / "cockpit-render-smoke.js"
             path.write_text(harness, encoding="utf-8")
             result = subprocess.run(["node", str(path)], capture_output=True,
-                                    text=True, check=True)
+                                    text=True, encoding="utf-8", check=True)
         rendered = json.loads(result.stdout)
-        self.assertEqual(rendered["waitingStartup"]["state"], "Waiting for the game")
-        self.assertTrue(rendered["waitingStartup"]["enableDisabled"])
-        self.assertIn("exact pause", rendered["waitingStartup"]["notice"])
-        self.assertEqual(rendered["missingGameStartup"], "Waiting for the game")
-        self.assertEqual(rendered["ambiguousStartup"], "More than one game window")
-        self.assertEqual(rendered["layoutStartup"], "Game layout needs attention")
-        self.assertEqual(rendered["connectedStartup"]["state"], "Game window attached")
-        self.assertFalse(rendered["connectedStartup"]["enableDisabled"])
-        self.assertFalse(rendered["connectedStartup"]["pauseDisabled"])
-        self.assertFalse(rendered["connectedStartup"]["focusDisabled"])
-        self.assertIn("HUD waiting", rendered["connectedStartup"]["image"])
-        self.assertEqual(rendered["enabledStartup"]["actions"], "ENABLED")
-        self.assertNotIn("remain paused", rendered["enabledStartup"]["detail"])
-        self.assertFalse(rendered["enabledStartup"]["pauseDisabled"])
-        self.assertIn("CANCELED", rendered["canceled"]["badge"])
-        self.assertEqual(rendered["canceled"]["outcome"], "CANCELED (explicit stop)")
-        self.assertIn("64/64", rendered["canceled"]["coverage"])
-        self.assertIn("7 routine budget-skipped", rendered["canceled"]["coverage"])
-        self.assertIn("dropped 0", rendered["canceled"]["writer"])
-        self.assertIn("CANCELED", rendered["recovered"]["badge"])
-        self.assertEqual(rendered["recovered"]["firstLabel"], "First recognition issue")
-        self.assertEqual(rendered["recovered"]["firstCause"], "invalid_speed_glyph")
-        self.assertIn("BLOCKED", rendered["blocked"]["badge"])
-        self.assertEqual(rendered["blocked"]["outcome"], "BLOCKED")
-        self.assertTrue(rendered["independent"]["nearDisabled"])
-        self.assertTrue(rendered["independent"]["autoDisabled"])
-        self.assertTrue(rendered["independent"]["selectedDisabled"])
-        self.assertTrue(rendered["independent"]["approachDisabled"])
-        self.assertEqual(rendered["independent"]["target"], "asteroid:4500")
-        self.assertIn("expires in 15.0s", rendered["independent"]["assessment"])
-        self.assertIn("no blocker", rendered["independent"]["selectedReadiness"])
-        self.assertIn("game_focus_wait", rendered["independent"]["focus"])
-        self.assertEqual(rendered["independent"]["artifact"], "last-run")
-        self.assertTrue(rendered["independent"]["artifactLinkVisible"])
-        self.assertTrue(rendered["missingArtifactOptionHidden"])
-        self.assertIn("human_selected_target_only", rendered["independent"]["toggle"])
-        self.assertIn("upper-center flight view", rendered["independent"]["flightCue"])
-        self.assertNotIn("1280", rendered["independent"]["flightCue"])
-        self.assertTrue(rendered["autoAssessedEnabled"])
-        self.assertTrue(rendered["selectedAssessedEnabled"])
-        self.assertTrue(rendered["assessedEnabled"])
-        self.assertTrue(rendered["originalTokenHeld"])
-        self.assertTrue(rendered["originalExpired"])
-        self.assertTrue(rendered["changedDisabled"])
-        self.assertEqual(rendered["waitingScan"]["button"], "Stop scanning")
-        self.assertTrue(rendered["waitingScan"]["canStop"])
-        self.assertTrue(rendered["waitingScan"]["approachDisabled"])
-        self.assertTrue(rendered["beforeReconnect"])
-        self.assertTrue(rendered["afterReconnect"])
+        self.assertEqual(rendered["normal"]["range"], "800 m")
+        self.assertEqual(rendered["normal"]["speed"], "0 m/s")
+        self.assertEqual(rendered["normal"]["mode"], "Manual")
+        self.assertEqual(rendered["normal"]["owner"], "Human")
+        self.assertAlmostEqual(float(rendered["normal"]["marker"].removesuffix("%")), 800/3000*100)
+        self.assertAlmostEqual(float(rendered["normal"]["band"].removesuffix("%")), 800/3000*100)
+        self.assertTrue(rendered["normal"]["startDisabled"])
+        self.assertFalse(rendered["normal"]["pointHidden"])
+        self.assertTrue(rendered["assessed"])
+        self.assertEqual(rendered["original"], "first")
+        self.assertEqual(rendered["expired"], {"disabled": True, "checked": False})
+        self.assertEqual(rendered["stale"], {"speed": "UNKNOWN", "range": "UNKNOWN"})
+        self.assertEqual(ord(rendered["offscale"]["marker"]), 0x203A)
+        self.assertFalse(rendered["offscale"]["flag"])
+        self.assertTrue(rendered["offscale"]["hp"].endswith("/ 4,500"))
+        self.assertEqual(rendered["invalidRange"]["range"], "UNKNOWN")
+        self.assertTrue(rendered["invalidRange"]["markerHidden"])
+        self.assertIn("1 field issue", rendered["invalidRange"]["issues"])
+        self.assertIn("invalid numeric value", rendered["invalidRange"]["reason"])
+        self.assertFalse(rendered["pausedOwner"]["cancelDisabled"])
+        self.assertTrue(rendered["pausedOwner"]["startDisabled"])
+        self.assertIn("Approach", rendered["pausedOwner"]["owner"])
+        self.assertIn("canceled", rendered["history"]["state"])
+        self.assertIn("budget-skipped 7", rendered["history"]["coverage"])
+        self.assertIn("trace dropped 0", rendered["history"]["coverage"])
+        self.assertFalse(rendered["history"]["synthetic"])
+        self.assertEqual(rendered["history"]["liveRange"], "UNKNOWN")
+
+    @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
+    def test_active_owner_can_request_generic_pause_when_live_gets_fail(self):
+        script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
+        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();", "  globalThis.cockpit={refreshLive,requestAction,requestStartup};\n})();")
+        harness = """
+const elements={};let failGets=false;const posts=[];
+globalThis.document={getElementById(id){return elements[id] ||= {
+  textContent:'',hidden:false,checked:false,disabled:false,className:'',dataset:{},style:{},
+  addEventListener(){},scrollIntoView(){},removeAttribute(){},setAttribute(){}};}};
+globalThis.setTimeout=()=>{};
+const field=value=>({value,valid:true,fresh:true,observed_at:1});
+const startup={phase:'connected',instance_id:'live-one',game:{connection_id:'game-one'},action_control:{enabled:true}};
+const actions={actual_mode:'manual',paused:false,server_monotonic:100,
+  ownership:{owner:'approach_current_target',state:'active',input_scope:'navigation'},
+  current_observation:{healthy:true,age_seconds:.3,acquired_at:1,sequence:1,fields:{distance:field(900),speed:field(5)}},
+  routines:{approach_current_target:{active:true,phase:'cruising'}}};
+globalThis.fetch=async (url,options={})=>{
+  if(options.method==='POST'){posts.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({accepted:true,reason:'cancel_requested'})};}
+  if(failGets)throw Error('synthetic GET failure');
+  return {ok:true,json:async()=>url==='/api/startup'?startup:url==='/api/manual-actions'?actions:{actual_mode:'manual'}};
+};
+eval(SCRIPT);
+(async()=>{
+  await cockpit.refreshLive();failGets=true;await cockpit.refreshLive();
+  const unavailable={range:elements.range.textContent,owner:elements.inputowner.textContent,
+    cancelDisabled:elements.cancelbutton.disabled,pauseDisabled:elements.powerbutton.disabled,
+    pauseLabel:elements.powerbutton.textContent,startDisabled:elements.startbutton.disabled,
+    instruction:elements.instruction.textContent};
+  await cockpit.requestStartup('pause_manual_actions');
+  console.log(JSON.stringify({unavailable,posts}));
+})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace("SCRIPT", json.dumps(script))
+        with scratch_directory() as directory:
+            path = Path(directory) / "cockpit-get-failure.js"
+            path.write_text(harness, encoding="utf-8")
+            result = subprocess.run(["node", str(path)], capture_output=True,
+                                    text=True, encoding="utf-8", check=True)
+        rendered = json.loads(result.stdout)
+        self.assertEqual(rendered["unavailable"]["range"], "UNKNOWN")
+        self.assertEqual(rendered["unavailable"]["owner"], "UNKNOWN")
+        self.assertTrue(rendered["unavailable"]["cancelDisabled"])
+        self.assertFalse(rendered["unavailable"]["pauseDisabled"])
+        self.assertTrue(rendered["unavailable"]["startDisabled"])
+        self.assertIn("status unknown", rendered["unavailable"]["pauseLabel"])
+        self.assertIn("Routine state unknown", rendered["unavailable"]["instruction"])
+        self.assertEqual([(row["url"], row["body"]["action"]) for row in rendered["posts"]],
+                         [("/api/startup", "pause_manual_actions")])
+
+    @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
+    def test_stalled_poll_ages_image_and_original_assessment_without_renewal(self):
+        script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
+        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();",
+                                "  globalThis.cockpit={refreshLive,captureAssessment}; setInterval(renderLive,250);\n})();")
+        harness = """
+const elements={};let clock=0,stuck=false,watchdog=null;const timers=[];
+globalThis.performance={now:()=>clock};
+globalThis.setInterval=callback=>{watchdog=callback};
+globalThis.setTimeout=(callback,ms)=>{const timer={callback,ms,cleared:false};timers.push(timer);return timer};
+globalThis.clearTimeout=timer=>{if(timer)timer.cleared=true};
+globalThis.document={getElementById(id){return elements[id] ||= {
+  textContent:'',hidden:false,checked:false,disabled:false,className:'',dataset:{},style:{},
+  addEventListener(){},scrollIntoView(){},removeAttribute(){},setAttribute(){}};}};
+const field=value=>({value,valid:true,fresh:true,observed_at:1});
+const startup={phase:'connected',instance_id:'i',game:{connection_id:'g'},action_control:{enabled:true}};
+const actions={actual_mode:'manual',paused:false,server_monotonic:100,ownership:{owner:null,state:'idle'},
+  current_observation:{healthy:true,age_seconds:.1,acquired_at:1,sequence:1,fields:{distance:field(700),speed:field(0)}},
+  assessment_context:{token:'original',context_key:'target',expires_at:115,observation_sequence:1},
+  routines:{scan_selected:{available:true,ready:true},approach_current_target:{available:true,ready:true}}};
+globalThis.fetch=async url=>{
+  if(stuck)return new Promise(()=>{});
+  return {ok:true,json:async()=>url==='/api/startup'?startup:url==='/api/manual-actions'?actions:{actual_mode:'manual'}};
+};
+eval(SCRIPT);
+(async()=>{
+  await cockpit.refreshLive();
+  elements.scanselectedsafe.checked=true;cockpit.captureAssessment('scan_selected');
+  const first=elements.range.textContent;
+  clock=2100;watchdog();const stale={range:elements.range.textContent,age:elements.imageage.textContent};
+  clock=16000;watchdog();const expired=elements.scanselectedsafe.checked;
+  stuck=true;const pending=cockpit.refreshLive();
+  clock=19000;for(const timer of timers.filter(row=>!row.cleared&&row.ms===3000))timer.callback();
+  await pending;
+  console.log(JSON.stringify({first,stale,expired,afterTimeout:elements.range.textContent,
+    pauseDisabled:elements.powerbutton.disabled}));
+})().catch(error=>{console.error(error);process.exitCode=1});
+""".replace("SCRIPT", json.dumps(script))
+        with scratch_directory() as directory:
+            path = Path(directory) / "cockpit-stalled-poll.js"
+            path.write_text(harness, encoding="utf-8")
+            result = subprocess.run(["node", str(path)], capture_output=True,
+                                    text=True, encoding="utf-8", check=True)
+        rendered = json.loads(result.stdout)
+        self.assertEqual(rendered["first"], "700 m")
+        self.assertEqual(rendered["stale"]["range"], "UNKNOWN")
+        self.assertIn("STALE", rendered["stale"]["age"])
+        self.assertFalse(rendered["expired"])
+        self.assertEqual(rendered["afterTimeout"], "UNKNOWN")
+        self.assertFalse(rendered["pauseDisabled"])
 
 
 if __name__ == "__main__":

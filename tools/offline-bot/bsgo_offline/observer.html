@@ -3,473 +3,504 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mining observer</title>
+  <title>Mining control</title>
   <style>
-    :root { color-scheme: dark; --bg:#0a1020; --panel:#111b31; --line:#2a3955; --text:#ebf2ff; --muted:#a7b6d1; --cyan:#71d9e9; --green:#9ce3b7; --amber:#ffd18a; --red:#ff9ea2; }
-    * { box-sizing:border-box }
-    body { margin:0; background:radial-gradient(circle at 85% 0%,#1d3551 0,#0a1020 44%); color:var(--text); font:15px/1.45 system-ui,Segoe UI,sans-serif; }
-    main { max-width:1520px; padding:24px; margin:auto; }
-    header { display:flex; flex-wrap:wrap; align-items:end; justify-content:space-between; gap:16px; margin-bottom:22px; }
-    h1 { margin:0; font-size:clamp(26px,3vw,40px); letter-spacing:-.04em; }
-    h2 { margin:0 0 13px; font-size:17px; letter-spacing:.01em; }
-    .eyebrow { color:var(--cyan); text-transform:uppercase; font-size:11px; font-weight:800; letter-spacing:.17em; }
-    .sub { color:var(--muted); margin:4px 0 0; }
-    .controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    select,button { background:#182740; border:1px solid #435575; border-radius:10px; color:var(--text); padding:10px 13px; font:inherit; }
-    button { cursor:pointer; } button:hover { border-color:var(--cyan); }
-    .modebar { display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:12px 15px; margin-bottom:17px; border:1px solid var(--line); border-radius:13px; background:#111b31; }
-    .startup { border:1px solid var(--line); border-radius:16px; background:linear-gradient(130deg,#163246,#111b31); padding:17px; margin-bottom:17px; }
-    .startup .controls { margin-top:12px; }
-    .startupstate { font-size:22px; font-weight:750; }
-    .flightcue { display:inline-flex; align-items:center; gap:9px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:#12243a; }
-    .flightcue::before { content:'✚'; color:var(--cyan); font-size:19px; }
-    .modebar button[aria-pressed="true"] { border-color:var(--cyan); background:#20505a; }
-    .modebar .small { margin-left:auto; }
+    :root { color-scheme:dark; --bg:#091321; --panel:#102034; --panel2:#0c192b; --line:#294158; --text:#f0f5fa; --muted:#a6b8ca; --cyan:#75d9eb; --green:#8bddac; --amber:#ffd178; --red:#ff9ea6; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#07111e; color:var(--text); font:14px/1.38 system-ui,Segoe UI,sans-serif; }
+    button,select { font:inherit; color:inherit; background:#172d45; border:1px solid #416077; border-radius:8px; padding:8px 11px; }
+    button { cursor:pointer; } button:hover:not(:disabled),select:hover { border-color:var(--cyan); }
+    button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible { outline:3px solid var(--cyan); outline-offset:2px; }
     button:disabled { opacity:.48; cursor:not-allowed; }
-    .manualactions { border:1px solid var(--line); border-radius:16px; background:#111b31; padding:17px; margin-bottom:17px; }
-    .actiongrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-    .actioncard { border:1px solid var(--line); border-radius:12px; background:#0d1729; padding:13px; min-width:0; }
-    .actioncard p { margin:7px 0; }
-    .assessments { display:flex; flex-wrap:wrap; gap:8px 15px; margin:10px 0; color:var(--muted); font-size:12px; }
-    .assessments label { display:inline-flex; align-items:center; gap:5px; }
-    .passive { border:1px solid #725a30; border-radius:12px; background:#30291d; color:#ffe1a2; padding:10px 14px; margin-bottom:17px; font-weight:700; }
-    .grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; }
-    .panel { grid-column:span 4; min-width:0; background:linear-gradient(145deg,#17243b,#10192d); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 16px 40px #0002; }
-    .wide { grid-column:span 8; } .full { grid-column:span 12; }
-    .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
-    .value { font-size:23px; font-weight:700; word-break:break-word; line-height:1.25; }
-    .small { color:var(--muted); font-size:13px; }
-    .pill { display:inline-flex; border-radius:100px; padding:6px 11px; background:#263953; color:var(--cyan); font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
-    .pill.live { background:#173e3a; color:var(--green); }
-    .pill.stale,.pill.stopped_unfinalized { background:#47351e; color:var(--amber); }
-    .pill.completed { background:#2c3c57; color:#bed6ff; }
-    .pill.finalized { background:#2c3c57; color:#bed6ff; }
-    .pill.blocked,.pill.unavailable { background:#542b35; color:var(--red); }
-    .pill.synthetic { background:#574116; color:#ffe1a2; margin-left:8px; }
     [hidden] { display:none !important; }
-    .rows { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-    .metric { padding:13px; border:1px solid var(--line); border-radius:12px; background:#0d1729; }
-    .metric .value { font-size:20px; }
-    .flow { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
-    .flow > div { padding:14px; border:1px solid var(--line); border-radius:12px; background:#0d1729; }
-    .text { white-space:pre-wrap; word-break:break-word; }
-    .warn { color:var(--red); }
-    details { margin-top:10px; color:var(--muted); } details pre { white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; font-size:11px; }
-    .images { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-    .images figure { margin:0; min-width:0; background:#081323; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-    .images img { width:100%; display:block; object-fit:contain; max-height:430px; }
-    .images figcaption { padding:10px 12px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+    main { width:min(100%,760px); min-height:100vh; margin:auto; padding:16px 18px 20px; background:linear-gradient(145deg,#0c1b2d,#091321 45%); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px; }
+    h1 { font-size:23px; line-height:1; letter-spacing:.08em; margin:0; font-weight:800; }
+    h2 { font-size:13px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); margin:0 0 9px; }
+    .brand { display:flex; align-items:center; gap:9px; }
+    .brandmark { color:var(--cyan); font-size:26px; line-height:1; }
+    .small { color:var(--muted); font-size:12px; }
+    .mono { font-variant-numeric:tabular-nums; font-family:ui-monospace,Consolas,monospace; }
+    .synthetic { color:var(--amber); border:1px solid #79663a; border-radius:99px; padding:3px 8px; font-size:10px; font-weight:700; }
+    .strip,.rail,.instrument,.workspace,.drawer { border:1px solid var(--line); background:var(--panel); border-radius:11px; }
+    .strip { display:flex; align-items:center; flex-wrap:wrap; gap:7px 12px; min-height:41px; padding:7px 11px; margin-bottom:10px; }
+    .dot { width:9px; height:9px; border-radius:50%; background:var(--muted); display:inline-block; margin-right:6px; }
+    .dot.live { background:var(--green); }.dot.warn { background:var(--amber); }.dot.bad { background:var(--red); }
+    .strip button { padding:4px 7px; background:transparent; font-size:12px; }
+    #connectioncause { flex-basis:100%; color:var(--amber); }
+    #issuebutton { margin-left:auto; }
+    .rail { display:flex; align-items:center; flex-wrap:wrap; gap:9px; padding:9px 11px; margin-bottom:10px; }
+    .mode { border:1px solid var(--cyan); color:var(--cyan); background:#173c4c; font-weight:750; padding:6px 11px; border-radius:7px; }
+    .locked { border:1px solid var(--line); border-radius:7px; color:var(--muted); padding:6px 9px; opacity:.65; }
+    #modepending { font-size:11px; color:var(--amber); }
+    .authority { margin-left:auto; color:var(--muted); }
+    .authority strong { color:var(--text); }
+    #powerbutton { color:var(--amber); border-color:#94763d; background:#302b20; white-space:nowrap; }
+    .instrument { padding:14px 17px 12px; margin-bottom:10px; }
+    .instrumenttop { display:flex; justify-content:space-between; gap:14px; align-items:start; }
+    .eyebrow { font-size:11px; letter-spacing:.15em; font-weight:750; color:var(--muted); text-transform:uppercase; }
+    .targetname { font-size:17px; font-weight:700; margin-top:3px; }
+    .range { font-size:clamp(37px,7vw,59px); font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; margin:4px 0; }
+    .speedbox { min-width:140px; border:1px solid var(--line); border-radius:8px; padding:8px 11px; background:var(--panel2); }
+    .speedbox .value { font-size:27px; font-weight:780; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .tape { margin:17px 0 14px; position:relative; height:58px; }
+    .tapeline { position:absolute; left:0; right:0; top:20px; height:2px; background:#7e9bb0; }
+    .workband { position:absolute; left:0; top:16px; width:26.6666666667%; height:10px; background:#2d9bb4; opacity:.8; }
+    .boundary { position:absolute; left:26.6666666667%; top:10px; height:25px; width:2px; background:var(--cyan); }
+    .targetmarker { position:absolute; top:5px; left:0; transform:translateX(-50%); color:var(--text); font-size:21px; line-height:1; }
+    .tapelabel { position:absolute; top:35px; font-size:11px; color:var(--muted); }
+    .tapezero { left:0; }.tapeband { left:26.6666666667%; transform:translateX(-50%); color:var(--cyan); }.tapemax { right:0; }
+    .bandcaption { position:absolute; left:4%; top:34px; color:var(--cyan); font-size:10px; }
+    .offscale { color:var(--amber); font-size:11px; margin-top:-10px; }
+    .bars { display:grid; grid-template-columns:1fr 1fr; gap:14px; border-top:1px solid var(--line); padding-top:11px; }
+    .barrow { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; min-width:0; }
+    .barrow label { font-size:10px; letter-spacing:.08em; color:var(--muted); }
+    .bar { height:11px; border:1px solid #526c80; border-radius:3px; background:#193044; overflow:hidden; }
+    .bar .fill { height:100%; width:0; background:#59c4dc; }
+    .bar.unknown { background:repeating-linear-gradient(120deg,#263649 0 3px,#0e1c2d 3px 7px); }
+    .barrow .barvalue { font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .workspace { padding:12px 14px 14px; }
+    .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+    .tabs button { background:#13283d; font-weight:700; min-height:38px; }
+    .tabs button[aria-selected="true"] { border-color:var(--cyan); color:var(--cyan); background:#174255; }
+    .phase { display:flex; align-items:center; gap:8px; padding:10px 2px 6px; min-height:36px; }
+    .phase .dot { flex:none; }
+    #phasetext { font-weight:750; }
+    #instruction { margin:0 0 8px; color:var(--amber); min-height:17px; }
+    .assessment { border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:10px 11px; }
+    .assessmenthead { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+    .assessmenthead strong { font-size:11px; letter-spacing:.12em; color:var(--muted); }
+    #expiry { color:var(--amber); font-size:11px; }
+    .checks { display:grid; grid-template-columns:repeat(2,1fr); gap:8px 13px; margin:11px 0; }
+    .checks label { display:flex; align-items:center; gap:6px; font-size:12px; }
+    .checks input { accent-color:var(--cyan); }
+    #previewbutton { padding:2px 4px; background:transparent; border:0; color:var(--cyan); text-decoration:underline; font-size:11px; }
+    .actionbuttons { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; }
+    #startbutton { background:#176178; border-color:#7ad8e7; font-weight:750; }
+    #cancelbutton { background:#332831; border-color:#88515c; color:#ffc2c8; }
+    .anomaly { margin:9px 0 0; color:var(--amber); font-size:11px; min-height:15px; }
+    .drawers { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px; }
+    .drawer { min-width:0; background:var(--panel2); }
+    .drawer summary { cursor:pointer; list-style:none; padding:9px 11px; font-weight:650; }
+    .drawer summary::before { content:'›'; color:var(--cyan); margin-right:8px; }
+    .drawer[open] { grid-column:1/-1; }.drawer[open] summary::before { content:'⌄'; }
+    .drawerbody { border-top:1px solid var(--line); padding:12px; }
+    .drawerbody p { margin:6px 0; }
+    .recorded { border:1px solid #6d5a37; color:var(--amber); border-radius:6px; padding:2px 6px; font-size:10px; }
+    .detailgrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .detailgrid > div { border:1px solid var(--line); border-radius:7px; padding:8px; min-width:0; overflow-wrap:anywhere; }
+    .detailgrid strong { display:block; font-size:11px; color:var(--muted); margin-bottom:3px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; max-height:190px; overflow:auto; }
+    .images { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .images img { width:100%; max-height:260px; object-fit:contain; background:#06111d; }
+    .images figure { margin:0; min-width:0; overflow-wrap:anywhere; font-size:11px; }
     a { color:var(--cyan); }
-    .mono { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; overflow-wrap:anywhere; }
-    @media (max-width:1000px) { .panel,.wide { grid-column:span 6; } .full { grid-column:span 12; } }
-    @media (max-width:1000px) { .actiongrid { grid-template-columns:1fr; } }
-    @media (max-width:700px) { main { padding:14px; } .panel,.wide,.full { grid-column:span 12; } .flow,.images,.rows,.actiongrid { grid-template-columns:1fr; } }
+    .schematic { width:min(100%,350px); aspect-ratio:16/9; border:1px solid #6d8aa3; background:linear-gradient(#182b3e,#101e30); position:relative; margin:9px 0; }
+    .schematic::before,.schematic::after { content:''; position:absolute; background:#4a6174; }
+    .schematic::before { width:1px; height:100%; left:50%; }.schematic::after { height:1px; width:100%; top:50%; }
+    .schematic .point { position:absolute; left:50%; top:33.333%; transform:translate(-50%,-50%); color:var(--cyan); font-size:28px; z-index:1; }
+    .muted { color:var(--muted); }.warn { color:var(--amber); }.bad { color:var(--red); }
+    @media(max-width:640px) { main { padding:8px 10px; } header { margin-bottom:8px; } h1 { font-size:19px; } .strip,.rail,.instrument { margin-bottom:8px; } .strip { min-height:35px; padding:5px 9px; } .rail { gap:6px; padding:6px 9px; } .instrument { padding:10px 12px 8px; } .tape { margin:10px 0 8px; } .workspace { padding:9px 11px 10px; } .checks { margin:7px 0; gap:5px 9px; } .drawers { margin-top:8px; } .detailgrid,.images { grid-template-columns:1fr; } }
+    @media(max-width:470px) { .bars,.checks { grid-template-columns:1fr; } .authority { margin-left:0; } }
   </style>
 </head>
 <body>
 <main>
-  <header>
-    <div><div class="eyebrow">Local session · localhost</div><h1>Mining observer</h1><p class="sub">Live status refreshes every second. Manual actions require an attached, ready controller.</p></div>
-    <div class="controls"><label for="runs">Run</label><select id="runs"><option value="">Latest automatically</option></select><button id="privacy" type="button" aria-pressed="false">Show images</button></div>
-  </header>
-  <section class="startup" aria-label="Game connection and Manual action availability">
-    <div class="eyebrow">Simple start · no game input on page load</div>
-    <h2>Game connection</h2>
-    <div id="startupstate" class="startupstate">Checking connection…</div>
-    <p id="startupdetail" class="small">The observer is checking for a compatible game window.</p>
-    <p class="small">Current control: <strong id="startupmode">Manual</strong> · Manual actions: <strong id="startupactions">PAUSED</strong> · <span id="startuppausereason">Waiting for session</span></p>
-    <p class="small">Window: <span id="startupwindow">UNKNOWN</span> · Image reading: <span id="startupimage">UNKNOWN</span> · Routine readiness: <span id="startuproutines">UNKNOWN</span></p>
-    <p id="startupacknotice" class="small">Opening this page does not focus the game or start a routine.</p>
-    <div class="controls"><button id="startupretry" type="button" disabled>Retry game connection</button><button id="startupenable" type="button" disabled>Enable Manual actions</button><button id="startuppause" type="button" disabled>Pause Manual actions</button></div>
-    <p class="small">Optional: <button id="startupfocus" type="button" aria-pressed="false" disabled>Return to game on Start/Cancel: OFF</button> <span id="startupfocusreason">Unavailable until a game is connected.</span> This setting never focuses the game on page load, Retry, or Enable.</p>
-    <p id="startupack" class="small">No startup action requested.</p>
+  <header><div class="brand"><span class="brandmark" aria-hidden="true">✦</span><h1>MINING CONTROL</h1></div><span id="syntheticchip" class="synthetic" hidden>SYNTHETIC DEMO</span></header>
+  <section class="strip" aria-label="Connection and image health">
+    <span><span id="connectiondot" class="dot"></span><strong id="connectionlabel">Checking game</strong></span>
+    <span id="imageage" class="small">Image UNKNOWN</span>
+    <button id="issuebutton" type="button">Field issues UNKNOWN ›</button>
+    <button id="retrybutton" type="button" hidden>Retry connection</button>
+    <span id="connectioncause" hidden></span>
   </section>
-  <div class="modebar" aria-label="Application control mode"><span class="label">Current control</span><button id="manualmode" type="button" aria-pressed="true">Manual</button><button id="automode" type="button" aria-pressed="false">Autopilot</button><strong id="actualmode">UNKNOWN</strong><span id="missionowner" class="small">Mission decisions: UNKNOWN</span><span id="modeavailability" class="small">App input: UNKNOWN</span><span id="routinedecisions" class="small">Routine decisions: UNKNOWN</span><span id="routinescope" class="small">Routine input owner: UNKNOWN</span><span id="moderequest" class="small">Requested: UNKNOWN · Pending: UNKNOWN</span><span id="modeblocker" class="small warn">Handover: UNKNOWN</span><span id="modeack" class="small">Acknowledgment: UNKNOWN</span></div>
-  <section class="manualactions" aria-label="Manual building-block actions"><h2>Manual actions <span class="small">· live routine ownership, independent of selected run</span><span id="syntheticactions" class="pill synthetic" hidden>SYNTHETIC DEMO · NO GAME INPUT</span></h2><p class="small">Overall mission mode stays Manual while one routine may temporarily own game input. Starts require an attached controller and its readiness check.</p><p class="small">Current session image: target <strong id="currenttarget">UNKNOWN</strong> · range <span id="currentrange">UNKNOWN</span> · speed <span id="currentspeed">UNKNOWN</span> · age <span id="currentage">UNKNOWN</span> · health <span id="currenthealth">UNKNOWN</span></p><p class="small">Input owner: <strong id="actionowner">UNKNOWN</strong> · Ownership state: <span id="actionownerstate">UNKNOWN</span> · Input scope: <span id="actionscope">UNKNOWN</span> · Run: <span id="actionrun">UNKNOWN</span> · Paused: <span id="actionpaused">UNKNOWN</span></p><p class="small">Focus handover: <span id="focushandover">UNKNOWN</span></p><div class="actiongrid"><div class="actioncard"><h2>Scan nearby unscanned asteroids</h2><p class="small">Toggle: <span id="scanstate">UNKNOWN</span> · Readiness: <span id="scanreadiness">UNKNOWN</span></p><button id="scanbutton" type="button" disabled>Start scanning</button><p class="small">Phase: <span id="scanphase">UNKNOWN</span></p><p class="small">Processing: <span id="scanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="scanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="scannext">UNKNOWN</span></p><p class="small">Result: <span id="scanresult">UNKNOWN</span></p><p class="warn">Error: <span id="scanerror">UNKNOWN</span></p></div><div class="actioncard"><h2>Auto-scan selected target</h2><p class="small">Toggle: <span id="autoscanstate">UNKNOWN</span> · Readiness: <span id="autoscanreadiness">UNKNOWN</span></p><label class="small"><input id="autoscansafe" type="checkbox"> I assessed a safe stopped scene for this selected target</label><br><button id="autoscanbutton" type="button" disabled>Start auto-scan</button><p class="small">Phase: <span id="autoscanphase">UNKNOWN</span></p><p class="small">Processing: <span id="autoscanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="autoscanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="autoscannext">UNKNOWN</span></p><p class="small">Result: <span id="autoscanresult">UNKNOWN</span></p><p class="warn">Error: <span id="autoscanerror">UNKNOWN</span></p><p class="small">Only the human-selected target; waits during ship motion and does not brake or retarget. Delivery alone does not verify a scan.</p></div><div class="actioncard"><h2>Scan selected asteroid</h2><p class="small">One shot: <span id="selectedscanstate">UNKNOWN</span> · Readiness: <span id="selectedscanreadiness">UNKNOWN</span></p><label class="small"><input id="scanselectedsafe" type="checkbox"> I assessed a safe stopped scene for this selected target</label><br><button id="selectedscanbutton" type="button" disabled>Scan selected</button><p class="small">Phase: <span id="selectedscanphase">UNKNOWN</span></p><p class="small">Processing: <span id="selectedscanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="selectedscanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="selectedscannext">UNKNOWN</span></p><p class="small">Result: <span id="selectedscanresult">UNKNOWN</span></p><p class="warn">Error: <span id="selectedscanerror">UNKNOWN</span></p><p class="small">Input delivery alone does not verify resource identity.</p></div><div class="actioncard"><h2>Approach current target</h2><p class="small">One shot: <span id="approachstate">UNKNOWN</span> · Readiness: <span id="approachreadiness">UNKNOWN</span></p><p class="small">Assessment context: <span id="assessmentcontext">UNKNOWN</span></p><div class="assessments"><label><input id="clearcorridor" type="checkbox"> I assessed a clear corridor</label><label><input id="alignedheading" type="checkbox"> I assessed heading alignment</label><label><input id="safestopped" type="checkbox"> I assessed a safe stopped scene</label><label><input id="flightpoint" type="checkbox"> I assessed the configured flight point <span id="flightpointvalue" class="flightcue">UNKNOWN</span></label></div><button id="approachbutton" type="button" disabled>Start approach</button><p class="small">Phase: <span id="approachphase">UNKNOWN</span></p><p class="small">Processing: <span id="approachprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="approachwaiting">UNKNOWN</span></p><p class="small">Next: <span id="approachnext">UNKNOWN</span></p><p class="small">Result: <span id="approachresult">UNKNOWN</span></p><p class="warn">Error: <span id="approacherror">UNKNOWN</span></p></div></div><p class="small">Action acknowledgment: <span id="actionack">No action requested</span></p><p class="small">Routine input intent: <span id="actionintent">UNKNOWN</span> · Delivery: <span id="actiondelivery">UNKNOWN</span> · Image effect: <span id="actioneffect">UNKNOWN</span></p><p class="small">Last routine package: <span id="actionartifactpath">UNKNOWN</span> · <a id="actionartifactlink" href="#" hidden>View saved run</a></p><p class="small">Selected-target auto-scan: <span id="autoscantoggle">UNKNOWN</span></p></section>
-  <div id="passivebanner" class="passive" hidden>PASSIVE OBSERVATION · App decisions disabled · App controls disabled</div>
-  <div class="grid">
-    <section class="panel wide"><div class="eyebrow">Execution</div><h2><span id="lifecycle" class="pill">UNKNOWN</span><span id="synthetic" class="pill synthetic" hidden>SYNTHETIC DEMO</span> <span id="phase">UNKNOWN</span></h2><div class="rows"><div><div class="label">Processing</div><div id="processing" class="value">UNKNOWN</div></div><div><div class="label">Waiting for</div><div id="waiting" class="value">UNKNOWN</div></div></div><p><span class="label">Expected next step</span><br><span id="next" class="text">UNKNOWN</span></p><div id="progress" class="small">No progress message</div></section>
-    <section class="panel"><h2>Run and freshness</h2><div class="label">Selected package</div><div id="run" class="value mono">UNKNOWN</div><p class="small">Status age: <span id="age">UNKNOWN</span> · Worker: <span id="worker">UNKNOWN</span></p><div class="label">Run ID</div><div id="runid" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Code commit</div><div id="commit" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Supervisor assessed (not image verified)</div><div id="assessments" class="small text">UNKNOWN</div></section>
-    <section class="panel wide"><h2>Image readings at last status sample</h2><div class="rows"><div class="metric"><div class="label">Ship speed</div><div id="speed" class="value">UNKNOWN</div><div id="speedmeta" class="small"></div></div><div class="metric"><div class="label">Target range</div><div id="distance" class="value">UNKNOWN</div><div id="distancemeta" class="small"></div></div><div class="metric"><div class="label">Hull</div><div id="hull" class="value">UNKNOWN</div><div id="hullmeta" class="small"></div></div><div class="metric"><div class="label">Target HP</div><div id="hp" class="value">UNKNOWN</div><div id="hpmeta" class="small"></div></div></div><p class="small">Image observation: <span id="observation">UNKNOWN</span> · Recognition: <span id="health">UNKNOWN</span> · Target: <span id="target">UNKNOWN</span></p></section>
-    <section class="panel"><h2>Outcome and blockers</h2><div class="label">Result</div><div id="outcome" class="value">UNKNOWN</div><p id="blocker" class="warn text">No blocker reported</p><div class="small"><span id="firstcauselabel">First blocker</span>: <span id="firstblocker">UNKNOWN</span></div><div class="small">Diagnostics: <span id="diagnostics">UNKNOWN</span></div><div id="coverage" class="small text">Coverage UNKNOWN</div><div id="writerhealth" class="small text">Writer health UNKNOWN</div><div class="label" style="margin-top:12px">Warnings and continuing effects</div><div id="warnings" class="warn text">UNKNOWN</div></section>
-    <section class="panel full"><h2>Command evidence</h2><div class="flow"><div><div class="label">Requested</div><div id="intent" class="text">UNKNOWN</div><details><summary>Raw request</summary><pre id="intentraw"></pre></details></div><div><div class="label">Delivered to input stream</div><div id="delivery" class="text">UNKNOWN</div><details><summary>Raw delivery</summary><pre id="deliveryraw"></pre></details></div><div><div class="label">Observed effect</div><div id="effect" class="text">UNKNOWN</div><details><summary>Raw effect</summary><pre id="effectraw"></pre></details></div></div><p class="small">Input insertion and image-observed effects are separate evidence.</p></section>
-    <section class="panel full"><h2>Retained images <span class="small">(hidden until you choose Show images)</span></h2><div id="imagehint" class="small">Image previews are hidden.</div><div id="images" class="images" hidden><figure><img id="currentimg" alt="Latest retained game observation"><figcaption>Latest retained frame · <span id="currentpath"></span></figcaption></figure><figure><img id="failureimg" alt="First saved failed recognition"><figcaption>First saved recognition failure · <span id="failurepath"></span><br><a id="sidecar" target="_blank" rel="noopener">View sidecar</a> · <span id="failurereasons"></span></figcaption></figure></div></section>
+  <section class="rail" aria-label="Live control authority">
+    <span id="actualmode" class="mode">Mode UNKNOWN</span><span class="locked" aria-label="Autopilot unavailable">🔒 Autopilot unavailable</span>
+    <span id="modepending" hidden></span>
+    <span class="authority">Input: <strong id="inputowner">UNKNOWN</strong></span>
+    <button id="powerbutton" type="button" disabled>Actions unavailable</button>
+  </section>
+  <section class="instrument" aria-label="Current live selected target">
+    <div class="instrumenttop"><div><div class="eyebrow">Selected target · live image</div><div id="targetname" class="targetname">UNKNOWN</div><div id="range" class="range mono" aria-live="polite">UNKNOWN</div></div><div class="speedbox"><div class="eyebrow">Speed</div><div id="speed" class="value mono">UNKNOWN</div></div></div>
+    <div class="tape" role="img" id="rangetape" aria-label="Range unknown on a scalar 0 to 3000 meter scale; 800 meter working boundary">
+      <div class="tapeline"></div><div id="workband" class="workband"></div><div class="boundary"></div><div id="targetmarker" class="targetmarker" hidden aria-hidden="true">◆</div>
+      <span class="tapelabel tapezero">0</span><span class="bandcaption">Working range</span><span class="tapelabel tapeband">800 m</span><span class="tapelabel tapemax">3,000</span>
+    </div><div id="offscale" class="offscale" hidden>Target beyond displayed scale</div>
+    <div class="bars"><div class="barrow"><label>HULL</label><div id="hullbar" class="bar unknown"><div id="hullfill" class="fill"></div></div><span id="hullvalue" class="barvalue mono">UNKNOWN</span></div><div class="barrow"><label>TARGET HP</label><div id="hpbar" class="bar unknown"><div id="hpfill" class="fill"></div></div><span id="hpvalue" class="barvalue mono">UNKNOWN</span></div></div>
+  </section>
+  <section class="workspace" aria-label="Manual action workspace">
+    <div class="tabs" role="tablist" aria-label="Select an action; selection never starts it"><button id="scanonce" type="button" role="tab" aria-selected="false">Scan once</button><button id="autoscan" type="button" role="tab" aria-selected="false">Auto-scan OFF</button><button id="approach" type="button" role="tab" aria-selected="true">Approach</button></div>
+    <div class="phase"><span id="phasedot" class="dot warn"></span><span id="phasetext">Waiting for live state</span></div><p id="instruction"></p>
+    <div id="assessmenttray" class="assessment"><div class="assessmenthead"><strong>YOUR ASSESSMENT</strong><span id="expiry">No fresh target token</span></div>
+      <div id="scanchecks" class="checks" hidden><label><input id="scanselectedsafe" type="checkbox">Safe stopped scene</label></div>
+      <div id="autochecks" class="checks" hidden><label><input id="autoscansafe" type="checkbox">Safe stopped scene</label></div>
+      <div id="approachchecks" class="checks"><label><input id="clearcorridor" type="checkbox">Clear corridor</label><label><input id="alignedheading" type="checkbox">Aligned heading</label><label><input id="safestopped" type="checkbox">Safe stopped scene</label><label><input id="flightpoint" type="checkbox">Flight point</label></div>
+      <button id="previewbutton" type="button" hidden>Preview flight point</button>
+    </div>
+    <div class="actionbuttons"><button id="startbutton" type="button" disabled>Start</button><button id="cancelbutton" type="button" disabled>Cancel</button></div>
+    <p id="anomaly" class="anomaly" hidden></p>
+  </section>
+  <div class="drawers">
+    <details id="diagnostics" class="drawer"><summary>Diagnostics</summary><div class="drawerbody">
+      <p id="diagcontext" class="small">Live controller evidence unavailable</p><p id="diagaction" class="small">No active routine</p><p id="diagfields" class="small">No current field readings</p>
+      <div class="detailgrid"><div><strong>Requested input</strong><span id="actionintent">UNKNOWN</span><pre id="intentraw"></pre></div><div><strong>Delivered to input stream</strong><span id="actiondelivery">UNKNOWN</span><pre id="deliveryraw"></pre></div><div><strong>Observed image effect</strong><span id="actioneffect">UNKNOWN</span><pre id="effectraw"></pre></div><div><strong>Last routine package</strong><span id="actionartifactpath">UNKNOWN</span><br><button id="actionartifactlink" type="button" hidden>View saved run in History</button></div></div>
+      <p id="actionack" class="small">No action requested</p><p id="startupack" class="small">No control change requested</p><p id="capabilities" class="small">Nearby discovery and radar interpretation are unavailable.</p>
+    </div></details>
+    <details id="history" class="drawer"><summary>History</summary><div class="drawerbody">
+      <p class="small">Recorded packages only. Selecting one never changes live authority or telemetry.</p><label>Run <select id="runs"><option value="">Latest automatically</option></select></label>
+      <p><span id="historicsynthetic" class="synthetic" hidden>SYNTHETIC DEMO</span> <span id="historicbadge" class="recorded">RECORDED</span> <strong id="historicstate">UNKNOWN</strong></p>
+      <div class="detailgrid"><div><strong>Recorded phase / wait</strong><span id="historicphase">UNKNOWN</span></div><div><strong>Recorded readings</strong><span id="historicmetrics">UNKNOWN</span></div><div><strong>Result and first blocker</strong><span id="historicresult">UNKNOWN</span></div><div><strong>Coverage / writer health</strong><span id="historiccoverage">UNKNOWN</span></div><div><strong>Request → delivery → image effect</strong><span id="historicevidence">UNKNOWN</span></div><div><strong>Run / code</strong><span id="historicidentity">UNKNOWN</span></div></div>
+      <p id="historicwarnings" class="warn"></p><button id="privacy" type="button" aria-pressed="false">Show retained images</button><div id="images" class="images" hidden><figure><img id="currentimg" alt="Latest retained recorded frame"><figcaption id="currentpath">UNKNOWN</figcaption></figure><figure><img id="failureimg" alt="First recorded recognition failure"><figcaption><span id="failurepath">UNKNOWN</span> · <a id="sidecar" target="_blank" rel="noopener" hidden>View sidecar</a><br><span id="failurereasons"></span></figcaption></figure></div>
+    </div></details>
+    <details id="settings" class="drawer"><summary>Settings</summary><div class="drawerbody">
+      <p><strong id="startupstate">Checking game</strong> · <span id="startupdetail">No connection action has been requested.</span></p><p id="startuppausereason" class="small"></p><p id="startupacknotice" class="small"></p>
+      <button id="startupretry" type="button" disabled>Retry game connection</button> <button id="startupfocus" type="button" aria-pressed="false" disabled>Return to game on Start/Cancel: OFF</button>
+      <p id="startupfocusreason" class="small">This setting never focuses the game on page load, Retry, or Enable.</p>
+      <p id="flightpointdescription" class="small">Configured flight point: UNKNOWN</p><div id="flightdiagram" class="schematic" role="img" aria-label="Schematic game view with configured candidate flight point; not a game capture"><span id="flightdiagrammark" class="point">⊕</span></div><p class="small">Schematic only. Inspect the actual game view before checking Flight point. This diagram cannot assert safety.</p>
+    </div></details>
   </div>
 </main>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  let imagesVisible = false, selected = '', actionSnapshot = null, actionInFlight = false, startupSnapshot = null, startupInFlight = false, connectionKey = null, assessmentContextKey = null, lastApproachRunning = false, lastSelectedScanRunning = false, lastAutoScanRunning = false;
-  let approachAssessment = null, selectedScanAssessment = null, autoScanAssessment = null;
-  const set = (id, value) => { $(id).textContent = value === null || value === undefined || value === '' ? 'UNKNOWN' : String(value); };
-  const pretty = value => value === null || value === undefined ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-  const latest = value => Array.isArray(value) && value.length ? value[value.length - 1] : 'UNKNOWN';
-  const compactIntent = value => value ? `${value.kind || 'command'} ${value.key || value.button || (value.wheel_steps == null ? '' : `wheel ${value.wheel_steps}`)} · request #${value.sequence ?? 'UNKNOWN'} · ${value.reason || 'reason UNKNOWN'}` : 'UNKNOWN';
-  const compactDelivery = value => value ? `${value.outcome || 'UNKNOWN'} · request #${value.request_sequence ?? 'UNKNOWN'} · inserted ${value.inserted_count ?? 'UNKNOWN'}/${value.requested_count ?? 'UNKNOWN'}` : 'UNKNOWN';
-  const compactEffect = value => value ? `${value.effect || 'UNKNOWN'} · latest image #${latest(value.observation_sequences)} · ${value.motion_observation_sequences?.length ?? 0} motion images · ${value.request_sequences?.length ?? 0} linked requests` : 'UNKNOWN';
-  const evidence = field => {
-    if (!field) return ['UNKNOWN', 'Field unavailable'];
-    const value = field.valid && field.fresh && field.observed_in_current_image ? field.value : null;
-    const meta = `${field.valid ? 'valid' : 'invalid'} · ${field.fresh ? 'fresh' : 'stale'} · ${field.reason || 'no rejection'}${field.confidence === null || field.confidence === undefined ? '' : ' · confidence ' + field.confidence}`;
-    return [value === null || value === undefined ? 'UNKNOWN' : value, meta];
-  };
-  function render(data) {
-    const status = data.status || {}, execution = status.execution || {}, observation = status.observation || {}, fields = observation.fields || {};
-    const result = status.result || (data.report || {}).result || {};
-    const frames = status.frames || {}, trace = status.trace || {}, report = data.report || {};
-    const synthetic = (data.manifest || {}).synthetic === true;
-    const passiveRun = String((data.manifest || {}).mode || '').includes('passive');
-    $('passivebanner').hidden = !passiveRun;
-    set('passivebanner', `PASSIVE OBSERVATION ${data.lifecycle === 'live' ? 'ACTIVE' : 'PACKAGE'} · App decisions disabled · App controls disabled`);
-    $('synthetic').hidden = !synthetic;
-    const firstCause = execution.first_blocker || result.first_blocker;
-    const substantiveCause = firstCause && firstCause !== 'cancel_requested';
-    const blocked = Boolean(execution.phase === 'blocked' || result.state === 'blocked' || report.error || status.error || (!passiveRun && substantiveCause));
-    const canceled = !blocked && (execution.phase === 'canceled' || result.state === 'canceled');
-    $('lifecycle').className = `pill ${blocked ? 'blocked' : data.lifecycle || ''}`;
-    set('lifecycle', data.lifecycle === 'finalized' ? `FINALIZED · ${blocked ? 'BLOCKED' : canceled ? 'CANCELED' : result.state || 'outcome UNKNOWN'}` : blocked ? 'BLOCKED' : canceled ? 'CANCELED' : data.lifecycle);
-    set('phase', data.lifecycle === 'live' ? execution.phase : execution.phase ? `Last recorded: ${execution.phase}` : null);
-    set('processing', execution.processing); set('waiting', execution.waiting_for); set('next', execution.expected_next_step);
-    set('progress', execution.last_progress && execution.last_progress.message);
-    set('run', data.run_path); set('age', data.status_age_seconds === null ? null : `${Number(data.status_age_seconds).toFixed(2)}s`);
-    set('worker', (status.worker || {}).running === true ? 'running' : (status.worker || {}).running === false ? 'stopped' : null);
-    set('runid', status.run_id || (data.manifest || {}).run_id); set('commit', (data.manifest || {}).code_revision);
-    set('assessments', pretty(((data.manifest || {}).configuration || {}).supervisor_assumptions));
-    const speed = evidence(fields.speed), distance = evidence(fields.distance), hullCur = evidence(fields.hull_current), hullMax = evidence(fields.hull_max), hpCur = evidence(fields.target_current_hp), hpMax = evidence(fields.target_max_hp);
-    const temporal = data.lifecycle === 'live' ? '' : `Historical ${data.lifecycle} package · `;
-    set('speed', speed[0] === 'UNKNOWN' ? 'UNKNOWN' : `${speed[0]} m/s`); set('speedmeta', temporal + speed[1]);
-    set('distance', distance[0] === 'UNKNOWN' ? 'UNKNOWN' : `${distance[0]} m`); set('distancemeta', temporal + distance[1]);
-    set('hull', hullCur[0] === 'UNKNOWN' || hullMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hullCur[0]} / ${hullMax[0]}`); set('hullmeta', temporal + hullCur[1]);
-    set('hp', hpCur[0] === 'UNKNOWN' || hpMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hpCur[0]} / ${hpMax[0]}`); set('hpmeta', temporal + hpCur[1]);
-    set('observation', observation.sequence === undefined ? null : `#${observation.sequence}, image age ${Number.isFinite(observation.age_seconds) ? observation.age_seconds.toFixed(2) : 'UNKNOWN'}s`);
-    set('health', observation.healthy === true ? 'healthy' : observation.healthy === false ? `REJECTED · ${observation.reason || 'reason unknown'}` : null);
-    set('target', evidence(fields.target_identity)[0]);
-    set('outcome', blocked ? `BLOCKED${result.state && result.state !== 'blocked' ? ` (probe result: ${result.state})` : ''}` : canceled ? 'CANCELED (explicit stop)' : result.state); set('blocker', blocked ? (firstCause || execution.reason || result.reason || result.first_rejection?.read_error) : canceled ? 'Explicit observation stop; no control failure reported' : 'No blocker reported');
-    set('firstcauselabel', passiveRun && substantiveCause && !blocked ? 'First recognition issue' : canceled ? 'Stop reason' : 'First blocker');
-    set('firstblocker', execution.first_blocker || result.first_blocker || result.first_rejection?.read_error); set('diagnostics', (data.report || {}).complete_diagnostics);
-    const skipped = frames.budget_skipped ?? 0;
-    set('coverage', `Retained ${frames.written ?? 'UNKNOWN'}/${frames.accepted ?? 'UNKNOWN'} accepted frames · ${skipped} routine budget-skipped${report.complete_diagnostics === false ? ' · diagnostic coverage incomplete' : ''}`);
-    set('writerhealth', `Frame queue dropped ${frames.dropped ?? 'UNKNOWN'}, unwritten ${frames.unwritten ?? 'UNKNOWN'}, error ${frames.error || 'none reported'} · Trace dropped ${trace.dropped ?? 'UNKNOWN'}, unwritten ${trace.unwritten ?? 'UNKNOWN'}, error ${trace.error || 'none reported'} · Status write errors ${status.status_write_errors ?? 'UNKNOWN'}`);
-    set('warnings', pretty([...(execution.warnings || []), result.warning, result.firing_state_after_probe].filter(Boolean)));
-    set('intent', compactIntent(execution.last_input_intent)); set('delivery', compactDelivery(execution.last_input_delivery)); set('effect', compactEffect(execution.last_confirmed_effect));
-    set('intentraw', pretty(execution.last_input_intent)); set('deliveryraw', pretty(execution.last_input_delivery)); set('effectraw', pretty(execution.last_confirmed_effect));
-    $('images').hidden = !imagesVisible; $('imagehint').hidden = imagesVisible;
-    if (imagesVisible) {
-      const url = path => `/api/image?run=${encodeURIComponent(data.run)}&path=${encodeURIComponent(path)}`;
-      if (data.latest_image) { $('currentimg').src = url(data.latest_image); set('currentpath', data.latest_image); }
-      else { $('currentimg').removeAttribute('src'); set('currentpath', 'No frame retained'); }
-      if (data.first_failure?.image) { $('failureimg').src = url(data.first_failure.image); set('failurepath', data.first_failure.image); }
-      else { $('failureimg').removeAttribute('src'); set('failurepath', 'No saved failure'); }
-      set('failurereasons', data.first_failure ? pretty({read_error:data.first_failure.read_error, fields:data.first_failure.field_reasons, recognition:data.first_failure.recognition_failures}) : null);
-      if (data.first_failure?.sidecar) { $('sidecar').href = `/api/sidecar?run=${encodeURIComponent(data.run)}&path=${encodeURIComponent(data.first_failure.sidecar)}`; $('sidecar').hidden = false; }
-      else { $('sidecar').removeAttribute('href'); $('sidecar').hidden = true; }
-    } else { $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); }
+  const set = (id,value) => { $(id).textContent = value === null || value === undefined || value === '' ? 'UNKNOWN' : String(value); };
+  const setOptional = (id,value) => { $(id).textContent = value == null ? '' : String(value); };
+  const pretty = value => value == null ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value,null,2) : String(value);
+  const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const label = name => ({scan_selected:'Scan once',auto_scan_selected:'Auto-scan',approach_current_target:'Approach'})[name] || name;
+  let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='approach_current_target';
+  let inFlight=false,imagesVisible=false,connectionKey=null,contextKey=null,lastNotice=null,statusFault=null,lastKnownActive=false,lastKnownEnabled=false,lastActionReceivedAt=null;
+  const assessments={scan_selected:null,auto_scan_selected:null,approach_current_target:null};
+  const checks={scan_selected:['scanselectedsafe'],auto_scan_selected:['autoscansafe'],approach_current_target:['clearcorridor','alignedheading','safestopped','flightpoint']};
+  const priorActive={scan_selected:false,auto_scan_selected:false,approach_current_target:false};
+  const short = value => { const phrase=String(value || '').replaceAll('_',' ').replace(/\s+/g,' ').trim(); return phrase.length>105 ? `${phrase.slice(0,102)}…` : phrase; };
+
+  function connectionMessage(state) {
+    const reason=String(state?.reason || '').toLowerCase();
+    if (state?.phase==='connected') return ['Game attached',null];
+    if (state?.phase==='connecting') return ['Checking game','Read-only connection check'];
+    if (state?.phase==='waiting_for_game' || reason.includes('no visible game')) return ['Waiting for game','Open or restore the game'];
+    if (reason.includes('multiple') || reason.includes('ambiguous')) return ['Multiple game windows','Keep one game window open'];
+    if (reason.includes('layout') || reason.includes('geometry') || reason.includes('size')) return ['Unsupported layout','Use 2560 × 1440 with enlarged HUD'];
+    if (state?.phase==='unattached') return ['Observer only','No game controller attached'];
+    if (state?.phase==='disconnected') return ['Game disconnected','Check game, then Retry'];
+    return ['Connection blocked',state?.reason || 'Check the game'];
   }
-  function unavailable(error) {
-    $('lifecycle').className = 'pill unavailable';
-    $('synthetic').hidden = true;
-    for (const id of ['lifecycle','phase','processing','waiting','next','progress','run','age','worker','runid','commit','assessments','speed','speedmeta','distance','distancemeta','hull','hullmeta','hp','hpmeta','observation','health','target','outcome','firstcauselabel','firstblocker','diagnostics','coverage','writerhealth','warnings','intent','delivery','effect','intentraw','deliveryraw','effectraw','currentpath','failurepath','failurereasons']) set(id, 'UNAVAILABLE');
-    set('blocker', `Observer fetch failed: ${error}`);
-    $('images').hidden = true; $('imagehint').hidden = false;
-    $('passivebanner').hidden = true;
-    $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); $('sidecar').removeAttribute('href');
+  const clientNow = () => performance.now();
+  function elapsedSinceAction() { return lastActionReceivedAt===null ? 0 : Math.max(0,(clientNow()-lastActionReceivedAt)/1000); }
+  function imageAge(current) { const age=number(current?.age_seconds); return age===null ? null : age+elapsedSinceAction(); }
+  function liveField(current,name) {
+    const field=current?.fields?.[name];
+    const age=imageAge(current);
+    if (!field || !current?.healthy || age===null || age<0 || age>=2 || field.valid!==true || field.fresh!==true || field.observed_at!==current.acquired_at) return null;
+    return field.value;
   }
-  function renderMode(mode) {
-    set('actualmode', String(mode.actual_mode || 'unknown').toUpperCase());
-    set('startupmode', String(mode.actual_mode || 'unknown').toUpperCase());
-    set('missionowner', `Mission decisions: ${mode.mission_decisions_owner || 'UNKNOWN'}`);
-    set('modeavailability', `App input: ${mode.app_control_enabled === true ? 'ENABLED' : mode.app_control_enabled === false ? 'DISABLED' : 'UNKNOWN'} · Mission planner: ${mode.decisions_enabled === true ? 'ENABLED' : mode.decisions_enabled === false ? 'DISABLED' : 'UNKNOWN'}`);
-    set('routinedecisions', `Routine decisions: ${mode.routine_decisions_enabled === true ? 'ENABLED' : mode.routine_decisions_enabled === false ? 'DISABLED' : 'UNKNOWN'}`);
-    const owner = mode.routine_ownership || {};
-    set('routinescope', `Routine input owner: ${owner.owner || 'none'} · ${owner.state || 'state UNKNOWN'} · ${owner.input_scope || 'scope UNKNOWN'}`);
-    set('moderequest', `Requested: ${mode.requested_mode || 'UNKNOWN'} · Pending: ${mode.pending === true ? 'YES' : mode.pending === false ? 'NO' : 'UNKNOWN'}`);
-    set('modeblocker', `Handover: ${mode.handover_blocker || mode.reason || 'none reported'}`);
-    set('modeack', `Acknowledgment: ${mode.last_ack ? `${mode.last_ack.accepted ? 'accepted' : 'rejected'}${mode.last_ack.reason ? ' · ' + mode.last_ack.reason : ''}` : 'none'}`);
-    $('manualmode').setAttribute('aria-pressed', String(mode.actual_mode === 'manual'));
-    $('automode').setAttribute('aria-pressed', String(mode.actual_mode === 'autopilot'));
-  }
-  async function refreshMode() {
-    try {
-      const response = await fetch('/api/control-mode', {cache:'no-store'});
-      if (!response.ok) throw new Error(`mode unavailable (${response.status})`);
-      renderMode(await response.json());
-    } catch (error) { renderMode({actual_mode:'unknown', reason:String(error)}); }
-    finally { setTimeout(refreshMode, 1000); }
-  }
-  async function requestMode(mode) {
-    try {
-      const response = await fetch('/api/control-mode', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode})});
-      const decision = await response.json();
-      if (decision.state) renderMode(decision.state);
-      else throw new Error(decision.error || `request failed (${response.status})`);
-    } catch (error) { set('modeblocker', `Handover request failed: ${error}`); }
-  }
-  function connectionMessage(snapshot) {
-    const reason = String(snapshot?.reason || '').toLowerCase();
-    if (snapshot?.phase === 'connected') return ['Game window attached', snapshot?.action_control?.enabled === true
-      ? 'Manual actions are enabled; each routine still requires fresh image readings and its own safety assessment.'
-      : 'Manual actions are paused until you explicitly enable them. A bound window alone does not prove fresh image readings or routine readiness.'];
-    if (snapshot?.phase === 'connecting') return ['Checking the game', 'Reading the game window and checking its layout. No game input is sent.'];
-    if (snapshot?.phase === 'waiting_for_game') return ['Waiting for the game', 'Open the game, then use Retry game connection if it is not found automatically.'];
-    if (reason.includes('no visible game') || reason.includes('game window not found')) return ['Waiting for the game', 'Open or restore the game window, then Retry game connection.'];
-    if (reason.includes('multiple') || reason.includes('ambiguous')) return ['More than one game window', 'Close or distinguish the extra game window, then retry. Nothing was selected automatically.'];
-    if (reason.includes('layout') || reason.includes('geometry') || reason.includes('size')) return ['Game layout needs attention', 'Set the game client to 2560 × 1440 with the enlarged HUD, then retry.'];
-    if (snapshot?.phase === 'unattached') return ['Observer only', 'Start the simple Manual-assist launcher to connect this page to the game. Historical reports remain available.'];
-    if (snapshot?.phase === 'disconnected') return ['Game disconnected', 'The observation session ended. Check the game and Retry game connection. Manual actions remain paused.'];
-    return ['Connection blocked', snapshot?.reason || 'The game connection needs attention; retry after checking the game.'];
-  }
-  function renderStartup(snapshot) {
-    startupSnapshot = snapshot;
-    const [title, detail] = connectionMessage(snapshot);
-    set('startupstate', title); set('startupdetail', detail);
-    const control = snapshot?.action_control || {};
-    set('startupactions', control.enabled === true ? 'ENABLED' : control.paused === true ? 'PAUSED' : 'UNAVAILABLE');
-    set('startuppausereason', control.pause_reason || (control.enabled === true ? 'Human owns the mission; routines run only when requested.' : snapshot?.reason || 'No attached controller'));
-    const game = snapshot?.game || {};
-    set('startupwindow', game.window_attached === true ? 'attached' : game.window_attached === false ? 'not attached' : snapshot?.phase === 'connected' ? 'attached; status details pending' : 'not confirmed');
-    const age = game.observation_age_seconds;
-    set('startupimage', game.observation_healthy === true && Number.isFinite(age) && age <= 2
-      ? `fresh captured image (${age.toFixed(1)}s); inspect HUD fields`
-      : game.observation_healthy === false ? `reading rejected: ${game.observation_reason || 'reason not reported'}`
-      : Number.isFinite(age) && age > 2 ? `stale (${age.toFixed(1)}s)` : 'no fresh reading confirmed');
-    set('startuproutines', 'checked separately in the action cards below');
-    set('startupacknotice', control.global_pause_present === true
-      ? 'An existing mining pause remains in place. Enable Manual actions acknowledges only this exact pause for this session; a new pause blocks actions again.'
-      : 'Enabling Manual actions does not start a scan, approach, focus change, or flight. Each routine still needs its own readiness and safety assessment.');
-    $('startupretry').disabled = startupInFlight || !snapshot || snapshot.phase === 'unattached' || snapshot.phase === 'connecting' || snapshot.retry_available === false;
-    $('startupenable').disabled = startupInFlight || snapshot?.phase !== 'connected' || control.enabled === true || !control.acknowledgment_token;
-    $('startuppause').disabled = startupInFlight || !snapshot || snapshot.phase === 'unattached';
-    const focus = snapshot?.focus_handover || {};
-    $('startupfocus').disabled = startupInFlight || snapshot?.phase !== 'connected' || focus.available !== true;
-    $('startupfocus').setAttribute('aria-pressed', String(focus.enabled === true));
-    set('startupfocus', `Return to game on Start/Cancel: ${focus.enabled === true ? 'ON' : 'OFF'}`);
-    set('startupfocusreason', focus.reason || (focus.available === true ? 'Optional, off by default.' : 'No focus handover controller attached.'));
-  }
-  async function refreshStartup() {
-    try {
-      const response = await fetch('/api/startup', {cache:'no-store'});
-      if (!response.ok) throw new Error(`startup unavailable (${response.status})`);
-      renderStartup(await response.json());
-    } catch (error) { renderStartup(null); set('startupack', `Connection status unavailable: ${error}`); }
-    finally { setTimeout(refreshStartup, 1000); }
-  }
-  async function requestStartup(action) {
-    if (!startupSnapshot || startupInFlight) return;
-    const token = startupSnapshot.action_control?.acknowledgment_token;
-    startupInFlight = true; renderStartup(startupSnapshot);
-    try {
-      const response = await fetch('/api/startup', {method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action,...(action === 'enable_manual_actions' ? {acknowledgment_token:token} : {}),
-          ...(action === 'set_focus_handover' ? {enabled:startupSnapshot.focus_handover?.enabled !== true} : {})})});
-      const decision = await response.json();
-      set('startupack', `${decision.accepted ? 'Accepted' : 'Rejected'} ${action.replaceAll('_',' ')}: ${decision.reason || 'controller response'}`);
-      if (decision.state) renderStartup(decision.state);
-    } catch (error) { set('startupack', `Startup request failed: ${error}`); }
-    finally { startupInFlight = false; renderStartup(startupSnapshot); }
-  }
-  function renderActions(snapshot) {
-    actionSnapshot = snapshot;
-    $('syntheticactions').hidden = snapshot?.synthetic_demo !== true;
-    const ownership = snapshot?.ownership || {}, routines = snapshot?.routines || {};
-    const current = snapshot?.current_observation || {}, context = snapshot?.assessment_context || {};
-    const approachRunning = routines.approach_current_target?.active === true || ownership.owner === 'approach_current_target';
-    const selectedScanRunning = routines.scan_selected?.active === true || ownership.owner === 'scan_selected';
-    const autoScanRunning = routines.auto_scan_selected?.active === true || ownership.owner === 'auto_scan_selected';
-    const currentValue = (name, fallback) => {
-      const field = current.fields?.[name];
-      return field && (field.valid !== true || field.fresh !== true) ? null : fallback;
-    };
-    const newKey = context.context_key || null;
-    const newConnectionKey = startupSnapshot?.instance_id ? `${startupSnapshot.instance_id}:${startupSnapshot.game?.connection_id || startupSnapshot.game?.session_id || startupSnapshot.game?.identity || ''}` : null;
-    const connectionChanged = connectionKey !== newConnectionKey;
-    if (connectionChanged) connectionKey = newConnectionKey;
-    if (assessmentContextKey !== newKey || connectionChanged || (lastApproachRunning && !approachRunning) || (lastSelectedScanRunning && !selectedScanRunning) || (lastAutoScanRunning && !autoScanRunning)) {
-      if (assessmentContextKey !== newKey || connectionChanged) {
-        assessmentContextKey = newKey;
-        approachAssessment = selectedScanAssessment = autoScanAssessment = null;
-        for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint','scanselectedsafe','autoscansafe']) $(id).checked = false;
-      }
-      if (lastApproachRunning && !approachRunning) {
-        approachAssessment = null;
-        for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) $(id).checked = false;
-      }
-      if (lastSelectedScanRunning && !selectedScanRunning) {
-        selectedScanAssessment = null;
-        $('scanselectedsafe').checked = false;
-      }
-      if (lastAutoScanRunning && !autoScanRunning) {
-        autoScanAssessment = null;
-        $('autoscansafe').checked = false;
+  function semanticReason(name,value,fields) {
+    if (['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp'].includes(name)) {
+      if (typeof value!=='number' || !Number.isFinite(value) || value<0) return 'invalid numeric value';
+      if (['hull_max','target_max_hp'].includes(name) && value===0) return 'nonpositive maximum';
+      if (name==='hull_current' || name==='target_current_hp') {
+        const maximum=fields[name==='hull_current'?'hull_max':'target_max_hp'];
+        if (maximum?.valid===true && typeof maximum.value==='number' && Number.isFinite(maximum.value) && value>maximum.value) return 'current exceeds maximum';
       }
     }
-    const expired = bound => bound && (!Number.isFinite(snapshot?.server_monotonic)
-      || snapshot.server_monotonic >= bound.expires_at || bound.context_key !== newKey);
-    if (expired(approachAssessment)) {
-      approachAssessment = null;
-      for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) $(id).checked = false;
+    return null;
+  }
+  function clearAssessment(name) { assessments[name]=null; for (const id of checks[name]) $(id).checked=false; }
+  function renderLive() {
+    const game=startup?.game || {}, control=startup?.action_control || {}, ownership=actions?.ownership || {}, routines=actions?.routines || {};
+    if (actions) lastKnownActive=Boolean(ownership.owner || routines.auto_scan_selected?.active===true);
+    if (startup?.action_control) lastKnownEnabled=startup.action_control.enabled===true;
+    const current=startup?.phase==='connected' ? actions?.current_observation : null;
+    const [connection,cause]=connectionMessage(startup);
+    set('connectionlabel',connection); set('connectioncause',cause); $('connectioncause').hidden=!cause;
+    set('startupstate',connection);
+    set('startupdetail',startup?.phase==='connected' ? (game.observation_healthy===true ? 'Window attached; fresh image reading available' : `Window attached; image ${short(game.observation_reason || 'not yet verified')}`) : cause || 'Waiting for a game window');
+    set('startuppausereason',control.enabled===true ? 'Manual actions enabled for this session' : `Manual actions paused · ${short(control.pause_reason || 'not enabled')}`);
+    setOptional('startupacknotice',lastNotice);
+    $('startupretry').disabled=inFlight || startup?.retry_available!==true;
+    const focus=startup?.focus_handover || {};
+    $('startupfocus').disabled=inFlight || focus.available!==true;
+    $('startupfocus').setAttribute('aria-pressed',String(focus.enabled===true));
+    set('startupfocus',`Return to game on Start/Cancel: ${focus.enabled===true?'ON':'OFF'}`);
+    set('startupfocusreason',focus.reason || 'This setting never focuses the game on page load, Retry, or Enable.');
+    $('connectiondot').className=`dot ${startup?.phase==='connected' ? 'live' : startup?.phase==='connecting' || startup?.phase==='waiting_for_game' ? 'warn' : 'bad'}`;
+    const age=imageAge(current);
+    set('imageage',age===null ? 'Image UNKNOWN' : `Image ${age.toFixed(1)}s${age>=2 ? ' · STALE' : ''}`);
+    const fields=current?.fields || {};
+    const issues=Object.entries(fields).filter(([name,field]) => field?.valid!==true || field?.fresh!==true || field?.observed_at!==current.acquired_at || semanticReason(name,field?.value,fields));
+    set('issuebutton',!current ? 'Field issues UNKNOWN ›' : current.healthy===false ? 'Image rejected ›' : age===null || age>=2 ? 'Image stale ›' : `${issues.length} field issue${issues.length===1?'':'s'} ›`);
+    $('issuebutton').className=issues.length || current?.healthy===false || (age!==null && age>=2) ? 'warn' : '';
+    $('retrybutton').hidden=!(startup?.retry_available && startup?.phase!=='connected');
+    $('retrybutton').disabled=inFlight;
+    $('syntheticchip').hidden=!(startup?.synthetic===true || actions?.synthetic_demo===true);
+    const actual=mode?.actual_mode || 'unknown';
+    set('actualmode',actual==='manual' ? 'Manual' : actual.toUpperCase());
+    $('modepending').hidden=mode?.pending!==true;
+    set('modepending',mode?.pending ? `Requested ${mode.requested_mode || 'UNKNOWN'} · pending` : null);
+    const owner=ownership.owner;
+    set('inputowner',owner ? `${label(owner)} · ${ownership.state || 'active'}` : startup?.phase==='connected' && actions?.ownership && ownership.owner===null ? 'Human' : 'UNKNOWN');
+    const power=control.enabled===true, uncertainPause=!actions && (lastKnownActive || lastKnownEnabled);
+    const pauseChoice=power || uncertainPause || Boolean(lastKnownActive && control.enabled!==true);
+    set('powerbutton',pauseChoice ? uncertainPause ? 'Pause actions · status unknown' : 'Pause actions' : 'Enable actions');
+    $('powerbutton').disabled=inFlight || (!pauseChoice && (startup?.phase!=='connected' || !control.acknowledgment_token));
+    $('powerbutton').title=pauseChoice ? 'Request Manual action pause; current routine state may be unavailable' : control.pause_reason || 'Acknowledge the current pause for this session';
+
+    const identity=liveField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
+    const distance=rawDistance!==null && rawDistance>=0 ? rawDistance : null;
+    const rawSpeed=number(liveField(current,'speed'));
+    const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
+    set('targetname',typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true ? 'Asteroid' : 'UNKNOWN');
+    set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
+    set('speed',speed===null ? 'UNKNOWN' : `${speed.toFixed(1).replace(/\.0$/,'')} m/s`);
+    const marker=$('targetmarker');
+    marker.hidden=distance===null;
+    if (distance!==null) { marker.style.left=`${Math.min(100,distance/3000*100)}%`; marker.textContent=distance>3000?'›':'◆'; }
+    $('offscale').hidden=distance===null || distance<=3000;
+    $('rangetape').setAttribute('aria-label',distance===null ? 'Range UNKNOWN on scalar zero to 3000 meter scale; working boundary 800 meters' : `Target ${distance} meters on scalar zero to 3000 meter scale; working boundary 800 meters${distance>3000?', target beyond scale':''}`);
+    $('workband').style.width=`${800/3000*100}%`;
+    function bar(prefix,currentName,maxName) {
+      const value=number(liveField(current,currentName)), maximum=number(liveField(current,maxName));
+      const valid=maximum!==null && maximum>0 && value!==null && value>=0 && value<=maximum;
+      $(`${prefix}bar`).className=`bar${valid?'':' unknown'}`;
+      $(`${prefix}fill`).style.width=valid ? `${value/maximum*100}%` : '0%';
+      set(`${prefix}value`,maximum===null || maximum<=0 ? 'UNKNOWN' : `${value===null?'—':Math.round(value).toLocaleString()} / ${Math.round(maximum).toLocaleString()}`);
+      if (maximum!==null && value!==null && !valid) set(`${prefix}value`,'UNKNOWN');
     }
-    if (expired(selectedScanAssessment)) {
-      selectedScanAssessment = null;
-      $('scanselectedsafe').checked = false;
+    bar('hull','hull_current','hull_max'); bar('hp','target_current_hp','target_max_hp');
+    const delivery=actions?.last_input_delivery, effect=actions?.last_confirmed_effect;
+    const anomaly=lastNotice || statusFault || (delivery?.outcome==='injected' && !effect ? 'Input delivered; image effect unverified' : null);
+    set('anomaly',anomaly); $('anomaly').hidden=!anomaly;
+    set('diagcontext',`Live controller: ${actions?.attached_controller || 'none'} · session ${startup?.instance_id || 'UNKNOWN'} · input ${ownership.input_scope || 'human'} · observation #${current?.sequence ?? 'UNKNOWN'} · mode acknowledgment ${pretty(mode?.last_ack)}`);
+    set('diagfields',Object.entries(fields).map(([name,field])=>{
+      const value=field?.valid && field?.fresh && field?.observed_at===current?.acquired_at ? field.value : null;
+      const shown=Array.isArray(value) ? `array of ${value.length} values` : typeof value==='object' && value!==null ? 'structured value present' : pretty(value);
+      return `${name}: ${shown} · valid ${field?.valid ?? 'UNKNOWN'} · fresh ${field?.fresh ?? 'UNKNOWN'} · reason ${field?.reason || semanticReason(name,field?.value,fields) || 'none'} · observed ${field?.observed_at ?? 'UNKNOWN'} · confidence ${field?.confidence ?? 'UNKNOWN'}`;
+    }).join('\n') || 'No current field readings');
+    set('actionintent',compactIntent(actions?.last_input_intent)); set('actiondelivery',compactDelivery(delivery)); set('actioneffect',compactEffect(effect));
+    set('intentraw',pretty(actions?.last_input_intent)); set('deliveryraw',pretty(delivery)); set('effectraw',pretty(effect));
+    const artifact=actions?.action_artifacts || {};
+    set('actionartifactpath',artifact.run || 'No saved routine package');
+    $('actionartifactlink').hidden=!artifact.run;
+    $('actionartifactlink').dataset.run=artifact.run || '';
+    set('capabilities','Nearby discovery: unavailable without a verified scene-rock provider. Radar interpretation: unavailable. Auto-scan covers only the human-selected target and never steers or brakes.');
+    renderPreview();
+    renderAction(current,control,ownership,routines);
+  }
+  function renderPreview() {
+    const point=actions?.assessment_context?.wheel_point, size=startup?.game?.client_size;
+    const pointKnown=Array.isArray(point) && point.length===2 && point.every(value=>typeof value==='number' && Number.isFinite(value) && value>=0);
+    const sizeKnown=Array.isArray(size) && size.length===2 && size.every(value=>typeof value==='number' && Number.isFinite(value) && value>0);
+    const drawable=pointKnown && sizeKnown && point[0]<size[0] && point[1]<size[1];
+    $('flightdiagram').hidden=!drawable;
+    if (drawable) {
+      $('flightdiagrammark').style.left=`${point[0]/size[0]*100}%`;
+      $('flightdiagrammark').style.top=`${point[1]/size[1]*100}%`;
     }
-    if (expired(autoScanAssessment)) {
-      autoScanAssessment = null;
-      $('autoscansafe').checked = false;
+    set('flightpointdescription',pointKnown
+      ? `${actions.assessment_context.flight_point_description || 'Configured candidate flight point'} · ${point[0]}, ${point[1]}${drawable?' · schematic only':' · preview unavailable without frame geometry'}`
+      : actions?.assessment_context?.token ? 'No configured flight point for this target context' : 'No fresh target context; flight-point preview unavailable');
+    return pointKnown;
+  }
+  function compactIntent(value) { return value ? `${value.kind || 'command'} ${value.key || value.button || (value.wheel_steps==null?'':`wheel ${value.wheel_steps}`)} · request #${value.sequence ?? 'UNKNOWN'}` : 'UNKNOWN'; }
+  function compactDelivery(value) { return value ? `${value.outcome || 'UNKNOWN'} · request #${value.request_sequence ?? 'UNKNOWN'} · inserted ${value.inserted_count ?? 'UNKNOWN'}/${value.requested_count ?? 'UNKNOWN'}` : 'UNKNOWN'; }
+  function compactEffect(value) { return value ? `${value.effect || 'UNKNOWN'} · latest image #${Array.isArray(value.observation_sequences)&&value.observation_sequences.length?value.observation_sequences.at(-1):'UNKNOWN'}` : 'UNKNOWN'; }
+  function renderAction(current,control,ownership,routines) {
+    const context=actions?.assessment_context || {}, nextKey=context.context_key || null;
+    const nextConnection=startup?.instance_id ? `${startup.instance_id}:${startup.game?.connection_id || ''}` : null;
+    if (nextConnection!==connectionKey || nextKey!==contextKey) {
+      connectionKey=nextConnection; contextKey=nextKey;
+      for (const name of Object.keys(assessments)) clearAssessment(name);
     }
-    lastApproachRunning = approachRunning;
-    lastSelectedScanRunning = selectedScanRunning;
-    lastAutoScanRunning = autoScanRunning;
-    set('currenttarget', currentValue('target_identity', current.target_identity));
-    const range = currentValue('distance', current.distance), speed = currentValue('speed', current.speed);
-    set('currentrange', range == null ? null : `${range} m`);
-    set('currentspeed', speed == null ? null : `${speed} m/s`);
-    set('currentage', Number.isFinite(current.age_seconds) ? `${current.age_seconds.toFixed(2)}s` : null);
-    const fieldErrors = Object.entries(current.fields || {}).filter(([, field]) => field?.valid === false)
-      .slice(0, 4).map(([name, field]) => `${name}: ${field.reason || 'invalid'}`);
-    set('currenthealth', current.healthy === true ? `healthy image${fieldErrors.length ? ' · ' + fieldErrors.join('; ') : ''}` : current.healthy === false ? current.reason || 'rejected image' : null);
-    const assessment = approachAssessment || context;
-    const remaining = Number.isFinite(assessment.expires_at) && Number.isFinite(snapshot?.server_monotonic)
-      ? Math.max(0, assessment.expires_at - snapshot.server_monotonic).toFixed(1) : null;
-    set('assessmentcontext', context.token ? `${context.target_identity || 'target UNKNOWN'} · ${approachAssessment ? 'assessed image' : 'current image'} #${assessment.observation_sequence ?? 'UNKNOWN'} · expires in ${remaining ?? 'UNKNOWN'}s` : 'No fresh assessment token');
-    set('flightpointvalue', context.wheel_point ? `${context.flight_point_description || 'configured flight area'} · inspect this spot in the game before checking` : 'not configured');
-    const owner = ownership.owner;
-    const ownerActive = owner && owner !== 'none' && owner !== 'idle';
-    set('actionowner', owner || 'none'); set('actionownerstate', ownership.state);
-    set('actionscope', ownership.input_scope); set('actionrun', ownership.run_id); set('actionpaused', snapshot?.paused === true ? 'YES' : snapshot?.paused === false ? 'NO' : null);
-    const focus = snapshot?.focus_handover;
-    set('focushandover', `${snapshot?.focus_handover_enabled === true ? 'enabled' : snapshot?.focus_handover_enabled === false ? 'disabled' : 'UNKNOWN'} · ${focus ? `${focus.accepted === true ? 'accepted' : 'not accepted'} · ${focus.reason || 'reason UNKNOWN'}${focus.cause ? ' · ' + focus.cause : ''}` : 'no handover attempted'}`);
-    const manualReady = snapshot?.actual_mode === 'manual' && snapshot?.mode_pending !== true && snapshot?.paused === false;
-    for (const [name, prefix, buttonId] of [
-      ['scan_nearby_unscanned','scan','scanbutton'],
-      ['auto_scan_selected','autoscan','autoscanbutton'],
-      ['scan_selected','selectedscan','selectedscanbutton'],
-      ['approach_current_target','approach','approachbutton']]) {
-      const routine = routines[name] || {}, owned = owner === name || routine.active === true;
-      set(`${prefix}state`, routine.state || (routine.active ? 'active' : null));
-      set(`${prefix}readiness`, `${routine.available === true ? 'available' : 'unavailable'} · ${routine.ready === true ? 'ready' : 'not ready'} · ${routine.reason || (routine.ready === true ? 'no blocker' : 'reason UNKNOWN')}`);
-      set(`${prefix}phase`, routine.phase); set(`${prefix}processing`, routine.processing);
-      set(`${prefix}waiting`, routine.waiting_for); set(`${prefix}next`, routine.expected_next_step);
-      set(`${prefix}result`, routine.result && typeof routine.result === 'object' ? `${routine.result.state || 'result'} · ${routine.result.reason || 'reason UNKNOWN'}` : routine.result);
-      set(`${prefix}error`, routine.error || 'none reported');
-      const button = $(buttonId);
-      button.textContent = owned ? name === 'approach_current_target' ? 'Cancel approach' : 'Stop scanning' : name === 'approach_current_target' ? 'Start approach' : name === 'scan_selected' ? 'Scan selected' : name === 'auto_scan_selected' ? 'Start auto-scan' : 'Start scanning';
-      const checks = name === 'approach_current_target' ? (Boolean(approachAssessment && context.wheel_point) && ['clearcorridor','alignedheading','safestopped','flightpoint'].every(id => $(id).checked)) : name === 'scan_selected' ? Boolean(selectedScanAssessment && $('scanselectedsafe').checked) : name === 'auto_scan_selected' ? Boolean(autoScanAssessment && $('autoscansafe').checked) : true;
-      const stopping = ownership.state === 'stopping';
-      const anyActiveRoutine = Object.values(routines).some(value => value?.active === true);
-      button.disabled = actionInFlight || (owned ? stopping : !(manualReady && !ownerActive && !anyActiveRoutine && routine.available === true && routine.ready === true && checks));
-      button.title = button.disabled ? (routine.reason || (snapshot?.paused ? 'native session paused' : !checks ? name === 'scan_selected' || name === 'auto_scan_selected' ? 'fresh selected-target token and stopped-scene assessment required' : 'fresh target token and four route/flight-point assessments required' : ownerActive || anyActiveRoutine ? 'another routine is active' : 'action unavailable')) : '';
+    const serverTime=number(actions?.server_monotonic), now=serverTime===null ? null : serverTime+elapsedSinceAction();
+    for (const name of Object.keys(assessments)) {
+      const bound=assessments[name];
+      if (bound && (now===null || now>=bound.expires_at || bound.context_key!==nextKey)) clearAssessment(name);
+      const active=routines[name]?.active===true || ownership.owner===name;
+      if (priorActive[name] && !active) clearAssessment(name);
+      priorActive[name]=active;
     }
-    set('actionintent', compactIntent(snapshot?.last_input_intent));
-    set('actiondelivery', compactDelivery(snapshot?.last_input_delivery));
-    set('actioneffect', compactEffect(snapshot?.last_confirmed_effect));
-    const artifact = snapshot?.action_artifacts || {};
-    set('actionartifactpath', artifact.directory || 'no saved routine package');
-    $('actionartifactlink').hidden = !artifact.run || !Array.from($('runs').options || []).some(option => option.value === artifact.run);
-    $('actionartifactlink').dataset.run = artifact.run || '';
-    const toggle = snapshot?.selected_scan_toggle;
-    set('autoscantoggle', toggle ? `${toggle.enabled ? 'ON' : 'OFF'} · ${toggle.scope || 'scope UNKNOWN'} · ${toggle.waiting_for || toggle.continuity_blocker || 'no blocker'} · last ${toggle.last_result ? pretty(toggle.last_result) : 'none'}` : null);
+    const owner=ownership.owner && ownership.owner!=='none' && ownership.owner!=='idle' ? ownership.owner : null;
+    const activeToggle=routines.auto_scan_selected?.active===true ? 'auto_scan_selected' : null;
+    const name=owner || activeToggle || selectedAction;
+    if (owner || activeToggle) selectedAction=name;
+    for (const [id,routine] of [['scanonce','scan_selected'],['autoscan','auto_scan_selected'],['approach','approach_current_target']]) {
+      $(id).setAttribute('aria-selected',String(name===routine));
+      $(id).disabled=(!actions && lastKnownActive) || Boolean(owner || activeToggle) && name!==routine;
+    }
+    set('autoscan',`Auto-scan ${routines.auto_scan_selected?.active===true?'ON':'OFF'}`);
+    const routine=routines[name] || {}, owned=owner===name || routine.active===true;
+    const phase=!actions ? 'Status unavailable' : owned ? (routine.phase || routine.state || 'Active') : startup?.phase!=='connected' ? 'Waiting for game' : control.enabled!==true ? 'Paused' : routine.ready===true ? 'Awaiting checks' : 'Not ready';
+    set('phasetext',short(phase));
+    $('phasedot').className=`dot ${routine.error || routine.state==='faulted' ? 'bad' : owned ? 'live' : 'warn'}`;
+    const instruction=!actions ? lastKnownActive ? 'Routine state unknown. Use Pause actions to request cancellation; verify cleanup when status returns.' : 'Wait for current routine status.' : owned ? (routine.waiting_for || routine.expected_next_step || routine.error) : startup?.phase!=='connected' || control.enabled!==true ? '' : routine.reason || (routine.ready===true ? 'Confirm the assessment below' : 'Waiting for current target and image');
+    const concise=short(instruction || '');
+    setOptional('instruction',concise && concise.toLowerCase()!==short(phase).toLowerCase() ? concise : '');
+    set('diagaction',`Selected ${label(name)} · phase ${routine.phase || 'none'} · processing ${routine.processing || 'none'} · waiting ${routine.waiting_for || 'none'} · next ${routine.expected_next_step || 'none'} · reason ${routine.reason || 'none'} · result ${pretty(routine.result)} · error ${routine.error || 'none'}`);
+    $('assessmenttray').hidden=owned;
+    $('scanchecks').hidden=name!=='scan_selected'; $('autochecks').hidden=name!=='auto_scan_selected'; $('approachchecks').hidden=name!=='approach_current_target';
+    $('previewbutton').hidden=name!=='approach_current_target';
+    const pointKnown=Array.isArray(context.wheel_point) && context.wheel_point.length===2 && context.wheel_point.every(value=>typeof value==='number' && Number.isFinite(value) && value>=0);
+    $('flightpoint').disabled=!context.token || !pointKnown;
+    const bound=assessments[name], expiry=bound || context;
+    const remaining=number(expiry?.expires_at)!==null && now!==null ? Math.max(0,expiry.expires_at-now) : null;
+    set('expiry',bound ? `Assessed image #${bound.observation_sequence ?? 'UNKNOWN'} · ${remaining===null?'expiry UNKNOWN':`expires ${remaining.toFixed(0)}s`}` : context.token ? `Fresh context · ${remaining===null?'expiry UNKNOWN':`expires ${remaining.toFixed(0)}s`}` : 'No fresh target context');
+    const noOther=Object.entries(routines).every(([other,row])=>other===name || row?.active!==true);
+    const checksPass=checks[name].every(id=>$(id).checked) && Boolean(bound && bound.context_key===nextKey && now!==null && now<bound.expires_at);
+    const ready=actions?.actual_mode==='manual' && actions?.mode_pending!==true && startup?.phase==='connected' && control.enabled===true && actions?.paused===false && routine.available===true && routine.ready===true && !owner && noOther && checksPass && (name!=='approach_current_target' || pointKnown) && !inFlight;
+    $('startbutton').disabled=!ready || owned;
+    set('startbutton',name==='auto_scan_selected'?'Enable auto-scan':name==='scan_selected'?'Scan once':'Start approach');
+    $('cancelbutton').disabled=!owned || ownership.state==='stopping' || inFlight;
+    set('cancelbutton',name==='auto_scan_selected'?'Stop auto-scan':name==='scan_selected'?'Cancel scan':'Cancel approach');
+    $('cancelbutton').title=owned ? `Stop ${label(name)}; available even while new starts are blocked` : actions ? 'No active routine' : 'Current routine ownership unverified; use Pause actions if status is unavailable';
   }
   function captureAssessment(name) {
-    const approach = name === 'approach_current_target';
-    const auto = name === 'auto_scan_selected';
-    const ids = approach ? ['clearcorridor','alignedheading','safestopped','flightpoint'] : [auto ? 'autoscansafe' : 'scanselectedsafe'];
-    if (!ids.some(id => $(id).checked)) {
-      if (approach) approachAssessment = null; else if (auto) autoScanAssessment = null; else selectedScanAssessment = null;
-    } else if (!(approach ? approachAssessment : auto ? autoScanAssessment : selectedScanAssessment)) {
-      const context = actionSnapshot?.assessment_context;
-      const now = actionSnapshot?.server_monotonic;
-      if (context?.token && context.context_key && Number.isFinite(context.expires_at)
-          && Number.isFinite(now) && now < context.expires_at) {
-        const bound = {token:context.token, context_key:context.context_key,
-          expires_at:context.expires_at, observation_sequence:context.observation_sequence};
-        if (approach) approachAssessment = bound; else if (auto) autoScanAssessment = bound; else selectedScanAssessment = bound;
-      } else {
-        for (const id of ids) $(id).checked = false;
-      }
+    const ids=checks[name];
+    if (!ids.some(id=>$(id).checked)) assessments[name]=null;
+    else if (!assessments[name]) {
+      const context=actions?.assessment_context, now=number(actions?.server_monotonic);
+      if (context?.token && context.context_key && number(context.expires_at)!==null && now!==null && now<context.expires_at) assessments[name]={token:context.token,context_key:context.context_key,expires_at:context.expires_at,observation_sequence:context.observation_sequence};
+      else for (const id of ids) $(id).checked=false;
     }
-    renderActions(actionSnapshot);
+    renderLive();
   }
-  function actionRequest(name, action) {
-    if (action !== 'start') return {};
-    if (name === 'scan_selected') return {assessment_token:selectedScanAssessment?.token,
-      supervisor_assessment:{safe_stopped_scene:$('scanselectedsafe').checked}};
-    if (name === 'auto_scan_selected') return {assessment_token:autoScanAssessment?.token,
-      supervisor_assessment:{safe_stopped_scene:$('autoscansafe').checked}};
-    if (name === 'approach_current_target') return {assessment_token:approachAssessment?.token,
-      supervisor_assessment:{clear_corridor:$('clearcorridor').checked,
-        aligned_heading:$('alignedheading').checked,
-        safe_stopped_scene:$('safestopped').checked,
-        flight_point:$('flightpoint').checked}};
-    return {};
+  function actionRequest(name,action) {
+    if (action!=='start') return {};
+    const token=assessments[name]?.token;
+    if (name==='approach_current_target') return {assessment_token:token,supervisor_assessment:{clear_corridor:$('clearcorridor').checked,aligned_heading:$('alignedheading').checked,safe_stopped_scene:$('safestopped').checked,flight_point:$('flightpoint').checked}};
+    return {assessment_token:token,supervisor_assessment:{safe_stopped_scene:$(name==='auto_scan_selected'?'autoscansafe':'scanselectedsafe').checked}};
   }
-  async function refreshActions() {
+  async function requestAction(action) {
+    if (inFlight || !actions) return;
+    const ownership=actions.ownership || {}, routines=actions.routines || {};
+    const name=ownership.owner || (routines.auto_scan_selected?.active===true?'auto_scan_selected':selectedAction);
+    const request=actionRequest(name,action);
+    inFlight=true; renderLive();
     try {
-      const response = await fetch('/api/manual-actions', {cache:'no-store'});
-      if (!response.ok) throw new Error(`actions unavailable (${response.status})`);
-      renderActions(await response.json());
-    } catch (error) { renderActions(null); set('actionack', `Observer action status unavailable: ${error}`); }
-    finally { setTimeout(refreshActions, 1000); }
+      const response=await fetch('/api/manual-actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,routine:name,request})});
+      const decision=await response.json();
+      set('actionack',`${decision.accepted?'Accepted':'Rejected'} ${action} ${label(name)}: ${decision.reason || 'controller response'}`);
+      lastNotice=decision.accepted ? null : `Action rejected: ${short(decision.reason || 'controller response')}`;
+      if (decision.state) actions=decision.state;
+    } catch(error) { lastNotice=`Action request failed: ${short(error)}`; set('actionack',`Action request failed: ${error}`); }
+    finally { inFlight=false; renderLive(); }
   }
-  async function requestAction(name) {
-    if (!actionSnapshot || actionInFlight) return;
-    const action = actionSnapshot.ownership?.owner === name || actionSnapshot.routines?.[name]?.active === true ? 'stop' : 'start';
-    const request = actionRequest(name, action);
-    actionInFlight = true; renderActions(actionSnapshot);
+  async function requestStartup(action,extra={}) {
+    if (inFlight || (!startup && action!=='pause_manual_actions')) return;
+    const token=startup?.action_control?.acknowledgment_token;
+    inFlight=true; renderLive();
     try {
-      const response = await fetch('/api/manual-actions', {method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action,routine:name,request})});
-      const decision = await response.json();
-      set('actionack', `${decision.accepted ? 'Accepted' : 'Rejected'} ${action} ${name}: ${decision.reason || 'controller response'}`);
-      if (decision.state) renderActions(decision.state);
-    } catch (error) { set('actionack', `Action request failed: ${error}`); }
-    finally { actionInFlight = false; renderActions(actionSnapshot); }
+      const response=await fetch('/api/startup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...extra,...(action==='enable_manual_actions'?{acknowledgment_token:token}:{})})});
+      const decision=await response.json();
+      set('startupack',`${decision.accepted?'Accepted':'Rejected'} ${action.replaceAll('_',' ')}: ${decision.reason || 'controller response'}`);
+      lastNotice=decision.accepted ? null : `Control request rejected: ${short(decision.reason || 'controller response')}`;
+      if (decision.state) startup=decision.state;
+    } catch(error) { lastNotice=`Control request failed: ${short(error)}`; set('startupack',`Control request failed: ${error}`); }
+    finally { inFlight=false; renderLive(); }
   }
-  async function refresh() {
+  function selectAction(name) { if (!actions?.ownership?.owner && actions?.routines?.auto_scan_selected?.active!==true) selectedAction=name; renderLive(); }
+  function showPreview() {
+    $('settings').open=true; $('settings').scrollIntoView({block:'nearest'});
+  }
+  function renderHistory(data) {
+    history=data;
+    const status=data.status || {}, execution=status.execution || {}, report=data.report || {}, result=status.result || report.result || {}, observation=status.observation || {};
+    const synthetic=data.manifest?.synthetic===true;
+    $('historicsynthetic').hidden=!synthetic;
+    set('historicstate',`${data.lifecycle || 'UNKNOWN'} · ${result.state || execution.phase || 'outcome UNKNOWN'}`);
+    set('historicphase',`${execution.phase || 'UNKNOWN'} · waiting ${execution.waiting_for || 'none reported'} · next ${execution.expected_next_step || 'none reported'}`);
+    const value=name=>{ const field=observation.fields?.[name]; return field?.valid && field?.fresh && field?.observed_in_current_image ? field.value : 'UNKNOWN'; };
+    set('historicmetrics',`Range ${value('distance')} m · speed ${value('speed')} m/s · hull ${value('hull_current')} / ${value('hull_max')} · target HP ${value('target_current_hp')} / ${value('target_max_hp')} · image #${observation.sequence ?? 'UNKNOWN'}`);
+    set('historicresult',`${result.reason || execution.reason || 'reason UNKNOWN'} · first ${execution.first_blocker || result.first_blocker || result.first_rejection?.read_error || 'none reported'}`);
+    const frames=status.frames || {}, trace=status.trace || {};
+    set('historiccoverage',`Frames ${frames.written ?? 'UNKNOWN'}/${frames.accepted ?? 'UNKNOWN'}, budget-skipped ${frames.budget_skipped ?? 'UNKNOWN'}, dropped ${frames.dropped ?? 'UNKNOWN'}, unwritten ${frames.unwritten ?? 'UNKNOWN'}, error ${frames.error ?? 'none'} · trace dropped ${trace.dropped ?? 'UNKNOWN'}, unwritten ${trace.unwritten ?? 'UNKNOWN'}, error ${trace.error ?? 'none'} · status write errors ${status.status_write_errors ?? 'UNKNOWN'} · diagnostics ${report.complete_diagnostics ?? 'UNKNOWN'}`);
+    set('historicevidence',`${compactIntent(execution.last_input_intent)} → ${compactDelivery(execution.last_input_delivery)} → ${compactEffect(execution.last_confirmed_effect)}`);
+    set('historicidentity',`${data.run || 'UNKNOWN'} · ${data.manifest?.code_revision || 'commit UNKNOWN'}`);
+    set('historicwarnings',pretty([...(execution.warnings || []),result.warning,result.firing_state_after_probe].filter(Boolean)));
+    renderImages();
+  }
+  function renderImages() {
+    $('images').hidden=!imagesVisible;
+    if (!imagesVisible || !history) { $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); return; }
+    const url=path=>`/api/image?run=${encodeURIComponent(history.run)}&path=${encodeURIComponent(path)}`;
+    if (history.latest_image) { $('currentimg').src=url(history.latest_image); set('currentpath',history.latest_image); } else { $('currentimg').removeAttribute('src'); set('currentpath','No retained frame'); }
+    if (history.first_failure?.image) { $('failureimg').src=url(history.first_failure.image); set('failurepath',history.first_failure.image); } else { $('failureimg').removeAttribute('src'); set('failurepath','No saved failure'); }
+    set('failurereasons',history.first_failure ? pretty({read_error:history.first_failure.read_error,fields:history.first_failure.field_reasons,recognition:history.first_failure.recognition_failures}) : null);
+    $('sidecar').hidden=!history.first_failure?.sidecar;
+    if (history.first_failure?.sidecar) $('sidecar').href=`/api/sidecar?run=${encodeURIComponent(history.run)}&path=${encodeURIComponent(history.first_failure.sidecar)}`;
+    else $('sidecar').removeAttribute('href');
+  }
+  function clearHistory(reason) {
+    history=null;
+    set('historicstate',`History unavailable: ${short(reason)}`);
+    for (const id of ['historicphase','historicmetrics','historicresult','historiccoverage','historicevidence','historicidentity','historicwarnings','currentpath','failurepath','failurereasons']) set(id,'UNKNOWN');
+    $('historicsynthetic').hidden=true;
+    $('images').hidden=true;
+    $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src');
+    $('sidecar').hidden=true; $('sidecar').removeAttribute('href');
+  }
+  async function refreshHistory() {
+    if (!$('history').open) return;
     try {
-      const runResponse = await fetch('/api/runs', {cache:'no-store'});
-      if (!runResponse.ok) throw new Error(`Run list unavailable (${runResponse.status})`);
-      const runs = await runResponse.json();
-      const selector = $('runs'); const previous = selector.value;
-      selector.replaceChildren(new Option('Latest automatically', ''));
-      for (const run of runs.runs || []) selector.add(new Option(`${run.synthetic ? '[SYNTHETIC DEMO] ' : ''}${run.name}`, run.name));
-      selector.value = previous || selected;
-      if (selector.value !== previous && previous) selector.value = '';
-      selected = selector.value;
-      const query = selected ? `?run=${encodeURIComponent(selected)}` : '';
-      const response = await fetch(`/api/status${query}`, {cache:'no-store'});
-      if (!response.ok) throw new Error(`Status unavailable (${response.status})`);
-      render(await response.json());
-    } catch (error) { unavailable(error); }
-    finally { setTimeout(refresh, 1000); }
+      const runs=await (await fetch('/api/runs',{cache:'no-store'})).json();
+      const selector=$('runs'),previous=selector.value;
+      selector.replaceChildren(new Option('Latest automatically',''));
+      for (const run of runs.runs || []) selector.add(new Option(`${run.synthetic?'[SYNTHETIC] ':''}${run.name}`,run.name));
+      selector.value=previous || selectedRun;
+      if (selector.value!==previous && previous) selector.value='';
+      selectedRun=selector.value;
+      const response=await fetch(`/api/status${selectedRun?`?run=${encodeURIComponent(selectedRun)}`:''}`,{cache:'no-store'});
+      if (!response.ok) throw new Error(`history unavailable (${response.status})`);
+      renderHistory(await response.json());
+    } catch(error) { clearHistory(error); }
   }
-  $('runs').addEventListener('change', event => { selected = event.target.value; });
-  $('manualmode').addEventListener('click', () => requestMode('manual'));
-  $('automode').addEventListener('click', () => requestMode('autopilot'));
-  $('startupretry').addEventListener('click', () => requestStartup('retry_connection'));
-  $('startupenable').addEventListener('click', () => requestStartup('enable_manual_actions'));
-  $('startuppause').addEventListener('click', () => requestStartup('pause_manual_actions'));
-  $('startupfocus').addEventListener('click', () => requestStartup('set_focus_handover'));
-  $('scanbutton').addEventListener('click', () => requestAction('scan_nearby_unscanned'));
-  $('autoscanbutton').addEventListener('click', () => requestAction('auto_scan_selected'));
-  $('selectedscanbutton').addEventListener('click', () => requestAction('scan_selected'));
-  $('approachbutton').addEventListener('click', () => requestAction('approach_current_target'));
-  for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) $(id).addEventListener('change', () => captureAssessment('approach_current_target'));
-  $('scanselectedsafe').addEventListener('change', () => captureAssessment('scan_selected'));
-  $('autoscansafe').addEventListener('change', () => captureAssessment('auto_scan_selected'));
-  $('actionartifactlink').addEventListener('click', event => {
-    event.preventDefault();
-    const run = event.currentTarget.dataset.run;
-    const selector = $('runs');
-    if (!run || !Array.from(selector.options).some(option => option.value === run)) return;
-    selected = run; selector.value = run; refresh();
+  async function refreshLive() {
+    const boundedFetch=url=>{
+      const controller=new AbortController(); let timer;
+      const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('live status timeout'));},3000);});
+      const request=fetch(url,{cache:'no-store',signal:controller.signal}).then(response=>{
+        if (!response.ok) throw new Error(`live status ${response.status}`);
+        return response.json();
+      });
+      return Promise.race([request,timeout]).finally(()=>clearTimeout(timer));
+    };
+    let actionReceivedAt=null;
+    const responses=await Promise.allSettled([boundedFetch('/api/startup'),boundedFetch('/api/control-mode'),
+      boundedFetch('/api/manual-actions').then(value=>{actionReceivedAt=clientNow();return value;})]);
+    const values=responses.map(row=>row.status==='fulfilled' ? row.value : null);
+    [startup,mode,actions]=values;
+    if (actions) lastActionReceivedAt=actionReceivedAt;
+    statusFault=values.every(Boolean) ? null : 'Live status unavailable; current telemetry and routine state may be unknown';
+    if (!startup) startup={phase:'blocked',reason:'Startup status unavailable'};
+    renderLive();
+    if ($('history').open) await refreshHistory();
+    setTimeout(refreshLive,1000);
+  }
+  $('issuebutton').addEventListener('click',()=>{ $('diagnostics').open=true; $('diagnostics').scrollIntoView({block:'nearest'}); });
+  $('retrybutton').addEventListener('click',()=>requestStartup('retry_connection'));
+  $('powerbutton').addEventListener('click',()=>requestStartup(startup?.action_control?.enabled===true || lastKnownEnabled || lastKnownActive?'pause_manual_actions':'enable_manual_actions'));
+  $('scanonce').addEventListener('click',()=>selectAction('scan_selected'));
+  $('autoscan').addEventListener('click',()=>selectAction('auto_scan_selected'));
+  $('approach').addEventListener('click',()=>selectAction('approach_current_target'));
+  $('startbutton').addEventListener('click',()=>requestAction('start'));
+  $('cancelbutton').addEventListener('click',()=>requestAction('stop'));
+  for (const [name,ids] of Object.entries(checks)) for (const id of ids) $(id).addEventListener('change',()=>captureAssessment(name));
+  $('previewbutton').addEventListener('click',showPreview);
+  $('startupretry').addEventListener('click',()=>requestStartup('retry_connection'));
+  $('startupfocus').addEventListener('click',()=>requestStartup('set_focus_handover',{enabled:startup?.focus_handover?.enabled!==true}));
+  $('runs').addEventListener('change',event=>{ selectedRun=event.target.value; refreshHistory(); });
+  $('history').addEventListener('toggle',()=>{ if ($('history').open) refreshHistory(); });
+  $('privacy').addEventListener('click',()=>{ imagesVisible=!imagesVisible; set('privacy',imagesVisible?'Hide retained images':'Show retained images'); $('privacy').setAttribute('aria-pressed',String(imagesVisible)); renderImages(); });
+  $('actionartifactlink').addEventListener('click',async event=>{
+    const run=event.currentTarget.dataset.run;
+    if (!run) return;
+    $('history').open=true;
+    await refreshHistory();
+    if (!Array.from($('runs').options).some(option=>option.value===run)) { set('historicstate',`Saved run ${run} is not indexed yet`); return; }
+    selectedRun=run; $('runs').value=run; await refreshHistory();
   });
-  $('privacy').addEventListener('click', () => { imagesVisible = !imagesVisible; $('privacy').textContent = imagesVisible ? 'Hide images' : 'Show images'; $('privacy').setAttribute('aria-pressed', String(imagesVisible)); if (!imagesVisible) { $('images').hidden = true; $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); } });
-  refresh();
-  refreshMode();
-  refreshActions();
-  refreshStartup();
+  refreshLive();
+  setInterval(renderLive,250);
 })();
 </script>
 </body>
