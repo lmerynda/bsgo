@@ -421,8 +421,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                     raise PolicyError("Reduced-throttle transition input not delivered")
                                 wheel_up = linked[-1] if len(linked) == 3 else None
                                 if wheel_up is not None and row.acquired_at > wheel_up.at:
-                                    if (previous_post_wheel_speed is not None
-                                            and row.speed > previous_post_wheel_speed + .3):
+                                    reference_speed = (transition_speed if previous_post_wheel_speed is None
+                                        else previous_post_wheel_speed)
+                                    if row.speed > reference_speed + .3:
                                         raise PolicyError("Speed increased after reduced-throttle transition")
                                     previous_post_wheel_speed = row.speed
                                     if (result.get("observed_reduced_speed") is not None

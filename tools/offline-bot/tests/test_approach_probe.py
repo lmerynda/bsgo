@@ -594,7 +594,7 @@ class ApproachProbeTests(unittest.TestCase):
 
     def test_two_regime_ignored_wheel_or_full_speed_cannot_prove(self):
         for speed, reason in ((None, "Reduced throttle did not sustain motion"),
-                              (33., "Full speed persisted after wheel delivery")):
+                              (33., "Speed increased after reduced-throttle transition")):
             with self.subTest(speed=speed), scratch_directory() as directory:
                 result, ship, source, dispatchers = self.run_fixture(directory,
                     distance=1555., brake_at=800., max_thrust_seconds=None,
@@ -636,6 +636,32 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertIn("Speed increased after reduced-throttle", result["reason"])
             self.assertTrue(result["final_stop_observed"])
             self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_first_post_wheel_increase_cannot_be_hidden_by_later_deceleration(self):
+        class InitialRiseSource(PixelSource):
+            def __init__(self, ship):
+                super().__init__(ship)
+                self.post_idle_motion = 0
+
+            def next_sample(self, stop):
+                sample = super().next_sample(stop)
+                if sample and self.ship.brake_requested and sample.speed > 0:
+                    self.post_idle_motion += 1
+                    if self.post_idle_motion <= 2:
+                        sample.speed = (25., 20.)[self.post_idle_motion - 1]
+                return sample
+
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.,
+                source_factory=InitialRiseSource)
+            self.assertEqual(result["transition_observation"]["speed"], 20.)
+            self.assertEqual(result["state"], "blocked", result)
+            self.assertIn("Speed increased after reduced-throttle", result["reason"])
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
 
     def test_two_regime_after_proved_five_speed_change_brakes(self):
         class DriftSource(PixelSource):
