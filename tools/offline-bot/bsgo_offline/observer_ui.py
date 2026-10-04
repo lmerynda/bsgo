@@ -16,7 +16,7 @@ RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 IMAGE_NAME = re.compile(r"observation-[0-9]{8}\.png\Z")
 HTML = Path(__file__).with_name("observer.html")
 MAX_JSON_BYTES = 8 * 1024 * 1024
-MANUAL_ROUTINES = ("scan_nearby_unscanned", "scan_selected",
+MANUAL_ROUTINES = ("scan_nearby_unscanned", "auto_scan_selected", "scan_selected",
                    "approach_current_target")
 
 
@@ -24,7 +24,7 @@ class UnattachedManualActions:
     """Honest action status when the observer has no native routine owner."""
 
     def actions_snapshot(self):
-        routines = {name: {"kind": "toggle" if name == "scan_nearby_unscanned" else "once",
+        routines = {name: {"kind": "toggle" if name in ("scan_nearby_unscanned", "auto_scan_selected") else "once",
                            "available": False, "ready": False,
                            "reason": "controller_not_attached", "active": False,
                            "state": "unavailable", "phase": None, "processing": None,
@@ -300,6 +300,14 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
     def action_status():
         state = actions.actions_snapshot()
         mode = controller.snapshot()
+        artifacts = state.get("action_artifacts")
+        if isinstance(artifacts, dict):
+            directory = artifacts.get("directory")
+            if isinstance(directory, str):
+                run = index.run(Path(directory).name)
+                if run is not None and Path(directory).resolve() == run:
+                    artifacts = {**artifacts, "run": run.name}
+                    state = {**state, "action_artifacts": artifacts}
         return {**state, "actual_mode": mode.get("actual_mode", "unknown"),
                 "mode_pending": mode.get("pending") is True,
                 "mode_reason": mode.get("reason"),

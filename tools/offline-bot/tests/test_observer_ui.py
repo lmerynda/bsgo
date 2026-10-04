@@ -349,6 +349,8 @@ class ObserverUiTests(unittest.TestCase):
                 self.assertEqual(state["actual_mode"], "manual")
                 self.assertIsInstance(state["server_monotonic"], float)
                 self.assertFalse(state["routines"]["scan_nearby_unscanned"]["ready"])
+                self.assertFalse(state["routines"]["auto_scan_selected"]["ready"])
+                self.assertEqual(state["routines"]["auto_scan_selected"]["kind"], "toggle")
                 self.assertFalse(state["routines"]["scan_selected"]["ready"])
                 self.assertFalse(state["routines"]["approach_current_target"]["ready"])
                 self.assertEqual(post({"action":"mine","routine":"scan_nearby_unscanned"})[0], 400)
@@ -358,6 +360,7 @@ class ObserverUiTests(unittest.TestCase):
                 self.assertEqual(post({"action":"start","routine":"scan_nearby_unscanned"},
                                       origin="http://bad.example")[0], 403)
                 self.assertEqual(post({"action":"start","routine":"scan_selected"})[0], 409)
+                self.assertEqual(post({"action":"start","routine":"auto_scan_selected"})[0], 409)
                 code, blocked = post({"action":"start","routine":"scan_nearby_unscanned"})
                 self.assertEqual(code, 409)
                 self.assertEqual(blocked["reason"], "controller_not_attached")
@@ -490,6 +493,67 @@ class ObserverUiTests(unittest.TestCase):
                 server.server_close()
                 thread.join(2)
 
+    def test_auto_scan_waits_without_lease_and_saved_run_link_is_confined(self):
+        class Adapter:
+            active = True
+            directory = None
+
+            def actions_snapshot(self):
+                return {"actual_mode":"manual", "paused":False,
+                    "ownership":{"owner":None,"state":"idle","input_scope":None},
+                    "routines":{"auto_scan_selected":{"active":self.active,
+                        "kind":"toggle","state":"waiting","waiting_for":"stationary_ship_required"},
+                        "approach_current_target":{"active":False,"available":True,"ready":True}},
+                    "last_input_intent":{"kind":"key","key":"Z"},
+                    "last_input_delivery":{"outcome":"injected"},
+                    "last_confirmed_effect":{"effect":"scan_result_unverified"},
+                    "action_artifacts":{"directory":str(self.directory),
+                                        "status":str(self.directory / "status.json")}}
+
+            def start_action(self, name, request=None):
+                raise AssertionError("competing start reached adapter")
+
+            def stop_action(self, name):
+                self.active = False
+                return {"accepted":True,"reason":"toggle_disabled",
+                        "state":self.actions_snapshot()}
+
+        with scratch_directory() as directory:
+            run = package(directory, "auto-scan-run", finished=True)
+            adapter = Adapter()
+            adapter.directory = run
+            server = make_server(directory, 0, action_adapter=adapter)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(action, routine):
+                req = Request(base + "/api/manual-actions", method="POST",
+                    data=json.dumps({"action":action,"routine":routine}).encode(),
+                    headers={"Content-Type":"application/json","Origin":base})
+                try:
+                    with urlopen(req, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                with urlopen(base + "/api/manual-actions") as response:
+                    state = json.load(response)
+                self.assertEqual(state["action_artifacts"]["run"], "auto-scan-run")
+                self.assertEqual(state["routines"]["auto_scan_selected"]["waiting_for"],
+                                 "stationary_ship_required")
+                self.assertEqual(state["last_input_delivery"]["outcome"], "injected")
+                self.assertEqual(post("start", "approach_current_target")[0], 409)
+                self.assertEqual(post("stop", "auto_scan_selected")[0], 200)
+                self.assertFalse(adapter.active)
+                outside = directory.parent / "outside-action"
+                adapter.directory = outside
+                with urlopen(base + "/api/manual-actions") as response:
+                    self.assertNotIn("run", json.load(response)["action_artifacts"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
     def test_manual_start_rejects_autopilot_or_pending_mode_but_stop_still_works(self):
         class Mode:
             actual = "autopilot"
@@ -562,7 +626,7 @@ class ObserverUiTests(unittest.TestCase):
         harness = f"""
 const elements = {{}};
 globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
-  textContent:'', hidden:false, className:'', setAttribute(){{}}, removeAttribute(){{}},
+  textContent:'', hidden:false, className:'', dataset:{{}}, setAttribute(){{}}, removeAttribute(){{}},
   addEventListener(){{}}
 }}; }} }};
 eval({json.dumps(script)});
@@ -590,17 +654,33 @@ const actions = {{actual_mode:'manual',paused:false,server_monotonic:100,
   current_observation:{{target_identity:'asteroid:4500',distance:700,speed:0,
     fields:{{distance:{{valid:true,fresh:true}},speed:{{valid:true,fresh:true}}}}}},
   assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',expires_at:115,wheel_point:{{x:1280,y:400}}}},
+  action_artifacts:{{directory:'fixture/last-run',run:'last-run'}},
+  selected_scan_toggle:{{enabled:false,scope:'human_selected_target_only',waiting_for:'stationary_ship_required'}},
   routines:{{scan_nearby_unscanned:{{available:false,ready:false,reason:'discovery_provider_missing'}},
+    auto_scan_selected:{{available:true,ready:true}},
     scan_selected:{{available:true,ready:true}},
     approach_current_target:{{available:true,ready:true}}}}}};
+elements.runs = {{options:[{{value:'last-run'}}]}};
 testActions(actions);
 const independent = {{nearDisabled:elements.scanbutton.disabled,
+  autoDisabled:elements.autoscanbutton.disabled,
   selectedDisabled:elements.selectedscanbutton.disabled,
   approachDisabled:elements.approachbutton.disabled,
   target:elements.currenttarget.textContent,
   assessment:elements.assessmentcontext.textContent,
   selectedReadiness:elements.selectedscanreadiness.textContent,
-  focus:elements.focushandover.textContent}};
+  focus:elements.focushandover.textContent,
+  artifact:elements.actionartifactlink.dataset.run,
+  artifactLinkVisible:!elements.actionartifactlink.hidden,
+  toggle:elements.autoscantoggle.textContent}};
+elements.runs.options=[];
+testActions(actions);
+const missingArtifactOptionHidden = elements.actionartifactlink.hidden;
+elements.runs.options=[{{value:'last-run'}}];
+testActions(actions);
+elements.autoscansafe.checked=true;
+testCapture('auto_scan_selected');
+const autoAssessedEnabled = !elements.autoscanbutton.disabled;
 elements.scanselectedsafe.checked=true;
 testCapture('scan_selected');
 const selectedAssessedEnabled = !elements.selectedscanbutton.disabled;
@@ -612,19 +692,21 @@ actions.server_monotonic=105;
 testActions(actions);
 const originalTokenHeld = testActionRequest('approach_current_target','start').assessment_token === 't1'
   && testActionRequest('scan_selected','start').assessment_token === 't1'
+  && testActionRequest('auto_scan_selected','start').assessment_token === 't1'
   && !elements.approachbutton.disabled;
 actions.server_monotonic=116;
 testActions(actions);
 const originalExpired = elements.approachbutton.disabled && elements.selectedscanbutton.disabled
-  && !elements.clearcorridor.checked && !elements.scanselectedsafe.checked;
+  && elements.autoscanbutton.disabled && !elements.clearcorridor.checked
+  && !elements.scanselectedsafe.checked && !elements.autoscansafe.checked;
 actions.assessment_context={{token:'t3',context_key:'target-B',target_identity:'asteroid:5000',expires_at:130,wheel_point:{{x:1280,y:400}}}};
 testActions(actions);
 const changedDisabled = elements.approachbutton.disabled && !elements.clearcorridor.checked;
-actions.routines.scan_nearby_unscanned.active=true;
+actions.routines.auto_scan_selected.active=true;
 testActions(actions);
-const waitingScan = {{button:elements.scanbutton.textContent,
-  canStop:!elements.scanbutton.disabled, approachDisabled:elements.approachbutton.disabled}};
-console.log(JSON.stringify({{canceled,recovered,blocked,independent,selectedAssessedEnabled,assessedEnabled,originalTokenHeld,originalExpired,changedDisabled,waitingScan}}));
+const waitingScan = {{button:elements.autoscanbutton.textContent,
+  canStop:!elements.autoscanbutton.disabled, approachDisabled:elements.approachbutton.disabled}};
+console.log(JSON.stringify({{canceled,recovered,blocked,independent,missingArtifactOptionHidden,autoAssessedEnabled,selectedAssessedEnabled,assessedEnabled,originalTokenHeld,originalExpired,changedDisabled,waitingScan}}));
 """
         result = subprocess.run(["node", "-e", harness], capture_output=True,
                                 text=True, check=True)
@@ -640,12 +722,18 @@ console.log(JSON.stringify({{canceled,recovered,blocked,independent,selectedAsse
         self.assertIn("BLOCKED", rendered["blocked"]["badge"])
         self.assertEqual(rendered["blocked"]["outcome"], "BLOCKED")
         self.assertTrue(rendered["independent"]["nearDisabled"])
+        self.assertTrue(rendered["independent"]["autoDisabled"])
         self.assertTrue(rendered["independent"]["selectedDisabled"])
         self.assertTrue(rendered["independent"]["approachDisabled"])
         self.assertEqual(rendered["independent"]["target"], "asteroid:4500")
         self.assertIn("expires in 15.0s", rendered["independent"]["assessment"])
         self.assertIn("no blocker", rendered["independent"]["selectedReadiness"])
         self.assertIn("game_focus_wait", rendered["independent"]["focus"])
+        self.assertEqual(rendered["independent"]["artifact"], "last-run")
+        self.assertTrue(rendered["independent"]["artifactLinkVisible"])
+        self.assertTrue(rendered["missingArtifactOptionHidden"])
+        self.assertIn("human_selected_target_only", rendered["independent"]["toggle"])
+        self.assertTrue(rendered["autoAssessedEnabled"])
         self.assertTrue(rendered["selectedAssessedEnabled"])
         self.assertTrue(rendered["assessedEnabled"])
         self.assertTrue(rendered["originalTokenHeld"])

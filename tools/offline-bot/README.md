@@ -518,11 +518,18 @@ its explicit, readiness-checked Start requests can launch a bounded routine.
 The Manual/Autopilot switch never launches a probe, and selecting a historical
 run never changes which live target a Manual action addresses.
 
-Manual actions expose a nearby-unscanned scan toggle, a one-shot scan of the
-currently selected asteroid, and a one-shot approach of the current target.
+Manual actions expose a nearby-unscanned scan toggle, an auto-scan toggle for
+the human-selected target, a one-shot selected-target scan, and a one-shot
+approach of the current target.
 Each card shows its own readiness reason and runtime progress. Nearby discovery
 requires a verified target provider and remains unavailable without one; an
-input delivery by the selected scan is not a verified resource classification.
+input delivery by either selected-target scan is not a verified resource
+classification. The auto-scan toggle requires a fresh stopped-scene assessment
+when enabled, then waits without braking or retargeting while the human moves.
+It attempts at most one scan per continuous selected-target track. The last
+routine input evidence remains visible after it finishes; View saved run pins
+the historical selector only when that diagnostic package is indexed by the
+observer.
 An approach requires fresh supervisor assertions for clear corridor, aligned
 heading, safe stopped scene, and the separately assessed configured flight
 point. The controller pins these to a short-lived target/context token and
@@ -530,6 +537,28 @@ revalidates before input. Stop/Cancel applies to the active routine; global
 Manual mode means the human retains mission decisions while a routine may
 temporarily own its stated input scope. Manual actions never inherit readiness
 from the selected historical diagnostic package.
+
+To attach Manual actions to the current game session, first stop the standalone
+observer on port 8765. Refresh the game's HWND and PID after every client
+restart, inspect the current scene and flight point, and then launch the
+Manual-assist session with its own cancellation marker:
+
+```powershell
+$env:PYTHONPATH = 'tools/offline-bot'
+& 'tools/model-runtimes/fastvlm-venv/Scripts/python.exe' -m bsgo_offline.manual_assist_session --hwnd CURRENT_HWND --pid CURRENT_PID --profile largehud-20261003 --output logs/mining/live-20261003/manual-assist-session-001 --runs-root logs/mining/live-20261003 --pause-file logs/mining/live-20261003/continuous-stop.request --cancel-file logs/mining/live-20261003/manual-assist-session-stop.request --wheel-x ASSESSED_X --wheel-y ASSESSED_Y --flight-point-assessed --port 8765
+```
+
+Use `--flight-point-assessed` only after checking that the supplied native
+client point is clear in the current scene. The existing continuous mining
+pause file is respected and never removed by this command; if it remains
+present, action starts are blocked. Session cancellation uses the independent
+`manual-assist-session-stop.request` marker. The attached page still reports
+Manual as the overall mode, with temporary routine input ownership shown
+separately. Input requires the exact pinned foreground game window and a fresh
+unchanged target. Optional `--allow-action-focus-handover` permits a bounded
+focus request while arming, followed by fresh image revalidation; that path
+remains pending native acceptance and may be blocked by a focus race. Without
+the option, a non-foreground game window blocks input.
 
 For live manual play, start the input-free passive reader in a separate terminal
 with the current game window handle and PID (refresh these after a client
