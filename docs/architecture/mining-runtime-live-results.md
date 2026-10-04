@@ -921,3 +921,26 @@ left-clipped 248 digit matched another complete raster phase; exact measured
 anchors remain required. Thirty-three HUD tests cover approximately 330 missing
 glyph and clipped-edge cases. Full integration passed 395 tests. These are
 reader replays; original blocked live runs and their proof flags are preserved.
+
+Commit `f4fbb056` improves firing failure observability without changing
+control policy. The first rejected observation/acquisition sequences, compact
+per-field presence/validity/freshness/reasons and retained image/sidecar paths
+are recorded in the firing result, full report and dedicated trace event.
+The generic terminal summary includes a bounded copy (at most eight fields,
+capped text) and preserves its full-report pointer. First rejection survives
+later recovery. Forty-one focused firing and sixteen diagnostics tests passed,
+including baseline no-input rejection, missing fields, upstream HP separator
+failure and oversized terminal-summary protection.
+
+Stationary selection/scan then skipped Empty HP3712 at269 m and found wanted
+Tylium HP4033 at277 m. `continuous-fire-008`
+(`badc52aad4b04f5c8010f19d7d243996`) sent one G with explicit 200 m lower
+bound, proved early damage and retained target disappearance. Its original
+identity blocker remains preserved, with 58 HP-fault images and complete
+diagnostics. The archived sequence102 and103 images visibly show
+`+7597 X TYLIUM` and 112 experience; parent and miner reviewed the popup.
+Sequence102 has full hull, speed0.0 and energy774/800 recovering. Fresh miner
+supervision at game clock01:19:38 confirms target gone, speed0.0 and full
+hull/energy. Quantified continuous-loop totals are now 4909 Water and13500
+Tylium. The earlier unquantified Tylium yield remains excluded. The ship did
+not fly for this harvest, and stationary candidate work continues.
