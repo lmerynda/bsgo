@@ -31,6 +31,16 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_star_beyond_complete_speed_font_extent_is_excluded(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'speed-0p0-star-right.png') as crop:
+            im.paste(crop,tuple(data['speed_box'][:2]))
+        self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['speed'].value,0.)
+        # Light crossing the retained right margin still blocks recognition.
+        ImageDraw.Draw(im).rectangle((1460,1063,1461,1064),fill='white')
+        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
     def test_measured_internal_narrow_one_recenters_complete_hp_label(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for damage in (None, 'clip_one', 'remove_one', 'remove_current_digit'):
