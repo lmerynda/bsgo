@@ -19,7 +19,8 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                        clear_corridor_assessed, aligned_heading_assessed,
                        safe_stopped_scene_assessed, flight_point_assessed,
                        scope="native", sample_interval=5., baseline_seconds=12.,
-                       stop_seconds=35., travel_budget=300., cancel_file=None):
+                       stop_seconds=35., travel_budget=300., cancel_file=None,
+                       brake_at=None):
     if (clear_corridor_assessed, aligned_heading_assessed,
             safe_stopped_scene_assessed, flight_point_assessed) != (True, True, True, True):
         raise ValueError("fresh_supervisor_assessments_required")
@@ -35,11 +36,18 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                                    ("travel_budget", travel_budget, 50, 300)):
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(name)
+    if brake_at is not None and (type(brake_at) not in (int, float) or brake_at != 800):
+        raise ValueError("reduced_speed_transit_requires_brake_at_800")
+    transit_mode = brake_at is not None
+    range_threshold = brake_at
     cancel_path = Path(cancel_file).resolve() if cancel_file is not None else None
     diagnostic = DiagnosticRun(output, mode=scope + "_throttle_probe",
         configuration={**configuration, "wheel_point": wheel_point,
             "wheel_steps": wheel_steps, "sample_interval": sample_interval,
-            "travel_budget": travel_budget, "cancel_file": str(cancel_path) if cancel_path else None,
+            "travel_budget": None if transit_mode else travel_budget,
+            "mode": "reduced_speed_transit" if transit_mode else "one_notch_calibration",
+            "brake_at": range_threshold, "final_range_acceptance": [700, 800] if transit_mode else None,
+            "cancel_file": str(cancel_path) if cancel_path else None,
             "supervisor_assumptions": {"clear_corridor": True,
                 "aligned_heading": True, "safe_stopped_scene": True,
                 "flight_point": True}, "mining_ready": False},
@@ -64,6 +72,7 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
         "stop_observation_sequences": stop_images, "wheel_requests": [],
         "brake_requests": [], "deliveries": [], "first_rejection": None,
         "observed_partial_speed": None, "final_stop_observed": False,
+        "final_stop_distance": None, "brake_at": range_threshold,
         "unverified": ["throttle_setting", "other_wheel_direction", "combat_detection",
                        "resource", "mining", "inventory"]}
 
@@ -200,10 +209,12 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                     blocker = blocker or "full_speed_not_partial"
                     reject("full_speed_not_partial", snapshot)
                     stop_ship("full_speed")
-                elif initial and initial["distance"] - row["distance"] >= travel_budget:
+                elif not transit_mode and initial and initial["distance"] - row["distance"] >= travel_budget:
                     blocker = blocker or "travel_budget_reached"
                     reject("travel_budget_reached", snapshot)
                     stop_ship("travel_budget")
+                elif transit_mode and row["distance"] <= range_threshold:
+                    stop_ship("range_threshold")
             except ValueError as exc:
                 blocker = blocker or str(exc)
                 reject(str(exc), snapshot)
@@ -269,7 +280,7 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                     try:
                         row = valid(snapshot, now)
                         motion.append(row)
-                        if initial["distance"] - row["distance"] >= travel_budget:
+                        if not transit_mode and initial["distance"] - row["distance"] >= travel_budget:
                             raise ValueError("travel_budget_reached")
                         if row["speed"] >= 32.9:
                             raise ValueError("full_speed_not_partial")
@@ -297,14 +308,19 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                                     stable.append(row["sequence"])
                                 if len(stable) >= 3:
                                     result["observed_partial_speed"] = row["speed"]
-                                    stop_ship("stable_partial_speed")
+                                    if not transit_mode:
+                                        stop_ship("stable_partial_speed")
+                        if transit_mode and row["distance"] <= range_threshold and brake_at is None:
+                            stop_ship("range_threshold")
                     except ValueError as exc:
                         blocker = blocker or str(exc)
                         reject(str(exc), snapshot)
                         stop_ship("image_evidence_rejected")
                 else:
                     try:
-                        valid(snapshot, now)
+                        row = valid(snapshot, now)
+                        if row["speed"] == 0:
+                            result["final_stop_distance"] = row["distance"]
                     except ValueError as exc:
                         blocker = blocker or str(exc)
                         reject(str(exc), snapshot)
@@ -351,6 +367,11 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
         if blocker is None:
             if len(stable) < 3 or not result["final_stop_observed"]:
                 blocker = "partial_throttle_or_stop_unverified"
+            elif transit_mode and (result["final_stop_distance"] is None
+                    or not 700 <= result["final_stop_distance"] <= 800):
+                blocker = "final_range_outside_reduced_speed_acceptance_band"
+            elif transit_mode and brake_reason != "range_threshold":
+                blocker = "range_threshold_not_reached"
         result.update(state="blocked" if blocker else "proved",
                       reason=blocker or "one_notch_partial_speed_and_stop_observed")
     except (Exception, KeyboardInterrupt) as exc:
@@ -445,6 +466,8 @@ def main():
     parser.add_argument("--wheel-x", type=int, required=True)
     parser.add_argument("--wheel-y", type=int, required=True)
     parser.add_argument("--wheel-steps", type=int, choices=(-1, 1), required=True)
+    parser.add_argument("--brake-at", type=float,
+                        help="Opt-in reduced-speed transit to 800 m; otherwise bounded one-notch calibration")
     for flag in ("clear-corridor-assessed", "aligned-heading-assessed",
                  "safe-stopped-scene-assessed", "flight-point-assessed"):
         parser.add_argument("--" + flag, action="store_true", required=True)
@@ -471,7 +494,8 @@ def main():
         frame_size=geometry.client_size, wheel_point=(args.wheel_x, args.wheel_y),
         wheel_steps=args.wheel_steps, clear_corridor_assessed=True,
         aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
-        flight_point_assessed=True, cancel_file=args.cancel_file)
+        flight_point_assessed=True, cancel_file=args.cancel_file,
+        brake_at=args.brake_at)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "proved" and result["complete_diagnostics"] else 1
 

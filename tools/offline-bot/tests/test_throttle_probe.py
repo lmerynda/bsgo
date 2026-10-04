@@ -62,7 +62,7 @@ class WheelDispatcher:
 class ThrottleProbeTests(unittest.TestCase):
     def run_fixture(self, directory, *, speed=20., distance=1200., source_options=None,
                     cancel_file=None, recognizer=recognize, ship_factory=None,
-                    source_factory=None):
+                    source_factory=None, brake_at=None):
         ship = ship_factory(distance) if ship_factory else Ship(distance=distance)
         source = (source_factory(ship) if source_factory else
                   PixelSource(ship, **(source_options or {})))
@@ -78,7 +78,8 @@ class ThrottleProbeTests(unittest.TestCase):
             wheel_steps=1, clear_corridor_assessed=True,
             aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
             flight_point_assessed=True, scope="synthetic", baseline_seconds=1.,
-            stop_seconds=1., sample_interval=5., cancel_file=cancel_file)
+            stop_seconds=1., sample_interval=5., cancel_file=cancel_file,
+            brake_at=brake_at)
         return result, ship, source, dispatchers
 
     def test_one_wheel_proves_partial_motion_and_observed_stop(self):
@@ -214,6 +215,56 @@ class ThrottleProbeTests(unittest.TestCase):
                              "invalid_target_speed_or_full_hull")
             self.assertTrue(result["final_stop_observed"])
             self.assertEqual(ship.speed, 0)
+
+    def test_transit_keeps_one_partial_notch_past_300_until_800_then_stops(self):
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                speed=5., distance=1200., brake_at=800.)
+            self.assertEqual(result["state"], "proved", result)
+            self.assertEqual(result["brake_reason"], "range_threshold")
+            self.assertGreater(initial := result["baseline"][0]["distance"]
+                               - result["final_stop_distance"], 300)
+            self.assertLessEqual(result["final_stop_distance"], 800)
+            self.assertGreaterEqual(result["final_stop_distance"], 700)
+            self.assertEqual([d.kind for d in dispatchers[0].deliveries()],
+                             ["mouse_wheel", "key_down", "key_up"])
+            self.assertEqual(ship.speed, 0)
+            manifest = json.loads((directory / "run" / "manifest.json").read_text())
+            self.assertIsNone(manifest["configuration"]["travel_budget"])
+            self.assertIsNone(json.loads((directory / "run" / "report.json").read_text())
+                              ["frames"]["max_frames"])
+
+    def test_transit_ignored_notch_never_repeats_input(self):
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                speed=None, brake_at=800.)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "no_motion_after_wheel")
+            self.assertEqual(len(result["wheel_requests"]), 1)
+            self.assertEqual(len(result["brake_requests"]), 2)
+            self.assertEqual(ship.speed, 0)
+
+    def test_transit_late_target_fault_after_300_still_brakes(self):
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                speed=5., brake_at=800., source_options={"change_at": 70})
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["first_rejection"]["reason"],
+                             "invalid_target_speed_or_full_hull")
+            self.assertEqual(len(result["wheel_requests"]), 1)
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+
+    def test_transit_final_range_below_700_blocks_proof(self):
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory, speed=5.,
+                brake_at=800., ship_factory=lambda distance: Ship(
+                    brake_decay_seconds=.8, distance=distance))
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "final_range_outside_reduced_speed_acceptance_band")
+            self.assertTrue(result["final_stop_observed"])
+            self.assertLess(result["final_stop_distance"], 700)
 
 
 if __name__ == "__main__":
