@@ -37,6 +37,7 @@ class LargeHudTests(unittest.TestCase):
         pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
         pairs += [(v,4033) for v in (2641,2301,1871,1329,1000,277)]
         pairs += [(v,3097) for v in (1438,403)]
+        pairs += [(v,4046) for v in (1806,1365,722,26)]
         for value,maximum in pairs:
             im = fixture_image()
             with Image.open(FIXTURES/f'hp-{value}-{maximum}.png') as crop:
@@ -51,6 +52,7 @@ class LargeHudTests(unittest.TestCase):
         pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
         pairs += [(v,4033) for v in (2641,2301,1871,1329,1000,277)]
         pairs += [(v,3097) for v in (1438,403)]
+        pairs += [(v,4046) for v in (1806,1365,722,26)]
         for value,maximum in pairs:
             im = fixture_image()
             with Image.open(FIXTURES/f'hp-{value}-{maximum}.png') as crop:
