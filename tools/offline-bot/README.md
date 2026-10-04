@@ -483,3 +483,25 @@ distances, asteroid acquisition, scanner/resources/rewards, three-dimensional
 navigation, or model decisions. Saved-pixel OCR and the synthetic control loop
 are complementary experiments; synthetic motion does not certify OCR accuracy
 or gameplay safety. [Recorded offline results](../../docs/architecture/offline-bot-experiments.md).
+
+## Read-only live observer
+
+Run the local observer in a separate terminal while the mining probes create
+diagnostic packages:
+
+```powershell
+$env:PYTHONPATH = 'tools/offline-bot'
+& 'tools/model-runtimes/fastvlm-venv/Scripts/python.exe' -m bsgo_offline.observer_ui --runs-root logs/mining/live-20261003 --port 8765
+```
+
+Open `http://127.0.0.1:8765/`. The page refreshes every second, follows the
+newest real run by default, and lets you pin a prior or explicitly synthetic run. It shows the recorded
+execution phase, wait and next step, latest fresh HUD values, input request,
+delivery and observed effect, plus saved failure evidence. Images are hidden
+until **Show images** is selected because a game frame may include private chat.
+The page distinguishes a live run from a finalized, blocked, or stale package; missing
+execution evidence is labeled **UNKNOWN**. The server binds only to loopback,
+serves no control commands, and accepts image paths only from the selected
+run's retained frame directories. A synthetic demonstration is labeled in the
+run selector and display and never becomes the automatic latest run. Stop the
+observer with Ctrl+C.

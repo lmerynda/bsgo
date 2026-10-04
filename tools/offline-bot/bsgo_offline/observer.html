@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mining observer</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0a1020; --panel:#111b31; --line:#2a3955; --text:#ebf2ff; --muted:#a7b6d1; --cyan:#71d9e9; --green:#9ce3b7; --amber:#ffd18a; --red:#ff9ea2; }
+    * { box-sizing:border-box }
+    body { margin:0; background:radial-gradient(circle at 85% 0%,#1d3551 0,#0a1020 44%); color:var(--text); font:15px/1.45 system-ui,Segoe UI,sans-serif; }
+    main { max-width:1520px; padding:24px; margin:auto; }
+    header { display:flex; flex-wrap:wrap; align-items:end; justify-content:space-between; gap:16px; margin-bottom:22px; }
+    h1 { margin:0; font-size:clamp(26px,3vw,40px); letter-spacing:-.04em; }
+    h2 { margin:0 0 13px; font-size:17px; letter-spacing:.01em; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; font-size:11px; font-weight:800; letter-spacing:.17em; }
+    .sub { color:var(--muted); margin:4px 0 0; }
+    .controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    select,button { background:#182740; border:1px solid #435575; border-radius:10px; color:var(--text); padding:10px 13px; font:inherit; }
+    button { cursor:pointer; } button:hover { border-color:var(--cyan); }
+    .grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; }
+    .panel { grid-column:span 4; min-width:0; background:linear-gradient(145deg,#17243b,#10192d); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 16px 40px #0002; }
+    .wide { grid-column:span 8; } .full { grid-column:span 12; }
+    .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .value { font-size:23px; font-weight:700; word-break:break-word; line-height:1.25; }
+    .small { color:var(--muted); font-size:13px; }
+    .pill { display:inline-flex; border-radius:100px; padding:6px 11px; background:#263953; color:var(--cyan); font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    .pill.live { background:#173e3a; color:var(--green); }
+    .pill.stale,.pill.stopped_unfinalized { background:#47351e; color:var(--amber); }
+    .pill.completed { background:#2c3c57; color:#bed6ff; }
+    .pill.finalized { background:#2c3c57; color:#bed6ff; }
+    .pill.blocked,.pill.unavailable { background:#542b35; color:var(--red); }
+    .pill.synthetic { background:#574116; color:#ffe1a2; margin-left:8px; }
+    [hidden] { display:none !important; }
+    .rows { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .metric { padding:13px; border:1px solid var(--line); border-radius:12px; background:#0d1729; }
+    .metric .value { font-size:20px; }
+    .flow { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .flow > div { padding:14px; border:1px solid var(--line); border-radius:12px; background:#0d1729; }
+    .text { white-space:pre-wrap; word-break:break-word; }
+    .warn { color:var(--red); }
+    details { margin-top:10px; color:var(--muted); } details pre { white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; font-size:11px; }
+    .images { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .images figure { margin:0; min-width:0; background:#081323; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+    .images img { width:100%; display:block; object-fit:contain; max-height:430px; }
+    .images figcaption { padding:10px 12px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+    a { color:var(--cyan); }
+    .mono { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; overflow-wrap:anywhere; }
+    @media (max-width:1000px) { .panel,.wide { grid-column:span 6; } .full { grid-column:span 12; } }
+    @media (max-width:700px) { main { padding:14px; } .panel,.wide,.full { grid-column:span 12; } .flow,.images,.rows { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><div class="eyebrow">Read-only · localhost</div><h1>Mining observer</h1><p class="sub">One run at a time. Live status refreshes every second.</p></div>
+    <div class="controls"><label for="runs">Run</label><select id="runs"><option value="">Latest automatically</option></select><button id="privacy" type="button" aria-pressed="false">Show images</button></div>
+  </header>
+  <div class="grid">
+    <section class="panel wide"><div class="eyebrow">Execution</div><h2><span id="lifecycle" class="pill">UNKNOWN</span><span id="synthetic" class="pill synthetic" hidden>SYNTHETIC DEMO</span> <span id="phase">UNKNOWN</span></h2><div class="rows"><div><div class="label">Processing</div><div id="processing" class="value">UNKNOWN</div></div><div><div class="label">Waiting for</div><div id="waiting" class="value">UNKNOWN</div></div></div><p><span class="label">Expected next step</span><br><span id="next" class="text">UNKNOWN</span></p><div id="progress" class="small">No progress message</div></section>
+    <section class="panel"><h2>Run and freshness</h2><div class="label">Selected package</div><div id="run" class="value mono">UNKNOWN</div><p class="small">Status age: <span id="age">UNKNOWN</span> · Worker: <span id="worker">UNKNOWN</span></p><div class="label">Run ID</div><div id="runid" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Code commit</div><div id="commit" class="mono">UNKNOWN</div><div class="label" style="margin-top:10px">Supervisor assessed (not image verified)</div><div id="assessments" class="small text">UNKNOWN</div></section>
+    <section class="panel wide"><h2>Image readings at last status sample</h2><div class="rows"><div class="metric"><div class="label">Ship speed</div><div id="speed" class="value">UNKNOWN</div><div id="speedmeta" class="small"></div></div><div class="metric"><div class="label">Target range</div><div id="distance" class="value">UNKNOWN</div><div id="distancemeta" class="small"></div></div><div class="metric"><div class="label">Hull</div><div id="hull" class="value">UNKNOWN</div><div id="hullmeta" class="small"></div></div><div class="metric"><div class="label">Target HP</div><div id="hp" class="value">UNKNOWN</div><div id="hpmeta" class="small"></div></div></div><p class="small">Image observation: <span id="observation">UNKNOWN</span> · Target: <span id="target">UNKNOWN</span></p></section>
+    <section class="panel"><h2>Outcome and blockers</h2><div class="label">Result</div><div id="outcome" class="value">UNKNOWN</div><p id="blocker" class="warn text">No blocker reported</p><div class="small">First blocker: <span id="firstblocker">UNKNOWN</span></div><div class="small">Diagnostics: <span id="diagnostics">UNKNOWN</span></div><div class="label" style="margin-top:12px">Warnings and continuing effects</div><div id="warnings" class="warn text">UNKNOWN</div></section>
+    <section class="panel full"><h2>Command evidence</h2><div class="flow"><div><div class="label">Requested</div><div id="intent" class="text">UNKNOWN</div><details><summary>Raw request</summary><pre id="intentraw"></pre></details></div><div><div class="label">Delivered to input stream</div><div id="delivery" class="text">UNKNOWN</div><details><summary>Raw delivery</summary><pre id="deliveryraw"></pre></details></div><div><div class="label">Observed effect</div><div id="effect" class="text">UNKNOWN</div><details><summary>Raw effect</summary><pre id="effectraw"></pre></details></div></div><p class="small">Input insertion and image-observed effects are separate evidence.</p></section>
+    <section class="panel full"><h2>Retained images <span class="small">(hidden until you choose Show images)</span></h2><div id="imagehint" class="small">Image previews are hidden.</div><div id="images" class="images" hidden><figure><img id="currentimg" alt="Latest retained game observation"><figcaption>Latest retained frame · <span id="currentpath"></span></figcaption></figure><figure><img id="failureimg" alt="First saved failed recognition"><figcaption>First saved recognition failure · <span id="failurepath"></span><br><a id="sidecar" target="_blank" rel="noopener">View sidecar</a> · <span id="failurereasons"></span></figcaption></figure></div></section>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let imagesVisible = false, selected = '';
+  const set = (id, value) => { $(id).textContent = value === null || value === undefined || value === '' ? 'UNKNOWN' : String(value); };
+  const pretty = value => value === null || value === undefined ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+  const latest = value => Array.isArray(value) && value.length ? value[value.length - 1] : 'UNKNOWN';
+  const compactIntent = value => value ? `${value.kind || 'command'} ${value.key || value.button || (value.wheel_steps == null ? '' : `wheel ${value.wheel_steps}`)} · request #${value.sequence ?? 'UNKNOWN'} · ${value.reason || 'reason UNKNOWN'}` : 'UNKNOWN';
+  const compactDelivery = value => value ? `${value.outcome || 'UNKNOWN'} · request #${value.request_sequence ?? 'UNKNOWN'} · inserted ${value.inserted_count ?? 'UNKNOWN'}/${value.requested_count ?? 'UNKNOWN'}` : 'UNKNOWN';
+  const compactEffect = value => value ? `${value.effect || 'UNKNOWN'} · latest image #${latest(value.observation_sequences)} · ${value.motion_observation_sequences?.length ?? 0} motion images · ${value.request_sequences?.length ?? 0} linked requests` : 'UNKNOWN';
+  const evidence = field => {
+    if (!field) return ['UNKNOWN', 'Field unavailable'];
+    const value = field.valid && field.fresh && field.observed_in_current_image ? field.value : null;
+    const meta = `${field.valid ? 'valid' : 'invalid'} · ${field.fresh ? 'fresh' : 'stale'} · ${field.reason || 'no rejection'}${field.confidence === null || field.confidence === undefined ? '' : ' · confidence ' + field.confidence}`;
+    return [value === null || value === undefined ? 'UNKNOWN' : value, meta];
+  };
+  function render(data) {
+    const status = data.status || {}, execution = status.execution || {}, observation = status.observation || {}, fields = observation.fields || {};
+    const result = status.result || (data.report || {}).result || {};
+    const synthetic = (data.manifest || {}).synthetic === true;
+    $('synthetic').hidden = !synthetic;
+    const blocked = Boolean(execution.first_blocker || execution.phase === 'blocked' || result.state === 'blocked');
+    $('lifecycle').className = `pill ${blocked ? 'blocked' : data.lifecycle || ''}`;
+    set('lifecycle', data.lifecycle === 'finalized' ? `FINALIZED · ${blocked ? 'BLOCKED' : result.state || 'outcome UNKNOWN'}` : blocked ? 'BLOCKED' : data.lifecycle);
+    set('phase', data.lifecycle === 'live' ? execution.phase : execution.phase ? `Last recorded: ${execution.phase}` : null);
+    set('processing', execution.processing); set('waiting', execution.waiting_for); set('next', execution.expected_next_step);
+    set('progress', execution.last_progress && execution.last_progress.message);
+    set('run', data.run_path); set('age', data.status_age_seconds === null ? null : `${Number(data.status_age_seconds).toFixed(2)}s`);
+    set('worker', (status.worker || {}).running === true ? 'running' : (status.worker || {}).running === false ? 'stopped' : null);
+    set('runid', status.run_id || (data.manifest || {}).run_id); set('commit', (data.manifest || {}).code_revision);
+    set('assessments', pretty(((data.manifest || {}).configuration || {}).supervisor_assumptions));
+    const speed = evidence(fields.speed), distance = evidence(fields.distance), hullCur = evidence(fields.hull_current), hullMax = evidence(fields.hull_max), hpCur = evidence(fields.target_current_hp), hpMax = evidence(fields.target_max_hp);
+    const temporal = data.lifecycle === 'live' ? '' : `Historical ${data.lifecycle} package · `;
+    set('speed', speed[0] === 'UNKNOWN' ? 'UNKNOWN' : `${speed[0]} m/s`); set('speedmeta', temporal + speed[1]);
+    set('distance', distance[0] === 'UNKNOWN' ? 'UNKNOWN' : `${distance[0]} m`); set('distancemeta', temporal + distance[1]);
+    set('hull', hullCur[0] === 'UNKNOWN' || hullMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hullCur[0]} / ${hullMax[0]}`); set('hullmeta', temporal + hullCur[1]);
+    set('hp', hpCur[0] === 'UNKNOWN' || hpMax[0] === 'UNKNOWN' ? 'UNKNOWN' : `${hpCur[0]} / ${hpMax[0]}`); set('hpmeta', temporal + hpCur[1]);
+    set('observation', observation.sequence === undefined ? null : `#${observation.sequence}, image age ${observation.age_seconds ?? 'UNKNOWN'}s`);
+    set('target', evidence(fields.target_identity)[0]);
+    set('outcome', blocked ? `BLOCKED${result.state && result.state !== 'blocked' ? ` (probe result: ${result.state})` : ''}` : result.state); set('blocker', execution.first_blocker || result.first_blocker || (blocked ? (execution.reason || result.reason || result.first_rejection?.read_error) : null) || 'No blocker reported');
+    set('firstblocker', execution.first_blocker || result.first_blocker || result.first_rejection?.read_error); set('diagnostics', (data.report || {}).complete_diagnostics);
+    set('warnings', pretty([...(execution.warnings || []), result.warning, result.firing_state_after_probe].filter(Boolean)));
+    set('intent', compactIntent(execution.last_input_intent)); set('delivery', compactDelivery(execution.last_input_delivery)); set('effect', compactEffect(execution.last_confirmed_effect));
+    set('intentraw', pretty(execution.last_input_intent)); set('deliveryraw', pretty(execution.last_input_delivery)); set('effectraw', pretty(execution.last_confirmed_effect));
+    $('images').hidden = !imagesVisible; $('imagehint').hidden = imagesVisible;
+    if (imagesVisible) {
+      const url = path => `/api/image?run=${encodeURIComponent(data.run)}&path=${encodeURIComponent(path)}`;
+      if (data.latest_image) { $('currentimg').src = url(data.latest_image); set('currentpath', data.latest_image); }
+      else { $('currentimg').removeAttribute('src'); set('currentpath', 'No frame retained'); }
+      if (data.first_failure?.image) { $('failureimg').src = url(data.first_failure.image); set('failurepath', data.first_failure.image); }
+      else { $('failureimg').removeAttribute('src'); set('failurepath', 'No saved failure'); }
+      set('failurereasons', data.first_failure ? pretty({read_error:data.first_failure.read_error, fields:data.first_failure.field_reasons, recognition:data.first_failure.recognition_failures}) : null);
+      if (data.first_failure?.sidecar) { $('sidecar').href = `/api/sidecar?run=${encodeURIComponent(data.run)}&path=${encodeURIComponent(data.first_failure.sidecar)}`; $('sidecar').hidden = false; }
+      else { $('sidecar').removeAttribute('href'); $('sidecar').hidden = true; }
+    } else { $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); }
+  }
+  function unavailable(error) {
+    $('lifecycle').className = 'pill unavailable';
+    $('synthetic').hidden = true;
+    for (const id of ['lifecycle','phase','processing','waiting','next','progress','run','age','worker','runid','commit','assessments','speed','speedmeta','distance','distancemeta','hull','hullmeta','hp','hpmeta','observation','target','outcome','firstblocker','diagnostics','warnings','intent','delivery','effect','intentraw','deliveryraw','effectraw','currentpath','failurepath','failurereasons']) set(id, 'UNAVAILABLE');
+    set('blocker', `Observer fetch failed: ${error}`);
+    $('images').hidden = true; $('imagehint').hidden = false;
+    $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); $('sidecar').removeAttribute('href');
+  }
+  async function refresh() {
+    try {
+      const runResponse = await fetch('/api/runs', {cache:'no-store'});
+      if (!runResponse.ok) throw new Error(`Run list unavailable (${runResponse.status})`);
+      const runs = await runResponse.json();
+      const selector = $('runs'); const previous = selector.value;
+      selector.replaceChildren(new Option('Latest automatically', ''));
+      for (const run of runs.runs || []) selector.add(new Option(`${run.synthetic ? '[SYNTHETIC DEMO] ' : ''}${run.name}`, run.name));
+      selector.value = previous || selected;
+      if (selector.value !== previous && previous) selector.value = '';
+      selected = selector.value;
+      const query = selected ? `?run=${encodeURIComponent(selected)}` : '';
+      const response = await fetch(`/api/status${query}`, {cache:'no-store'});
+      if (!response.ok) throw new Error(`Status unavailable (${response.status})`);
+      render(await response.json());
+    } catch (error) { unavailable(error); }
+    finally { setTimeout(refresh, 1000); }
+  }
+  $('runs').addEventListener('change', event => { selected = event.target.value; });
+  $('privacy').addEventListener('click', () => { imagesVisible = !imagesVisible; $('privacy').textContent = imagesVisible ? 'Hide images' : 'Show images'; $('privacy').setAttribute('aria-pressed', String(imagesVisible)); if (!imagesVisible) { $('images').hidden = true; $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); } });
+  refresh();
+})();
+</script>
+</body>
+</html>
