@@ -751,3 +751,49 @@ to the measured font bound corrected all 19 retry frames without changing any
 of 612 archived approach speed values, confidence scores or rejection reasons.
 Actual font-region overlap still rejects. All 368 offline tests passed after
 these fixes, and the live loop continues with fresh candidates.
+
+`continuous-approach-006` (`5717deeda31845a1ac41aec2e56383e9`) approached
+Water HP4015 from 1353 m and verified a threshold stop at 528 m. Its original
+kinematic result is proved, but the retained native images expose a serious
+safety gap: hull was 5005 on sequences 1–4, 3295 on sequence 5, and 1638 on
+sequences 6–8. The cause is unverified. The parent independently observed
+1638/5005 while moving at 33.0. A cancellation marker was created after the
+probe had already completed its threshold stop; it did not cause that brake.
+Mining and further flight were held during stationary regeneration. Fresh
+parent supervision at game clock 00:35:51 confirmed hull 5005/5005, energy
+800/800 and speed 0.0 before the emergency marker was cleared.
+
+Commits `033bb4c5` and `b1d5d317` add measured player-hull reading and an
+approach hull guard. Flight requires fresh full hull with a stable maximum;
+damage or an unreadable/stale hull value requests PageDown through the
+independent watchdog and preserves the cause. Stop cleanup still requires
+fresh zero-speed images. All 623 archived approach images replay with valid
+hull readings, including the first loss on approach-006 sequence 5. Seventeen
+focused approach tests cover damaged or missing baseline hull, mid-flight
+damage or missing readings, and verified stop cleanup. The integrated suite
+passed 373 tests. This establishes reader and guard behavior from retained
+evidence and injected tests; a real hull-loss-triggered guard brake has not
+been deliberately exercised. Radar and obstacle clearance remain unrecognized.
+
+After full regeneration, stationary `continuous-fire-004`
+(`840a5ee392b64a66897b88a0ff64463c`) fired once at the Water target at 528 m.
+It proved firing effect and retained the target's disappearance, but its original
+result remains blocked by invalid identity at the three-digit HP transition.
+The post-G fault observer preserved complete native 351/4015 images on
+sequences 52–60 and the actual `+1890 X WATER` / 112 experience popup on
+sequence 63. The parent viewed that archived reward image directly: hull was
+5005/5005 and speed 0.0. The miner then verified energy recovery to 800/800.
+The quantified Water yield in this continuous loop is now 3222 (1332 + 1890);
+reward amounts remain supervisor observations rather than application parsing.
+
+Commit `2fec62f9` adds the measured three-digit current-HP layout. All 60
+selected-asteroid fire-004 frames replay correctly, including nine at 351/4015;
+the four subsequent frames correctly lack a selected asteroid. Complete raw
+glyphs and measured separator/bounds are required, and clipped, missing or
+shifted labels reject. Other unobserved three-digit layouts remain unknown.
+Commit `f775861b` permits valid 1–999 HP in continuous observation after G
+delivery and early damage proof, keeping the pre-input baseline at >=1000
+and preserving any earlier blocker. The integrated suite passed 377 tests.
+The next stationary Tylium candidate, HP3724 at 516 m, was blocked before G
+in fire-005 by an unreadable distance. Its failed images are retained for the
+next focused correction, while the supervised loop continues scanning.
