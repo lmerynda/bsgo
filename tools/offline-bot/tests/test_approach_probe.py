@@ -27,6 +27,7 @@ class Ship:
         self.distance = distance
         self.brake_decay_seconds = brake_decay_seconds
         self.brake_due = None
+        self.brake_requested = False
 
     def sample(self):
         with self.lock:
@@ -39,6 +40,8 @@ class Ship:
 
     def set_speed(self, value):
         with self.lock:
+            if value == 0 and self.speed > 0:
+                self.brake_requested = True
             if value == 0 and self.speed > 0 and self.brake_decay_seconds:
                 self.brake_due = time.monotonic() + self.brake_decay_seconds
             else:
@@ -67,13 +70,15 @@ class PixelSample:
 class PixelSource:
     def __init__(self, ship, *, stall_after=None, change_at=None, invalid_first=False,
                  cancel_at=None, cancel_path=None, pause_after_baseline=0.,
-                 damage_at=None, initial_hull=5005, damage_hull=4500):
+                 damage_at=None, initial_hull=5005, damage_hull=4500,
+                 damage_after_brake=False):
         self.ship, self.stall_after = ship, stall_after
         self.change_at, self.invalid_first = change_at, invalid_first
         self.cancel_at, self.cancel_path = cancel_at, cancel_path
         self.pause_after_baseline = pause_after_baseline
         self.damage_at, self.initial_hull = damage_at, initial_hull
         self.damage_hull = damage_hull
+        self.damage_after_brake = damage_after_brake
         self.sequence = 0
         self.closed = False
 
@@ -92,7 +97,8 @@ class PixelSource:
             speed = None
         return PixelSample(self.sequence, time.monotonic(), speed, distance,
             selected=self.change_at is None or self.sequence < self.change_at,
-            hull=self.damage_hull if self.damage_at and self.sequence >= self.damage_at else self.initial_hull)
+            hull=self.damage_hull if (self.damage_at and self.sequence >= self.damage_at
+                or self.damage_after_brake and self.ship.brake_requested) else self.initial_hull)
 
     def close(self):
         self.closed = True
@@ -284,6 +290,23 @@ class ApproachProbeTests(unittest.TestCase):
                 self.assertEqual(result["state"], "blocked", result)
                 self.assertEqual(result["reason"], reason)
                 self.assertEqual(result["brake_reason"], "hull_guard")
+                self.assertTrue(result["final_stop_observed"])
+                self.assertEqual(ship.speed, 0)
+                self.assertTrue(result["complete_diagnostics"])
+                self.assertTrue(all(result["shutdown"].values()))
+                self.assertTrue(source.closed)
+
+    def test_hull_loss_after_page_down_blocks_proof_but_still_verifies_stop(self):
+        for hull, reason in ((4500, "Hull loss observed"),
+                             (None, "Missing, invalid or stale hull_current")):
+            with self.subTest(hull=hull), scratch_directory() as directory:
+                result, ship, source, _ = self.run_fixture(directory,
+                    distance=880., brake_at=800., launch_clearance=75.,
+                    max_thrust_seconds=None, brake_decay_seconds=.15,
+                    source_options={"damage_after_brake": True, "damage_hull": hull})
+                self.assertEqual(result["state"], "blocked", result)
+                self.assertEqual(result["reason"], reason)
+                self.assertIn(result["brake_reason"], ("threshold", "threshold_watchdog"))
                 self.assertTrue(result["final_stop_observed"])
                 self.assertEqual(ship.speed, 0)
                 self.assertTrue(result["complete_diagnostics"])

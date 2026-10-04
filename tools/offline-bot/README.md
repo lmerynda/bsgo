@@ -303,6 +303,8 @@ It also requires fresh numeric `hull_current` and `hull_max` readings: full hull
 before acceleration, the same hull maximum throughout flight, and no damage.
 Missing or invalid hull readings and observed hull loss request PageDown and
 block approach proof, while cleanup still verifies two fresh zero-speed images.
+Hull checks continue during coast-down after PageDown; damage or unreadable hull
+there blocks proof even when the speed-only cleanup confirms a stop.
 The failed hull reading or loss remains in the diagnostic trace; the independent
 watchdog records its rejection cause. Combat and obstacle detection still
 require supervision.

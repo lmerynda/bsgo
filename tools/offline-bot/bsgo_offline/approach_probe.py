@@ -133,11 +133,12 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 diagnostic.submit({"event": "approach_brake_request_failed", "at": at,
                                    "reason": stop_failure, "attempt": stop_attempts})
 
-    def valid_target(snapshot, now):
-        if (snapshot.window_id != expected_window_id or snapshot.frame_size != tuple(frame_size)
-                or context is not None and snapshot.context != context):
-            raise PolicyError("Capture window or context changed")
-        row = policy.validate(snapshot, now)
+    def valid_hull(snapshot, now):
+        if (not snapshot.healthy or snapshot.window_id != expected_window_id
+                or snapshot.frame_size != tuple(frame_size)
+                or context is not None and snapshot.context != context
+                or not 0 <= now - snapshot.acquired_at < maximum_image_age):
+            raise HullGuardError("Invalid or stale hull capture context")
         hull = {}
         for name in ("hull_current", "hull_max"):
             field = snapshot.fields.get(name)
@@ -151,6 +152,14 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             raise HullGuardError("Hull maximum changed")
         if hull["hull_current"] != hull["hull_max"]:
             raise HullGuardError("Hull loss observed" if initial else "Full hull required before approach")
+        return hull
+
+    def valid_target(snapshot, now):
+        if (snapshot.window_id != expected_window_id or snapshot.frame_size != tuple(frame_size)
+                or context is not None and snapshot.context != context):
+            raise PolicyError("Capture window or context changed")
+        row = policy.validate(snapshot, now)
+        hull = valid_hull(snapshot, now)
         hp = snapshot.fields.get("target_max_hp")
         if (not hp or not hp.valid or type(hp.value) not in (int, float)
                 or not math.isfinite(hp.value) or hp.value <= 0
@@ -314,6 +323,14 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                             stop_ship("hull_guard" if isinstance(exc, HullGuardError)
                                       else "image_evidence_rejected")
                     else:
+                        try:
+                            valid_hull(snapshot, now)
+                        except HullGuardError as exc:
+                            blocker = blocker or str(exc)
+                            diagnostic.submit({"event": "approach_braking_hull_rejected",
+                                "observation_sequence": snapshot.sequence,
+                                "acquisition_sequence": snapshot.acquisition_sequence,
+                                "reason": str(exc), "at": now})
                         requests = {r.sequence: r for r in backend.records()}
                         ups = [d for d in dispatcher.deliveries()
                             if d.outcome == "injected" and d.kind == "key_up"
