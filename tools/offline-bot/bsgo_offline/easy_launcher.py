@@ -271,6 +271,8 @@ def compatible_listener(metadata,workspace,runs_root,*,fetch=None):
     """GET-only reuse of our nonce-identified workspace listener, never a kill."""
     try:
         row=json.loads(Path(metadata).read_text(encoding="utf-8"))
+        if not isinstance(row,dict):
+            return None
         if not isinstance(row.get("instance_id"),str) or len(row["instance_id"])!=32:
             return None
         url=row["url"]
@@ -287,6 +289,8 @@ def compatible_listener(metadata,workspace,runs_root,*,fetch=None):
                 if len(data)>65536:
                     return None
                 state=json.loads(data)
+        if not isinstance(state,dict):
+            return None
         if (state.get("protocol")==PROTOCOL and state.get("service_kind")==SERVICE_KIND
                 and state.get("instance_id")==row.get("instance_id")
                 and Path(state["workspace"]).resolve()==Path(workspace).resolve()

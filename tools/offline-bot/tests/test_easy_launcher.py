@@ -144,6 +144,16 @@ class EasyLauncherTests(unittest.TestCase):
                             {**state,"workspace":str(directory/"other")}):
                 self.assertIsNone(compatible_listener(metadata,directory,directory/"runs",fetch=lambda url:altered))
 
+    def test_nonobject_metadata_and_listener_response_are_ignored(self):
+        with scratch_directory() as directory:
+            metadata=directory/"listener.json"
+            metadata.write_text("[]")
+            fetch=Mock(side_effect=AssertionError("malformed metadata must not fetch"))
+            self.assertIsNone(compatible_listener(metadata,directory,directory/"runs",fetch=fetch))
+            fetch.assert_not_called()
+            metadata.write_text(json.dumps({"url":"http://127.0.0.1:9000/","instance_id":"a"*32}))
+            self.assertIsNone(compatible_listener(metadata,directory,directory/"runs",fetch=lambda url:[]))
+
     def test_bind_failure_before_serve_never_deadlocks_shutdown_or_starts_capture(self):
         with scratch_directory() as directory:
             server=Mock(server_port=9000)
