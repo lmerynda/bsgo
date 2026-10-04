@@ -1117,3 +1117,21 @@ For fire-011, 31 of 60 selected frames now read correctly; 29 frames containing
 1707, 668 or 70 over 4062 still reject. Four absent-target frames remain
 unknown. The original native identity blocker is preserved. Additional HP
 expansion is held while approach calibration takes priority.
+
+Commits `674c9abf` and `49f88588` add guarded native one-notch wheel input
+and a supervised incremental-thrust probe. Ten focused orchestration tests,
+51 native-input tests and the full 422-test integration suite passed. The
+probe retains five-second observations without a total elapsed-flight cap,
+requires fresh stopped/full-hull/same-target baseline, and checks actual wheel
+delivery before accepting partial-speed motion. Cancellation, stale readings,
+target/hull faults, unexpected full speed and 300 m of travel request PageDown.
+Independent cleanup requires two fresh speed-zero images.
+
+Native `throttle-one-notch-001` (`461dc56b7b044a0dbd2f6bac39202d49`)
+proved that one upward notch from idle holds 5.0 m/s in the current setup.
+Water HP3855 started at 1915 m. Post-delivery observations read 1898, 1874 and
+1849 m, each at 5.0 m/s. The app then requested PageDown; observations 6 and 7
+confirmed zero speed with complete diagnostics and all shutdown checks true.
+Parent supervision at game clock 02:59:58 confirmed the same target at 1842 m,
+full hull/energy and speed 0.0. The observed brake-start-to-stop range difference
+was 7 m. Other wheel levels and continuous transitions remain uncalibrated.
