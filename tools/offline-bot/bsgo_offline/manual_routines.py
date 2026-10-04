@@ -126,7 +126,10 @@ class GuardedManualRoutines:
             path = output.with_name(output.name + "-stopped-verification")
             on_progress(path)
             return self._verify_already_stopped(path, cancel_file, expected_target, may_deliver)
-        if (self.wheel_point is None or self.flight_point_assessed is not True
+        if (self.wheel_point is None or len(self.wheel_point) != 2
+                or any(type(value) is not int for value in self.wheel_point)
+                or not 0 <= self.wheel_point[0] < self.frame_size[0]
+                or not 0 <= self.wheel_point[1] < self.frame_size[1]
                 or assessment.get("flight_point") is not True):
             return {"state": "blocked", "reason": "assessed_reduced_speed_wheel_point_required",
                     "shutdown": {key: True for key in ("input_idle", "dispatcher", "recognition", "source")}}

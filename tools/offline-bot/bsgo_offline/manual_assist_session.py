@@ -98,6 +98,8 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
                              activation_ready=None, focus_handover=None, wheel_point=None,
                              selection_track_provider=None,
                              action_output_root=None,
+                             actions_paused=True, focus_handover_capability=None,
+                             wheel_point_description=None,
                              server_factory=None, on_ready=None, synthetic=False,
                              shutdown_timeout=40.):
     """Observation has no time cap. Controls start only from explicit actions."""
@@ -112,9 +114,12 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
             "mission_decisions_owner": "human", "autopilot_attached": False,
             "routine_frames": 64, "routine_frame_retention": "first64; later routine images budget-skipped",
             "pause_file": str(Path(pause_file).resolve()) if pause_file else None,
+            "actions_paused_at_start":actions_paused,
             "cancel_file": str(cancel) if cancel else None}, max_frames=64)
     controller = ManualAssistController(Path(output)/"actions", snapshot_provider=store.latest,
         runner=runner, pause_file=pause_file, activation_ready=activation_ready,
+        paused=actions_paused, focus_handover_capability=focus_handover_capability,
+        wheel_point_description=wheel_point_description,
         focus_handover=focus_handover, wheel_point=wheel_point,
         selection_track_provider=selection_track_provider, action_output_root=action_output_root)
     source = worker = server = server_thread = None

@@ -54,6 +54,7 @@ class ManualSessionTests(unittest.TestCase):
                     recognizer_factory=lambda:reader,selection_track_provider=reader.track_for,
                     runner=runner,configuration={"fixture":True},pause_file=directory/"pause",
                     cancel_file=directory/"stop",on_ready=ready,synthetic=True,
+                    actions_paused=False,
                     action_output_root=directory/"runs")
             thread_holder[0].join(1)
             self.assertTrue(outcomes[0]["accepted"])
@@ -109,7 +110,8 @@ class ManualSessionTests(unittest.TestCase):
                 recognizer_factory=lambda:SelectionEvidenceRecognizer(recognize),runner=Mock(side_effect=AssertionError("input forbidden")),
                 configuration={"fixture":True},pause_file=marker,cancel_file=directory/"session-stop",
                 on_ready=ready,synthetic=True)
-            self.assertEqual(calls[0]["reason"],"mining_pause_marker_present")
+            self.assertEqual(calls[0]["reason"],"session_paused")
+            self.assertTrue(report["result"]["manual_actions"]["action_control"]["global_pause_present"])
             self.assertTrue(marker.exists())
             self.assertTrue(all(report["shutdown"].values()))
             self.assertFalse(report["control"]["app_control_enabled"])
@@ -152,7 +154,7 @@ class ManualSessionTests(unittest.TestCase):
             report=run_manual_assist_session(directory/"run",source_factory=lambda:passive,
                 recognizer_factory=lambda:SelectionEvidenceRecognizer(recognize),runner=runner,
                 configuration={"fixture":True},pause_file=directory/"pause",cancel_file=directory/"stop",
-                wheel_point=(1,1),on_ready=ready,synthetic=True)
+                wheel_point=(1,1),on_ready=ready,synthetic=True,actions_paused=False)
             observer_thread[0].join(1)
             self.assertTrue(output[0]["accepted"],output)
             self.assertIsNone(output[1]["ownership"]["owner"],output[1]["routines"]["approach_current_target"]["error"])
@@ -179,7 +181,7 @@ class ManualSessionTests(unittest.TestCase):
             report=run_manual_assist_session(directory/"run",source_factory=lambda:PixelSource(Ship()),
                 recognizer_factory=lambda:SelectionEvidenceRecognizer(recognize),runner=runner,
                 configuration={"fixture":True},pause_file=directory/"pause",cancel_file=stop,
-                on_ready=ready,synthetic=True,shutdown_timeout=1.)
+                on_ready=ready,synthetic=True,shutdown_timeout=1.,actions_paused=False)
             self.assertFalse(report["shutdown"]["manual_actions"])
             self.assertEqual(report["result"]["state"],"blocked")
             self.assertIn("human intervention required",report["error"])

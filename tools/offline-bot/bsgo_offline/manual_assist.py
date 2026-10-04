@@ -84,7 +84,8 @@ class ManualAssistController:
     def __init__(self, directory, *, snapshot_provider, runner=None,
                  activation_ready=None, pause_file=None, paused=False,
                  clock=time.monotonic, arming_seconds=15., wheel_point=None,
-                 focus_handover=None, selection_track_provider=None, action_output_root=None):
+                 focus_handover=None, selection_track_provider=None, action_output_root=None,
+                 focus_handover_capability=None, wheel_point_description=None):
         if type(arming_seconds) not in (int, float) or not 0 < arming_seconds <= 15:
             raise ValueError("arming_seconds")
         self.directory = Path(directory).resolve()
@@ -96,6 +97,8 @@ class ManualAssistController:
         self.pause_file = Path(pause_file).resolve() if pause_file is not None else None
         self.paused, self.clock, self.arming_seconds = paused, clock, arming_seconds
         self.focus_handover = focus_handover
+        self.focus_handover_capability = focus_handover_capability or focus_handover
+        self.wheel_point_description = wheel_point_description
         self.selection_track_provider = selection_track_provider
         self._toggle = SelectedScanToggle()
         self._toggle_stop = Event()
@@ -111,14 +114,110 @@ class ManualAssistController:
         self._closed = False
         self._requested_mode = "manual"
         self._last_ack = None
+        self._pause_nonce = uuid4().hex
+        self._pause_revision = 0
+        self._acknowledged_pause = None
+
+    def _pause_marker(self):
+        if self.pause_file is None:
+            return None, None
+        try:
+            stat = self.pause_file.stat()
+            if stat.st_size > 4096:
+                return None, "pause_marker_exceeds_bounded_read"
+            contents = self.pause_file.read_bytes()
+            after = self.pause_file.stat()
+            def metadata(row):
+                return (row.st_ino,row.st_size,row.st_mtime_ns,row.st_ctime_ns)
+            if metadata(stat) != metadata(after):
+                return None, "pause_marker_changed_during_read"
+            return (*metadata(after),hashlib.sha256(contents).hexdigest()), None
+        except FileNotFoundError:
+            return None, None
+        except OSError:
+            return None, "pause_channel_unavailable"
 
     def _pause_reason(self):
         if self.paused:
             return "session_paused"
-        try:
-            return "mining_pause_marker_present" if self.pause_file and self.pause_file.exists() else None
-        except OSError:
-            return "pause_channel_unavailable"
+        marker, error = self._pause_marker()
+        if error:
+            return error
+        if marker is not None and marker != self._acknowledged_pause:
+            return "mining_pause_marker_changed" if self._acknowledged_pause else "mining_pause_marker_present"
+        return None
+
+    def action_control_snapshot(self):
+        marker, error = self._pause_marker()
+        with self._lock:
+            closed, paused, revision = self._closed,self.paused,self._pause_revision
+            acknowledgment = self._acknowledged_pause
+            owned_fault = bool(self._job and self._job["state"] == "faulted")
+        reason = error
+        if marker is not None and marker != acknowledgment:
+            reason = reason or ("mining_pause_marker_changed" if acknowledgment else "mining_pause_marker_present")
+        if paused:
+            reason = "session_paused"
+        if owned_fault:
+            reason = "cleanup_unresolved"
+        if closed:
+            reason = "controller_closed"
+        fingerprint = hashlib.sha256(json.dumps(marker).encode()).hexdigest() if marker else None
+        token = None if closed or error else hashlib.sha256(
+            (self._pause_nonce+str(revision)+json.dumps(marker)).encode()).hexdigest()
+        return {"enabled": reason is None,"paused": reason is not None,"pause_reason": reason,
+            "global_pause_present": marker is not None if not error else None,
+            "pause_fingerprint": fingerprint,"global_pause_acknowledged": bool(marker and marker == acknowledgment),
+            "acknowledgment_token": token,"acknowledgment_required": reason is not None,
+            "resume_starts_routine": False,"legacy_pause_file_preserved": True}
+
+    def resume_actions(self, *, acknowledgment_token=None):
+        current = self.action_control_snapshot()
+        if acknowledgment_token != current["acknowledgment_token"] or acknowledgment_token is None:
+            return {"accepted":False,"reason":"current_pause_acknowledgment_token_required","state":current}
+        marker, error = self._pause_marker()
+        with self._lock:
+            expected = hashlib.sha256((self._pause_nonce+str(self._pause_revision)+json.dumps(marker)).encode()).hexdigest()
+            reason = error or ("controller_closed" if self._closed else None)
+            if self._job is not None:
+                reason = reason or "action_cleanup_or_ownership_in_progress"
+            if self._toggle.enabled or self._toggle_thread and self._toggle_thread.is_alive():
+                reason = reason or "stop_selected_scan_toggle_before_resume"
+            if expected != acknowledgment_token:
+                reason = reason or "pause_marker_changed_refresh_acknowledgment"
+            if reason is None:
+                self._acknowledged_pause = marker
+                self.paused = False
+                self._pause_revision += 1
+        return {"accepted":reason is None,"reason":reason or "manual_actions_enabled",
+                "state":self.action_control_snapshot()}
+
+    def pause_actions(self):
+        with self._lock:
+            self.paused = True
+            self._pause_revision += 1
+            self._toggle.stop()
+            self._toggle_stop.set()
+            owner = self._job["name"] if self._job else None
+        if owner:
+            self.stop_action(owner,focus_requested=False)
+        return {"accepted":True,"reason":"manual_actions_paused","state":self.action_control_snapshot()}
+
+    def focus_handover_snapshot(self):
+        return {"enabled":self.focus_handover is not None,"available":self.focus_handover_capability is not None,
+                "reason":None if self.focus_handover_capability else "focus_handover_not_attached"}
+
+    def set_focus_handover(self, enabled):
+        with self._lock:
+            reason = "invalid_focus_handover_setting" if type(enabled) is not bool else None
+            if self._closed or self._job is not None or self._toggle.enabled:
+                reason = reason or "stop_current_routine_before_changing_focus_handover"
+            if enabled and self.focus_handover_capability is None:
+                reason = reason or "focus_handover_not_attached"
+            if reason is None:
+                self.focus_handover = self.focus_handover_capability if enabled else None
+        return {"accepted":reason is None,"reason":reason or "focus_handover_setting_updated",
+                "state":self.focus_handover_snapshot()}
 
     def _current(self):
         try:
@@ -149,6 +248,8 @@ class ManualAssistController:
                 "acquired_at": snapshot.acquired_at, "expires_at": snapshot.acquired_at + self.arming_seconds,
                 "window_id": snapshot.window_id, "target_identity": token_reading["target_identity"],
                 "wheel_point": self.wheel_point,
+                "flight_point_description":self.wheel_point_description,
+                "flight_point_assessed":False,
                 "view_assurance": "image_view_revision" if stable["view_revision"] is not None
                     else "supervisor_assessment_only"}
             with self._lock:
@@ -249,6 +350,7 @@ class ManualAssistController:
                     waiting_for="fresh image-verified stop and drained input ownership",
                     expected_next_step="human intervention or explicit recovery is required; new actions remain blocked")
         return {"actual_mode": "manual", "paused": bool(pause), "pause_reason": pause,
+            "action_control": self.action_control_snapshot(),
             "focus_handover_enabled": self.focus_handover is not None,
             "app_control_enabled": control, "decisions_enabled": False,
             "routine_decisions_enabled": state == "active", "attached_controller": "manual_assist",

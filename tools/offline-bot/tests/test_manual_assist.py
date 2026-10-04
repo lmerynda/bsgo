@@ -45,6 +45,42 @@ def wait_finished(controller):
 
 
 class ManualLeaseTests(unittest.TestCase):
+    def test_enable_acknowledges_only_exact_existing_pause_without_removing_it(self):
+        with scratch_directory() as directory:
+            marker=directory/"legacy-mining-stop"
+            marker.write_text("paused")
+            calls=[]
+            controller=ManualAssistController(directory/"session",snapshot_provider=snapshot,
+                paused=True,pause_file=marker,runner=lambda *args,**kw:calls.append(args))
+            state=controller.action_control_snapshot()
+            self.assertFalse(state["enabled"])
+            self.assertFalse(controller.resume_actions()["accepted"])
+            marker.write_text("new pause")
+            self.assertFalse(controller.resume_actions(acknowledgment_token=state["acknowledgment_token"])["accepted"])
+            current=controller.action_control_snapshot()
+            self.assertTrue(controller.resume_actions(acknowledgment_token=current["acknowledgment_token"])["accepted"])
+            self.assertEqual(marker.read_text(),"new pause")
+            self.assertIsNone(controller._pause_reason())
+            marker.write_text("pause again")
+            self.assertEqual(controller._pause_reason(),"mining_pause_marker_changed")
+            self.assertFalse(controller.action_control_snapshot()["enabled"])
+            self.assertEqual(calls,[])
+
+    def test_pause_and_focus_setting_never_activate_window_or_start_action(self):
+        with scratch_directory() as directory:
+            calls=[]
+            controller=ManualAssistController(directory,snapshot_provider=snapshot,paused=True,
+                runner=lambda *args,**kw:calls.append("routine"),
+                focus_handover_capability=lambda cause:calls.append("focus") or {"accepted":True})
+            self.assertFalse(controller.focus_handover_snapshot()["enabled"])
+            self.assertTrue(controller.set_focus_handover(True)["accepted"])
+            token=controller.action_control_snapshot()["acknowledgment_token"]
+            self.assertTrue(controller.resume_actions(acknowledgment_token=token)["accepted"])
+            self.assertTrue(controller.pause_actions()["accepted"])
+            self.assertFalse(controller.resume_actions(acknowledgment_token=token)["accepted"])
+            self.assertFalse(controller.action_control_snapshot()["enabled"])
+            self.assertEqual(calls,[])
+
     def test_present_unknown_or_stale_revision_cannot_be_assessed_as_absent(self):
         first=snapshot()
         for revision in (FieldValue(None,first.acquired_at,False,"unknown"),
@@ -159,6 +195,23 @@ class ManualLeaseTests(unittest.TestCase):
 
 
 class ManualCompositionTests(unittest.TestCase):
+    def test_only_fresh_request_assesses_candidate_static_flag_cannot_authorize(self):
+        with scratch_directory() as directory:
+            runtime=self.runtime(None)
+            runtime.flight_point_assessed=False
+            with patch("bsgo_offline.manual_routines.run_throttle_probe",return_value=drained()) as probe:
+                self.invoke(runtime,directory)
+                probe.assert_called_once()
+            runtime.flight_point_assessed=True
+            target,_=target_reading(snapshot(),time.monotonic())
+            with patch("bsgo_offline.manual_routines.run_throttle_probe") as probe:
+                result=runtime("approach_current_target",output=directory/"other",cancel_file=directory/"cancel",
+                    expected_target=target,assessment={"clear_corridor":True,"aligned_heading":True,
+                        "safe_stopped_scene":True,"flight_point":False},
+                    on_progress=lambda path:None,on_delivery=lambda *args:None,may_deliver=lambda:True)
+                self.assertEqual(result["reason"],"assessed_reduced_speed_wheel_point_required")
+                probe.assert_not_called()
+
     def runtime(self,source,recognizer=recognize):
         return GuardedManualRoutines(source_factory=lambda interval:source,
             recognizer_factory=lambda:recognizer,dispatcher_factory=lambda *args:None,
