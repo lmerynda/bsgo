@@ -10,6 +10,7 @@ from unittest.mock import patch, Mock
 from bsgo_offline.manual_assist_session import (run_manual_assist_session,
     SelectionEvidenceRecognizer, ExactWindowHandover, native_binding, main)
 from bsgo_offline.manual_routines import GuardedManualRoutines
+from bsgo_offline.scan_probe import run_scan_probe
 from bsgo_offline.native_capture import WindowGeometry
 from test_approach_probe import Ship, PixelSource, recognize, FakeDispatcher, PROFILE
 from test_throttle_probe import WheelDispatcher
@@ -18,6 +19,55 @@ from test_trace import scratch_directory
 
 
 class ManualSessionTests(unittest.TestCase):
+    def test_selected_toggle_runs_actual_stationary_z_probe_and_retains_unknown_effect(self):
+        with scratch_directory() as directory:
+            ship=Ship(distance=1200)
+            passive=PixelSource(ship)
+            reader=SelectionEvidenceRecognizer(recognize)
+            dispatchers=[]
+            def dispatcher(backend,journal):
+                instance=FakeDispatcher(backend,ship)
+                dispatchers.append(instance)
+                return instance
+            runner=GuardedManualRoutines(source_factory=lambda interval:PixelSource(ship),
+                recognizer_factory=lambda:recognize,dispatcher_factory=dispatcher,
+                profile=PROFILE,window_id="42:17",frame_size=(4,3),scope="synthetic")
+            outcomes=[]
+            thread_holder=[]
+            def ready(controller,server):
+                def exercise():
+                    deadline=time.monotonic()+2
+                    while not controller.actions_snapshot()["assessment_context"] and time.monotonic()<deadline:time.sleep(.01)
+                    outcomes.append(controller.start_action("auto_scan_selected",request(controller)))
+                    deadline=time.monotonic()+4
+                    while controller.actions_snapshot()["selected_scan_toggle"]["last_result"] is None and time.monotonic()<deadline:time.sleep(.01)
+                    outcomes.append(controller.actions_snapshot())
+                    controller.stop_action("auto_scan_selected")
+                    (directory/"stop").touch()
+                thread=Thread(target=exercise,daemon=True)
+                thread_holder.append(thread)
+                thread.start()
+            def short_probe(path,**kwargs):
+                return run_scan_probe(path,**kwargs,baseline_seconds=.5,after_seconds=.3)
+            with patch("bsgo_offline.manual_routines.run_scan_probe",side_effect=short_probe):
+                report=run_manual_assist_session(directory/"run",source_factory=lambda:passive,
+                    recognizer_factory=lambda:reader,selection_track_provider=reader.track_for,
+                    runner=runner,configuration={"fixture":True},pause_file=directory/"pause",
+                    cancel_file=directory/"stop",on_ready=ready,synthetic=True,
+                    action_output_root=directory/"runs")
+            thread_holder[0].join(1)
+            self.assertTrue(outcomes[0]["accepted"])
+            state=outcomes[1]
+            self.assertIsNone(state["ownership"]["owner"])
+            evidence=state["routines"]["auto_scan_selected"]["result"]["probe_evidence"]
+            self.assertEqual(evidence["state"],"recorded")
+            self.assertFalse(evidence["scan_effect_verified"])
+            self.assertTrue(state["selected_scan_toggle"]["last_result"]["delivered"])
+            self.assertEqual([item.key for item in dispatchers[0].backend.records()],["Z","Z"])
+            self.assertEqual(ship.speed,0)
+            self.assertEqual(Path(state["action_artifacts"]["directory"]).parent,directory/"runs")
+            self.assertTrue(all(report["shutdown"].values()))
+
     def test_cli_connects_server_actions_and_explicit_session_identity(self):
         with scratch_directory() as directory:
             geometry=WindowGeometry(17,42,"Battlestar Galactica Online",(2560,1440),(0,0))

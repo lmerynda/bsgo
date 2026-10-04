@@ -5,9 +5,10 @@ assessments; a persistent mining pause marker blocks action inputs. No mission
 planner or Autopilot is attached.
 """
 import argparse
+from collections import deque
 import json
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Lock
 import time
 
 from .artifacts import plain
@@ -24,6 +25,16 @@ class SelectionEvidenceRecognizer:
     def __init__(self, recognizer, *, marker_reader=None):
         self.recognizer, self.marker_reader = recognizer, marker_reader
         self.tracker = SelectionTracker()
+        self._tracks = deque(maxlen=8)
+        self._track_lock = Lock()
+
+    def track_for(self, snapshot):
+        if snapshot is None:
+            return None
+        with self._track_lock:
+            return next((track for context, at, sequence, track in self._tracks
+                if context == snapshot.context and at == snapshot.acquired_at
+                and sequence == snapshot.acquisition_sequence), None)
 
     def __call__(self, sample):
         result = self.recognizer(sample)
@@ -33,6 +44,8 @@ class SelectionEvidenceRecognizer:
             sample.acquisition_sequence, sample.acquired_at, time.monotonic(), sample.layout,
             result.frame_size, result.fields, result.healthy, result.reason, window_id=window)
         track = self.tracker.update(snapshot, time.monotonic())
+        with self._track_lock:
+            self._tracks.append((snapshot.context,snapshot.acquired_at,snapshot.acquisition_sequence,track))
         confirmed = bool(track and track.continuity == "confirmed"
                          and track.last_evidence_at == sample.acquired_at)
         fields = {**result.fields, "selection_track_id": FieldValue(
@@ -83,6 +96,8 @@ class ExactWindowHandover:
 def run_manual_assist_session(output, *, source_factory, recognizer_factory, runner,
                              configuration, pause_file, cancel_file=None,
                              activation_ready=None, focus_handover=None, wheel_point=None,
+                             selection_track_provider=None,
+                             action_output_root=None,
                              server_factory=None, on_ready=None, synthetic=False,
                              shutdown_timeout=40.):
     """Observation has no time cap. Controls start only from explicit actions."""
@@ -100,7 +115,8 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
             "cancel_file": str(cancel) if cancel else None}, max_frames=64)
     controller = ManualAssistController(Path(output)/"actions", snapshot_provider=store.latest,
         runner=runner, pause_file=pause_file, activation_ready=activation_ready,
-        focus_handover=focus_handover, wheel_point=wheel_point)
+        focus_handover=focus_handover, wheel_point=wheel_point,
+        selection_track_provider=selection_track_provider, action_output_root=action_output_root)
     source = worker = server = server_thread = None
     error = None
     shutdown = {}
@@ -264,10 +280,12 @@ def main():
         dispatcher_factory=dispatcher,profile=args.profile,window_id=f"{args.pid}:{args.hwnd}",
         frame_size=geometry.client_size,configuration=configuration,wheel_point=(args.wheel_x,args.wheel_y),
         flight_point_assessed=args.flight_point_assessed)
+    continuous_recognizer=SelectionEvidenceRecognizer(recognizer(),marker_reader=marker_reader)
     report=run_manual_assist_session(args.output,source_factory=lambda:source(.5,action=False),
-        recognizer_factory=lambda:SelectionEvidenceRecognizer(recognizer(),marker_reader=marker_reader),
+        recognizer_factory=lambda:continuous_recognizer, selection_track_provider=continuous_recognizer.track_for,
         runner=runner,configuration=configuration,pause_file=args.pause_file,cancel_file=args.cancel_file,
         activation_ready=ready,focus_handover=handover,wheel_point=(args.wheel_x,args.wheel_y),
+        action_output_root=args.runs_root,
         server_factory=lambda controller:make_server(args.runs_root,args.port,action_adapter=controller),
         on_ready=lambda controller,server:print(f"Manual session: http://127.0.0.1:{server.server_port}/",flush=True))
     print(json.dumps({"output":str(args.output.resolve()),"result":report["result"],

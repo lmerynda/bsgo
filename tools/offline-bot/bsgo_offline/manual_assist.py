@@ -10,16 +10,18 @@ import time
 from uuid import uuid4
 
 from .artifacts import plain
+from .selected_scan_toggle import SelectedScanToggle, ScanToggleDecision
 
 
 ROUTINES = {"scan_nearby_unscanned": ("toggle", "selection_and_scanner"),
+            "auto_scan_selected": ("toggle", "scanner"),
             "scan_selected": ("once", "scanner"),
             "approach_current_target": ("once", "navigation")}
 TARGET_FIELDS = ("speed", "distance", "asteroid_selected", "target_identity",
                  "target_portrait", "target_max_hp", "hull_current", "hull_max")
 
 
-def target_reading(snapshot, now):
+def target_reading(snapshot, now, *, require_stopped=True, require_full_hull=True):
     if snapshot is None:
         return None, "no_current_image"
     if not snapshot.healthy or not 0 <= now - snapshot.acquired_at < 2:
@@ -32,7 +34,7 @@ def target_reading(snapshot, now):
             return None, "invalid_or_stale_" + name
         values[name] = field.value
     if (type(values["speed"]) not in (int, float) or not math.isfinite(values["speed"])
-            or values["speed"] != 0):
+            or values["speed"] < 0 or require_stopped and values["speed"] != 0):
         return None, "stationary_ship_required"
     if (values["asteroid_selected"] is not True or not isinstance(values["target_identity"], str)
             or not values["target_identity"] or not isinstance(values["target_portrait"], tuple)
@@ -42,7 +44,9 @@ def target_reading(snapshot, now):
     for name in ("distance", "target_max_hp", "hull_current", "hull_max"):
         if type(values[name]) not in (int, float) or not math.isfinite(values[name]) or values[name] <= 0:
             return None, "invalid_" + name
-    if values["hull_current"] != values["hull_max"]:
+    if values["hull_current"] > values["hull_max"]:
+        return None, "invalid_hull_current"
+    if require_full_hull and values["hull_current"] != values["hull_max"]:
         return None, "full_hull_required"
     track = snapshot.fields.get("selection_track_id")
     if track and (not track.valid or track.observed_at != snapshot.acquired_at
@@ -80,16 +84,25 @@ class ManualAssistController:
     def __init__(self, directory, *, snapshot_provider, runner=None,
                  activation_ready=None, pause_file=None, paused=False,
                  clock=time.monotonic, arming_seconds=15., wheel_point=None,
-                 focus_handover=None):
+                 focus_handover=None, selection_track_provider=None, action_output_root=None):
         if type(arming_seconds) not in (int, float) or not 0 < arming_seconds <= 15:
             raise ValueError("arming_seconds")
         self.directory = Path(directory).resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
+        self.action_output_root = Path(action_output_root).resolve() if action_output_root else self.directory
+        self.action_output_root.mkdir(parents=True, exist_ok=True)
         self.snapshot_provider, self.runner = snapshot_provider, runner
         self.activation_ready = activation_ready or (lambda: None)
         self.pause_file = Path(pause_file).resolve() if pause_file is not None else None
         self.paused, self.clock, self.arming_seconds = paused, clock, arming_seconds
         self.focus_handover = focus_handover
+        self.selection_track_provider = selection_track_provider
+        self._toggle = SelectedScanToggle()
+        self._toggle_stop = Event()
+        self._toggle_thread = None
+        self._toggle_progress = None
+        self._toggle_focus = None
+        self._last_status_path = None
         self.wheel_point = tuple(wheel_point) if wheel_point is not None else None
         self._lock = Lock()
         self._job = None
@@ -108,9 +121,13 @@ class ManualAssistController:
             return "pause_channel_unavailable"
 
     def _current(self):
-        snapshot = self.snapshot_provider()
+        try:
+            snapshot = self.snapshot_provider()
+        except Exception as exc:
+            return None, None, f"snapshot_provider_failure: {type(exc).__name__}: {exc}", None
         now = self.clock()
         reading, reason = target_reading(snapshot, now)
+        token_reading = reading
         observation = None
         token = None
         if snapshot is not None:
@@ -123,20 +140,20 @@ class ManualAssistController:
                 "age_seconds": now - snapshot.acquired_at, "healthy": snapshot.healthy,
                 "window_id": snapshot.window_id, "fields": fields,
                 **{name: fields.get(name, {}).get("value") for name in ("target_identity", "distance", "speed")}}
-        if reading:
-            stable = {name: reading[name] for name in ("context", "target_identity", "target_max_hp",
+        if token_reading:
+            stable = {name: token_reading[name] for name in ("context", "target_identity", "target_max_hp",
                 "target_portrait", "hull_max", "view_revision", "selection_revision", "selection_track_id")}
             key = hashlib.sha256(json.dumps(stable, sort_keys=True).encode()).hexdigest()
             token_id = hashlib.sha256((key + str(snapshot.sequence) + str(snapshot.acquired_at)).encode()).hexdigest()
             token = {"token": token_id, "context_key": key, "observation_sequence": snapshot.sequence,
                 "acquired_at": snapshot.acquired_at, "expires_at": snapshot.acquired_at + self.arming_seconds,
-                "window_id": snapshot.window_id, "target_identity": reading["target_identity"],
+                "window_id": snapshot.window_id, "target_identity": token_reading["target_identity"],
                 "wheel_point": self.wheel_point,
                 "view_assurance": "image_view_revision" if stable["view_revision"] is not None
                     else "supervisor_assessment_only"}
             with self._lock:
                 if not any(row["token"]["token"] == token_id for row in self._tokens):
-                    self._tokens.append({"token": token, "reading": reading})
+                    self._tokens.append({"token": token, "reading": token_reading})
         return observation, reading, reason, token
 
     def actions_snapshot(self):
@@ -146,13 +163,20 @@ class ManualAssistController:
             job = dict(self._job) if self._job else None
             last = dict(self._last)
             closed = self._closed
+            toggle_enabled = self._toggle.enabled
+            toggle_draining = bool(self._toggle_thread and self._toggle_thread.is_alive() and not toggle_enabled)
+            toggle_progress = self._toggle_progress
+            toggle_status = self._toggle.status()
+            toggle_status["observation_worker_running"] = bool(self._toggle_thread and self._toggle_thread.is_alive())
+            toggle_focus = self._toggle_focus
+            status_path = job.get("status_path") if job and job.get("status_path") else self._last_status_path
         owner = job["name"] if job else None
         state = job["state"] if job else "idle"
         control = bool(job and job["input_acknowledged"])
         status = None
-        if job and job.get("status_path"):
+        if status_path:
             try:
-                path = Path(job["status_path"])
+                path = Path(status_path)
                 if path.stat().st_size <= 8 * 1024 * 1024:
                     status = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
@@ -163,12 +187,28 @@ class ManualAssistController:
             blocked = pause or ("controller_closed" if closed else None)
             if self.runner is None:
                 blocked = blocked or "controller_not_attached"
-            if owner is not None and owner != name:
-                blocked = blocked or "input_owner_conflict"
+            if owner is not None:
+                blocked = blocked or ("input_owner_conflict" if owner != name else
+                    "cleanup_unresolved" if state == "faulted" else
+                    "cleanup_in_progress" if state == "stopping" else "already_active")
+            if toggle_enabled and name != "auto_scan_selected":
+                blocked = blocked or "stop_selected_scan_toggle_before_other_action"
+            if toggle_draining:
+                blocked = blocked or "selected_scan_toggle_stopping"
             if name == "scan_nearby_unscanned":
                 blocked = blocked or "nearby_target_discovery_not_available"
                 waiting = blocked
                 active = False
+            elif name == "auto_scan_selected":
+                blocked = blocked or ("selected_scan_continuity_provider_not_attached"
+                    if self.selection_track_provider is None else None)
+                # Enable on a stopped image; once ON the toggle waits during
+                # human flight without ever requesting braking or thrust.
+                blocked = blocked or reason
+                if token is None:
+                    blocked = blocked or "fresh_selected_image_context_required"
+                active = toggle_enabled or toggle_draining or owner == name
+                waiting = toggle_progress.reason if toggle_progress else None
             else:
                 blocked = blocked or reason
                 if name == "scan_selected" and reading and reading["distance"] > 4000:
@@ -177,17 +217,27 @@ class ManualAssistController:
                 active = owner == name
             item = last.get(name, {})
             routines[name] = {"kind": kind, "input_scope": scope,
-                "available": self.runner is not None and name != "scan_nearby_unscanned", "ready": blocked is None,
+                "available": self.runner is not None and name != "scan_nearby_unscanned"
+                    and (name != "auto_scan_selected" or self.selection_track_provider is not None), "ready": blocked is None,
                 "start_allowed": not pause and not closed and self.runner is not None
-                    and owner is None and blocked is None,
+                    and owner is None and blocked is None and not toggle_enabled,
                 "reason": blocked, "active": active,
                 "state": state if owner == name else "waiting" if active else item.get("state", "idle"),
                 "phase": execution.get("phase") if owner == name else item.get("phase"),
                 "processing": execution.get("processing") if owner == name else None,
                 "waiting_for": execution.get("waiting_for") if owner == name else waiting,
                 "expected_next_step": execution.get("expected_next_step") if owner == name else
-                    "wait for verified nearby candidates; do not move the ship" if active else None,
+                    "wait for fresh stationary selected target; do not move or retarget the ship" if active else None,
                 "result": item.get("result"), "error": item.get("error")}
+            if name == "auto_scan_selected" and active and owner != name:
+                routines[name].update(phase="waiting", processing="observing the human-selected target",
+                    state="waiting",waiting_for=waiting,
+                    expected_next_step="scan at most once per continuous selected track when stopped; no braking or retargeting")
+                if toggle_draining:
+                    routines[name].update(state="stopping",phase="cleanup",
+                        processing="draining the stopped selected-target observer",
+                        waiting_for="the prior observation worker to finish",
+                        expected_next_step="release observer lifecycle after its worker drains; no further scan can be reserved")
             if owner == name and state == "arming":
                 routines[name].update(phase="awaiting_game_focus", processing="arming the explicitly requested action",
                     waiting_for=job.get("waiting_for", "game window focus and a fresh unchanged target"),
@@ -205,7 +255,9 @@ class ManualAssistController:
             "ownership": {"owner": owner, "state": state, "run_id": job["id"] if job else None,
                           "input_scope": ROUTINES[owner][1] if owner else None},
             "routines": routines, "current_observation": observation, "assessment_context": token,
-            "focus_handover": job.get("focus_handover") if job else None,
+            "selected_scan_toggle": toggle_status,
+            "action_artifacts": {"status": str(status_path), "directory": str(Path(status_path).parent)} if status_path else None,
+            "focus_handover": job.get("focus_handover") if job else toggle_focus if toggle_enabled else None,
             **{name: execution.get(name) for name in
                ("last_input_intent", "last_input_delivery", "last_confirmed_effect")}}
 
@@ -236,11 +288,17 @@ class ManualAssistController:
                 rejection = rejection or "controller_closed"
             if self._job is not None:
                 rejection = rejection or "input_owner_conflict"
+            if self._toggle.enabled:
+                rejection = rejection or "selected_scan_toggle_already_active"
+            elif self._toggle_thread and self._toggle_thread.is_alive():
+                rejection = rejection or "selected_scan_toggle_stopping"
             if self.runner is None:
                 rejection = rejection or "controller_not_attached"
             issued = next((row for row in self._tokens if row["token"]["token"] == request.get("assessment_token")), None)
         if name != "scan_nearby_unscanned":
             rejection = rejection or reason
+            if name == "auto_scan_selected" and self.selection_track_provider is None:
+                rejection = rejection or "selected_scan_continuity_provider_not_attached"
             if (issued is None or not token or issued["token"]["context_key"] != token["context_key"]
                     or not 0 <= self.clock() - issued["token"]["acquired_at"] < self.arming_seconds):
                 rejection = rejection or "fresh_target_assessment_token_required"
@@ -254,10 +312,27 @@ class ManualAssistController:
             rejection = rejection or "nearby_target_discovery_not_available"
         if rejection:
             return {"accepted": False, "reason": rejection, "state": self.actions_snapshot()}
+        if name == "auto_scan_selected":
+            with self._lock:
+                if (self._job is not None or self._closed or self._toggle.enabled
+                        or self._toggle_thread and self._toggle_thread.is_alive()):
+                    busy = True
+                else:
+                    busy = False
+                    self._toggle.start()
+                    self._toggle_stop = Event()
+                    self._toggle_thread = Thread(target=self._run_toggle,
+                        args=(issued["reading"]["context"],dict(assessment),self._toggle_stop),
+                        daemon=True,name="manual-selected-scan-toggle")
+                    self._toggle_thread.start()
+            if busy:
+                return {"accepted":False,"reason":"input_owner_conflict","state":self.actions_snapshot()}
+            return {"accepted":True,"reason":"selected_scan_toggle_enabled","state":self.actions_snapshot()}
         with self._lock:
             # Recheck inside the reservation lock: concurrent API requests have
             # one winner even if each checked readiness before either reserved.
-            if self._job is not None or self._closed:
+            if (self._job is not None or self._closed or self._toggle.enabled
+                    or self._toggle_thread and self._toggle_thread.is_alive()):
                 busy = True
             else:
                 busy = False
@@ -299,7 +374,7 @@ class ManualAssistController:
                     raise RuntimeError(reason or "requested_target_or_context_changed")
                 if self.clock() >= job["deadline"]:
                     raise RuntimeError("arming_expired_before_input")
-                if self.focus_handover is not None and not handed_over:
+                if self.focus_handover is not None and not handed_over and job.get("focus_requested", True):
                     job["focus_handover"] = self.focus_handover("start")
                     handed_over = True
                     # Focus change can coincide with a target/camera change;
@@ -322,7 +397,7 @@ class ManualAssistController:
                     with self._lock:
                         job["input_acknowledged"] = True
             ran = True
-            result = self.runner(job["name"], output=self.directory / job["id"],
+            result = self.runner(job.get("runner_name",job["name"]), output=self.action_output_root / job["id"],
                 cancel_file=job["cancel"], expected_target=job["pin"],
                 assessment=job["assessment"], on_progress=progress, on_delivery=acknowledge,
                 may_deliver=lambda: not job["stop"].is_set() and not self._pause_reason()
@@ -346,22 +421,88 @@ class ManualAssistController:
                 clean = False
                 error = error or "navigation_stop_not_observed; ownership retained"
             with self._lock:
-                canceled = job["stop"].is_set() or result.get("cancel_requested") is True
-                terminal = "faulted" if not clean else "canceled" if canceled else result.get("state", "blocked")
+                driver_error = job.get("driver_error")
+                if job.get("status_path"):
+                    self._last_status_path = job["status_path"]
+                canceled = (job["stop"].is_set() or result.get("cancel_requested") is True) and not driver_error
+                terminal = "faulted" if not clean else "blocked" if driver_error else "canceled" if canceled else result.get("state", "blocked")
                 self._last[job["name"]] = {"state": terminal,
                     "phase": terminal if terminal in ("blocked", "canceled", "faulted") else "completed",
-                    "result": {"state": terminal, "reason": "explicit_stop" if canceled and clean
-                        else result.get("reason"), "probe_evidence": plain(result)}, "error": error}
+                    "result": {"state": terminal, "reason": driver_error or ("explicit_stop" if canceled and clean
+                        else result.get("reason")), "probe_evidence": plain(result)}, "error": driver_error or error}
                 if clean:
+                    if job.get("toggle_request_id"):
+                        self._toggle.record_result(job["toggle_request_id"],delivered=job["input_acknowledged"])
                     if self._job is job:
                         self._job = None
                 else:
                     job["state"] = "faulted"
 
+    def _run_toggle(self, context, assessment, stop_event):
+        try:
+            self._toggle_loop(context,assessment,stop_event)
+        except Exception as exc:
+            with self._lock:
+                if stop_event.is_set() or stop_event is not self._toggle_stop:
+                    return
+                self._toggle.stop()
+                stop_event.set()
+                reason=f"selected_scan_driver_failed: {type(exc).__name__}: {exc}"
+                self._toggle_progress=ScanToggleDecision("blocked",reason)
+                self._last["auto_scan_selected"]={"state":"blocked","phase":"blocked","error":reason}
+                own=bool(self._job and self._job["name"]=="auto_scan_selected")
+                if own:
+                    self._job["driver_error"] = reason
+            if own:
+                self.stop_action("auto_scan_selected",focus_requested=False)
+
+    def _toggle_loop(self, context, assessment, stop_event):
+        """Intention observation owns no input; each guarded Z takes a lease."""
+        if self.focus_handover and not stop_event.is_set() and not self._pause_reason():
+            self._toggle_focus = self.focus_handover("start")
+        while not stop_event.wait(.1):
+            snapshot = self.snapshot_provider()
+            track = self.selection_track_provider(snapshot) if snapshot else None
+            marker = snapshot.fields.get("selected_marker_scan_state") if snapshot else None
+            marker_state = marker.value if marker and marker.valid and marker.observed_at == snapshot.acquired_at else "unknown"
+            if marker_state not in ("unknown","unscanned","scanned"):
+                marker_state = "unknown"
+            with self._lock:
+                if (self._closed or not self._toggle.enabled or stop_event.is_set()
+                        or stop_event is not self._toggle_stop):
+                    break
+                pause = self._pause_reason()
+                if pause:
+                    self._toggle_progress = ScanToggleDecision("wait",pause)
+                    continue
+                decision = self._toggle.evaluate(snapshot,track,marker_scan_state=marker_state,now=self.clock())
+                self._toggle_progress = decision
+                if decision.action != "scan":
+                    continue
+                if pause or self._job is not None or not snapshot or plain(snapshot.context) != context:
+                    self._toggle.record_result(decision.request_id,delivered=False)
+                    continue
+                pin, invalid = target_reading(snapshot,self.clock())
+                if invalid:
+                    self._toggle.record_result(decision.request_id,delivered=False)
+                    continue
+                job_id="manual-assist-"+uuid4().hex
+                job={"name":"auto_scan_selected","runner_name":"scan_selected","id":job_id,
+                    "state":"arming","cancel":self.directory/(job_id+".cancel"),"stop":Event(),
+                    "input_acknowledged":False,"status_path":None,"pin":pin,"assessment":assessment,
+                    "deadline":snapshot.acquired_at+15.,"focus_requested":False,
+                    "toggle_request_id":decision.request_id}
+                self._job=job
+                job["thread"]=Thread(target=self._run,args=(job,),daemon=True,name="manual-selected-scan-action")
+                job["thread"].start()
+
     def stop_action(self, name, *, focus_requested=True):
         if name not in ROUTINES:
             return {"accepted": False, "reason": "unknown_routine", "state": self.actions_snapshot()}
         with self._lock:
+            if name == "auto_scan_selected":
+                self._toggle.stop()
+                self._toggle_stop.set()
             job = self._job
             if name == "scan_nearby_unscanned" and (not job or job["name"] != name):
                 job = None
@@ -388,14 +529,20 @@ class ManualAssistController:
             except OSError as exc:
                 return {"accepted": False, "reason": "cancel_file_write_failed: " + str(exc),
                         "state": self.actions_snapshot()}
-        return {"accepted": True, "reason": "stopping" if job else "already_idle",
+        draining = name == "auto_scan_selected" and self._toggle_thread and self._toggle_thread.is_alive()
+        return {"accepted": True, "reason": "stopping" if job or draining else "already_idle",
                 "state": self.actions_snapshot()}
 
     def close(self, timeout=2.):
         with self._lock:
             self._closed = True
+            self._toggle.stop()
+            self._toggle_stop.set()
             job = self._job
         if job:
             self.stop_action(job["name"], focus_requested=False)
             job["thread"].join(timeout)
-        return self.actions_snapshot()["ownership"]["owner"] is None
+        if self._toggle_thread:
+            self._toggle_thread.join(min(timeout,2.))
+        return (self.actions_snapshot()["ownership"]["owner"] is None
+                and not (self._toggle_thread and self._toggle_thread.is_alive()))
