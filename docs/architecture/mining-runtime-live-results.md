@@ -1165,3 +1165,29 @@ diagnostics and all shutdown checks true. Parent supervision at game clock
 Observed slow-speed coast was 6 m. This completes one separated cruise/slow
 approach and lands within the preferred 750–800 m range. It does not yet prove
 the transition from full to reduced throttle while continuously moving.
+
+Commit `c1a560a8` exposes supervised firing `--max-distance 800` for the
+upgraded guns. The explicit upper setting is bounded to 760–800 m and defaults
+to 760 m; baseline, observation and actual G delivery use the same configured
+bound. Forty-six firing tests and 51 native-input tests passed, including
+786/800 m acceptance, default rejection at 786 m and configured-bound rejection.
+
+The app then ran `continuous-fire-012`
+(`d35e6318e23e48909c2e734ff99fa1ce`) on Water HP3855 at the verified 786 m
+stop using `--max-distance 800`. One G was delivered. The run recognized one
+distinct decline to 2938 HP but encountered its first identity rejection at
+observation 22, with upstream `invalid_target_hp_separator` and
+`maximum_hp_context_unverified`. The original report remains blocked and
+`firing_effect_verified` is false: it did not recognize the two distinct
+declines required for that application proof. The read-only observer retained
+target disappearance on 61/62 and trailing images 63/64, with complete
+diagnostics and all shutdown checks true.
+
+Parent supervision separately observed 222/3855 HP at game clock 03:10:41,
+then reviewed retained image 64 showing 2071 Water and 112 experience at
+03:10:44, full hull, speed 0.0 and energy 313/800 recovering. A fresh view at
+03:11:02 confirmed target gone, full hull/energy and zero speed. Quantified
+loop totals are now 8217 Water and 24881 Tylium. This verifies useful mining
+from the improved stop under supervision while preserving the application's
+unresolved HP-recognition failure. Input ownership returned to the mining
+agent for the next candidate.

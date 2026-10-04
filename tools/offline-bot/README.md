@@ -394,7 +394,10 @@ HP, target identity/portrait/maximum HP, and distance between 480 and 760 m.
 For an independently assessed safe, stationary closer-target experiment,
 `--min-distance 200` explicitly sets a 200 m lower bound. This is a calibration
 setting, not a measured minimum gun range; the default remains 480 m and the
-maximum remains 760 m. All stopped-image, target and delivery guards still apply.
+maximum defaults to 760 m. For the upgraded-gun trial, `--max-distance 800`
+explicitly permits a stopped target up to 800 m. This setting accepts 760–800 m,
+is recorded in the manifest and applies to both observations and the actual G
+delivery guard. All stopped-image, target and delivery guards still apply.
 It then sends one guarded G down/up pair with a 50 ms virtual-key hold. After
 confirmed delivery, two fresh images with distinct falling current HP are
 required for the narrow `firing_effect_verified` result. `--after-seconds`
