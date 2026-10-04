@@ -1477,3 +1477,39 @@ capture failure because a sampled game-client point is occluded; its controller
 is closed and Enable/Start are blocked. The original mining pause marker is
 preserved. The port-8765 legacy observer remains unattached. Native control and
 mining acceptance of the new layout remain separate from these UI checks.
+
+Read-only LLM observation access is implemented in `018a8194` through
+`GET /api/observation` and `GET /api/observation/schema`. The versioned projection
+uses the same startup, mode and current Manual-controller providers as the
+cockpit, and reports its non-atomic collection interval rather than claiming a
+single atomic read. It includes attachment, acknowledged control mode, current
+input ownership, usable readings with units and rejection reasons, active
+routine phase/process/wait/next step, readiness blockers, and separate input
+intent/delivery/image-effect evidence. Unknown or stale values are null; zero
+speed and actual unclamped range remain distinguishable from missing readings.
+Historical packages never fill missing live fields. Polling does not assert
+human checks, expose an action token, focus the game or launch a routine.
+Independent provider exceptions retain partial data in a shaped HTTP 503
+response; an in-progress read does not hold the Pause mutation lock.
+
+Forty focused observation/observer/cockpit/socket checks and nine launcher
+checks passed. These include repeated GETs leaving action control unchanged,
+history isolation, denied mutation and cross-site/Host requests, partial HP,
+negative/nonfinite/wrong-image/stale readings, pending mode, a waiting scan with
+human input ownership, faulted ownership retained after connection loss, and
+Pause succeeding while a source read waits. The README documents the dynamic
+launcher URL, schema, polling/freshness contract and historical evidence APIs.
+
+The existing launcher was verified paused, idle, with no active routine or
+selected-target observer and no unresolved cleanup before restarting its exact
+verified process to load the routes. The legacy port-8765 observer was left
+running. The new normal launcher serves at `http://127.0.0.1:23949/` (PID 58704);
+its observation and schema endpoints returned HTTP 200 with matching
+`bsgo-observation-v1` and Cache-Control no-store. Its current native discovery
+reports no visible game window. The response therefore reports unavailable
+live observation, null readings, unknown input owner, Manual actions paused,
+no input delivery, and no historical fallback. The original mining pause
+marker remains present. The actual response is retained locally at
+`logs/offline-bot/observation-api-live-proof.json`; the cockpit tab now points
+to the restarted server. This verifies API publication and honest unavailable
+state, not live OCR accuracy or a new mining result.
