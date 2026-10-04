@@ -944,3 +944,19 @@ supervision at game clock01:19:38 confirms target gone, speed0.0 and full
 hull/energy. Quantified continuous-loop totals are now 4909 Water and13500
 Tylium. The earlier unquantified Tylium yield remains excluded. The ship did
 not fly for this harvest, and stationary candidate work continues.
+
+Commit `eb570647` adds the six complete measured fire-008 current-HP layouts
+2641, 2301, 1871, 1329, 1000 and 277 over maximum 4033. All 99 selected-target
+frames now replay valid; four subsequent frames correctly show absent
+selection. Previous selected fire-007 (217), fire-006 (100) and fire-004 (60)
+frames remain valid. Font templates and matching thresholds were unchanged.
+The 33 HUD tests now cover approximately 510 partial/missing glyph cases,
+including the clipped 248 regression. Full integration passed 397 tests with
+first-rejection observability included. Whole-label raster generalization
+remains research only; exact complete measured anchors still govern acceptance.
+
+Continued stationary scanning found Water HP4309 at 2598 m, shortlisted
+alongside Water HP3154 at 2595 m. A subsequent small grey-object selection did
+not prove a target change and was deferred. The loop continues scanning for
+nearby wanted resources or a clearer route; no flight on the rejected Water
+corridor has occurred.
