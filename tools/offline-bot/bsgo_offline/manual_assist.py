@@ -44,6 +44,15 @@ def target_reading(snapshot, now):
             return None, "invalid_" + name
     if values["hull_current"] != values["hull_max"]:
         return None, "full_hull_required"
+    track = snapshot.fields.get("selection_track_id")
+    if track and (not track.valid or track.observed_at != snapshot.acquired_at
+                  or type(track.value) is not int or track.value < 1):
+        return None, "local_selection_continuity_unverified"
+    for name in ("view_revision", "selection_revision"):
+        revision = snapshot.fields.get(name)
+        if revision and (not revision.valid or revision.observed_at != snapshot.acquired_at
+                or type(revision.value) is not int or revision.value < 0):
+            return None, "invalid_or_stale_" + name
     return {**values, "context": plain(snapshot.context), "sequence": snapshot.sequence,
         "acquired_at": snapshot.acquired_at,
         **{name: snapshot.fields[name].value if snapshot.fields.get(name)
@@ -117,8 +126,6 @@ class ManualAssistController:
         if reading:
             stable = {name: reading[name] for name in ("context", "target_identity", "target_max_hp",
                 "target_portrait", "hull_max", "view_revision", "selection_revision", "selection_track_id")}
-            view = snapshot.fields.get("view_revision")
-            stable["view_revision"] = view.value if view and view.valid else None
             key = hashlib.sha256(json.dumps(stable, sort_keys=True).encode()).hexdigest()
             token_id = hashlib.sha256((key + str(snapshot.sequence) + str(snapshot.acquired_at)).encode()).hexdigest()
             token = {"token": token_id, "context_key": key, "observation_sequence": snapshot.sequence,
@@ -187,6 +194,10 @@ class ManualAssistController:
                     expected_next_step="start only after revalidation before the 15-second arming deadline")
             if owner == name and state in ("stopping", "faulted") and job.get("waiting_for"):
                 routines[name]["waiting_for"] = job["waiting_for"]
+            if owner == name and state == "faulted":
+                routines[name].update(phase="faulted", processing="action cleanup remains unresolved",
+                    waiting_for="fresh image-verified stop and drained input ownership",
+                    expected_next_step="human intervention or explicit recovery is required; new actions remain blocked")
         return {"actual_mode": "manual", "paused": bool(pause), "pause_reason": pause,
             "focus_handover_enabled": self.focus_handover is not None,
             "app_control_enabled": control, "decisions_enabled": False,
@@ -279,8 +290,7 @@ class ManualAssistController:
                         pass
         monitor_thread = Thread(target=monitor, daemon=True, name="manual-assist-pause-watch")
         try:
-            if self.focus_handover is not None and not job["stop"].is_set():
-                job["focus_handover"] = self.focus_handover("start")
+            handed_over = False
             while True:
                 if job["stop"].is_set() or self._pause_reason():
                     raise RuntimeError("action_canceled_before_input")
@@ -289,6 +299,12 @@ class ManualAssistController:
                     raise RuntimeError(reason or "requested_target_or_context_changed")
                 if self.clock() >= job["deadline"]:
                     raise RuntimeError("arming_expired_before_input")
+                if self.focus_handover is not None and not handed_over:
+                    job["focus_handover"] = self.focus_handover("start")
+                    handed_over = True
+                    # Focus change can coincide with a target/camera change;
+                    # validate the next current image before entering a probe.
+                    continue
                 waiting = self.activation_ready()
                 if waiting is None:
                     break
@@ -342,7 +358,7 @@ class ManualAssistController:
                 else:
                     job["state"] = "faulted"
 
-    def stop_action(self, name):
+    def stop_action(self, name, *, focus_requested=True):
         if name not in ROUTINES:
             return {"accepted": False, "reason": "unknown_routine", "state": self.actions_snapshot()}
         with self._lock:
@@ -360,7 +376,7 @@ class ManualAssistController:
         if rejected:
             return {"accepted": False, "reason": "different_input_owner_active", "state": self.actions_snapshot()}
         if job:
-            if self.focus_handover is not None:
+            if focus_requested and self.focus_handover is not None:
                 try:
                     job["focus_handover"] = self.focus_handover("cancel")
                 except Exception as exc:
@@ -380,6 +396,6 @@ class ManualAssistController:
             self._closed = True
             job = self._job
         if job:
-            self.stop_action(job["name"])
+            self.stop_action(job["name"], focus_requested=False)
             job["thread"].join(timeout)
         return self.actions_snapshot()["ownership"]["owner"] is None

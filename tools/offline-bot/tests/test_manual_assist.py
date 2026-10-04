@@ -1,5 +1,6 @@
 """Manual input leases and existing-probe composition, with no native calls."""
 from threading import Event, Thread
+from dataclasses import replace
 import time
 import unittest
 from unittest.mock import patch
@@ -44,6 +45,15 @@ def wait_finished(controller):
 
 
 class ManualLeaseTests(unittest.TestCase):
+    def test_present_unknown_or_stale_revision_cannot_be_assessed_as_absent(self):
+        first=snapshot()
+        for revision in (FieldValue(None,first.acquired_at,False,"unknown"),
+                         FieldValue(1,first.acquired_at-.1)):
+            current=replace(first,fields={**first.fields,"view_revision":revision})
+            reading,reason=target_reading(current,time.monotonic())
+            self.assertIsNone(reading)
+            self.assertEqual(reason,"invalid_or_stale_view_revision")
+
     def test_navigation_drain_without_stop_retains_faulted_lease(self):
         with scratch_directory() as directory:
             def runner(name, **args):

@@ -164,7 +164,7 @@ class GuardedManualRoutines:
     @staticmethod
     def _result(legs, state, reason):
         shutdown_names = {key for leg in legs for key in leg.get("shutdown", {})}
-        shutdown = {name: all(leg.get("shutdown", {}).get(name) is True for leg in legs)
+        shutdown = {name: all(leg["shutdown"][name] is True for leg in legs if name in leg.get("shutdown", {}))
                     for name in shutdown_names}
         return {"state": state, "reason": reason, "legs": legs, "shutdown": shutdown,
             "complete_diagnostics": all(leg.get("complete_diagnostics") is True for leg in legs),
