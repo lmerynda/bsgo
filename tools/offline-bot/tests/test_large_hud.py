@@ -32,6 +32,23 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_star_below_distance_is_separate_from_complete_glyph(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for damage in (None,'connect_star','remove_bottom_row'):
+            im = fixture_image()
+            with Image.open(FIXTURES/'distance-516-star-below.png') as crop:
+                im.paste(crop,tuple(data['distance_box'][:2]))
+            if damage == 'connect_star':
+                ImageDraw.Draw(im).point((860,173),fill='white')
+            elif damage == 'remove_bottom_row':
+                ImageDraw.Draw(im).rectangle((857,172,868,172),fill='black')
+            field = HudRecognizer(PROFILE)(native(im)).fields['distance']
+            if damage is None:
+                self.assertEqual(field.value,516)
+                self.assertTrue(field.valid)
+            else:
+                self.assertFalse(field.valid,damage)
+
     def test_measured_three_digit_hp_ratio_has_complete_anchored_glyphs(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for damage in (None,'clip_three','remove_three','clip_one','remove_separator',

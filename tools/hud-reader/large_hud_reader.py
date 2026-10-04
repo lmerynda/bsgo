@@ -71,6 +71,11 @@ class LargeHudReader:
 
     def distance(self, image):
         a = mask(image, self.data['distance_box'])
+        # Complete native distance glyphs end at row14. A wholly empty row15
+        # proves any lower pixels are separate scenery, such as the measured
+        # star below516. Keep connected intrusions for the geometry rejection.
+        if not a[15].any():
+            a[16:] = False
         gs = pieces(a)
         if (not 1 <= len(gs) <= 6 or a[:2].any() or a[-2:].any()
                 or a[:, :2].any() or a[:, -2:].any()):
