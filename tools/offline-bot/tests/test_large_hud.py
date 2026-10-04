@@ -36,6 +36,7 @@ class LargeHudTests(unittest.TestCase):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
         pairs += [(v,4033) for v in (2641,2301,1871,1329,1000,277)]
+        pairs += [(v,3097) for v in (1438,403)]
         for value,maximum in pairs:
             im = fixture_image()
             with Image.open(FIXTURES/f'hp-{value}-{maximum}.png') as crop:
@@ -49,6 +50,7 @@ class LargeHudTests(unittest.TestCase):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
         pairs += [(v,4033) for v in (2641,2301,1871,1329,1000,277)]
+        pairs += [(v,3097) for v in (1438,403)]
         for value,maximum in pairs:
             im = fixture_image()
             with Image.open(FIXTURES/f'hp-{value}-{maximum}.png') as crop:
