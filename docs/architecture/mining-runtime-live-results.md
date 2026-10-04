@@ -882,3 +882,13 @@ Sequence 220 directly shows `+1687 X WATER` and 112 experience, full hull
 reviewed this archived popup. Quantified loop yield is now 4909 Water and
 5903 Tylium. Actual yield does not retroactively validate the failed HP proof;
 the completed archive supplies the next reader replay while the loop continues.
+
+Matching observer commit `27f97a9a` now records valid terminal zero only from
+fresh images acquired after confirmed G key-up. Zero never counts toward the
+two positive HP declines and freezes later proof building; an existing early
+proof or first blocker is preserved. Continuous observation still requires
+the same target, portrait, context, range and zero-speed evidence, then actual
+selection absence plus two trailing images. Baseline zero and pre-G-up zero
+reject. Forty focused firing tests and the fresh integrated 393-test suite
+passed. Reader `bdc6ad0c` and this observer are available together for subsequent
+native launches; neither rewrites the original fire-006/007 results.
