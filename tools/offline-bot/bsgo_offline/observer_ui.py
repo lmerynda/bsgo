@@ -530,8 +530,11 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                     if mode not in ("manual", "autopilot"):
                         self._json(400, {"error": "invalid_mode"})
                         return
-                    decision = controller.request(mode)
-                    decision["state"] = mode_snapshot()
+                    # Mode handover and routine admission must share the same
+                    # mutation boundary as Pause/Enable and Start/Cancel.
+                    with actions_lock:
+                        decision = controller.request(mode)
+                        decision["state"] = mode_snapshot()
                 elif path == "/api/startup":
                     if not isinstance(data, dict) or data.get("action") not in (
                             "retry_connection", "enable_manual_actions", "pause_manual_actions",
