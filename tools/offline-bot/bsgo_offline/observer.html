@@ -18,6 +18,11 @@
     select,button { background:#182740; border:1px solid #435575; border-radius:10px; color:var(--text); padding:10px 13px; font:inherit; }
     button { cursor:pointer; } button:hover { border-color:var(--cyan); }
     .modebar { display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:12px 15px; margin-bottom:17px; border:1px solid var(--line); border-radius:13px; background:#111b31; }
+    .startup { border:1px solid var(--line); border-radius:16px; background:linear-gradient(130deg,#163246,#111b31); padding:17px; margin-bottom:17px; }
+    .startup .controls { margin-top:12px; }
+    .startupstate { font-size:22px; font-weight:750; }
+    .flightcue { display:inline-flex; align-items:center; gap:9px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:#12243a; }
+    .flightcue::before { content:'✚'; color:var(--cyan); font-size:19px; }
     .modebar button[aria-pressed="true"] { border-color:var(--cyan); background:#20505a; }
     .modebar .small { margin-left:auto; }
     button:disabled { opacity:.48; cursor:not-allowed; }
@@ -67,8 +72,20 @@
     <div><div class="eyebrow">Local session · localhost</div><h1>Mining observer</h1><p class="sub">Live status refreshes every second. Manual actions require an attached, ready controller.</p></div>
     <div class="controls"><label for="runs">Run</label><select id="runs"><option value="">Latest automatically</option></select><button id="privacy" type="button" aria-pressed="false">Show images</button></div>
   </header>
+  <section class="startup" aria-label="Game connection and Manual action availability">
+    <div class="eyebrow">Simple start · no game input on page load</div>
+    <h2>Game connection</h2>
+    <div id="startupstate" class="startupstate">Checking connection…</div>
+    <p id="startupdetail" class="small">The observer is checking for a compatible game window.</p>
+    <p class="small">Current control: <strong id="startupmode">Manual</strong> · Manual actions: <strong id="startupactions">PAUSED</strong> · <span id="startuppausereason">Waiting for session</span></p>
+    <p class="small">Window: <span id="startupwindow">UNKNOWN</span> · Image reading: <span id="startupimage">UNKNOWN</span> · Routine readiness: <span id="startuproutines">UNKNOWN</span></p>
+    <p id="startupacknotice" class="small">Opening this page does not focus the game or start a routine.</p>
+    <div class="controls"><button id="startupretry" type="button" disabled>Retry game connection</button><button id="startupenable" type="button" disabled>Enable Manual actions</button><button id="startuppause" type="button" disabled>Pause Manual actions</button></div>
+    <p class="small">Optional: <button id="startupfocus" type="button" aria-pressed="false" disabled>Return to game on Start/Cancel: OFF</button> <span id="startupfocusreason">Unavailable until a game is connected.</span> This setting never focuses the game on page load, Retry, or Enable.</p>
+    <p id="startupack" class="small">No startup action requested.</p>
+  </section>
   <div class="modebar" aria-label="Application control mode"><span class="label">Current control</span><button id="manualmode" type="button" aria-pressed="true">Manual</button><button id="automode" type="button" aria-pressed="false">Autopilot</button><strong id="actualmode">UNKNOWN</strong><span id="missionowner" class="small">Mission decisions: UNKNOWN</span><span id="modeavailability" class="small">App input: UNKNOWN</span><span id="routinedecisions" class="small">Routine decisions: UNKNOWN</span><span id="routinescope" class="small">Routine input owner: UNKNOWN</span><span id="moderequest" class="small">Requested: UNKNOWN · Pending: UNKNOWN</span><span id="modeblocker" class="small warn">Handover: UNKNOWN</span><span id="modeack" class="small">Acknowledgment: UNKNOWN</span></div>
-  <section class="manualactions" aria-label="Manual building-block actions"><h2>Manual actions <span class="small">· live routine ownership, independent of selected run</span><span id="syntheticactions" class="pill synthetic" hidden>SYNTHETIC DEMO · NO GAME INPUT</span></h2><p class="small">Overall mission mode stays Manual while one routine may temporarily own game input. Starts require an attached controller and its readiness check.</p><p class="small">Current session image: target <strong id="currenttarget">UNKNOWN</strong> · range <span id="currentrange">UNKNOWN</span> · speed <span id="currentspeed">UNKNOWN</span> · age <span id="currentage">UNKNOWN</span> · health <span id="currenthealth">UNKNOWN</span></p><p class="small">Input owner: <strong id="actionowner">UNKNOWN</strong> · Ownership state: <span id="actionownerstate">UNKNOWN</span> · Input scope: <span id="actionscope">UNKNOWN</span> · Run: <span id="actionrun">UNKNOWN</span> · Paused: <span id="actionpaused">UNKNOWN</span></p><p class="small">Focus handover: <span id="focushandover">UNKNOWN</span></p><div class="actiongrid"><div class="actioncard"><h2>Scan nearby unscanned asteroids</h2><p class="small">Toggle: <span id="scanstate">UNKNOWN</span> · Readiness: <span id="scanreadiness">UNKNOWN</span></p><button id="scanbutton" type="button" disabled>Start scanning</button><p class="small">Phase: <span id="scanphase">UNKNOWN</span></p><p class="small">Processing: <span id="scanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="scanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="scannext">UNKNOWN</span></p><p class="small">Result: <span id="scanresult">UNKNOWN</span></p><p class="warn">Error: <span id="scanerror">UNKNOWN</span></p></div><div class="actioncard"><h2>Auto-scan selected target</h2><p class="small">Toggle: <span id="autoscanstate">UNKNOWN</span> · Readiness: <span id="autoscanreadiness">UNKNOWN</span></p><label class="small"><input id="autoscansafe" type="checkbox"> I assessed a safe stopped scene for this selected target</label><br><button id="autoscanbutton" type="button" disabled>Start auto-scan</button><p class="small">Phase: <span id="autoscanphase">UNKNOWN</span></p><p class="small">Processing: <span id="autoscanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="autoscanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="autoscannext">UNKNOWN</span></p><p class="small">Result: <span id="autoscanresult">UNKNOWN</span></p><p class="warn">Error: <span id="autoscanerror">UNKNOWN</span></p><p class="small">Only the human-selected target; waits during ship motion and does not brake or retarget. Delivery alone does not verify a scan.</p></div><div class="actioncard"><h2>Scan selected asteroid</h2><p class="small">One shot: <span id="selectedscanstate">UNKNOWN</span> · Readiness: <span id="selectedscanreadiness">UNKNOWN</span></p><label class="small"><input id="scanselectedsafe" type="checkbox"> I assessed a safe stopped scene for this selected target</label><br><button id="selectedscanbutton" type="button" disabled>Scan selected</button><p class="small">Phase: <span id="selectedscanphase">UNKNOWN</span></p><p class="small">Processing: <span id="selectedscanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="selectedscanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="selectedscannext">UNKNOWN</span></p><p class="small">Result: <span id="selectedscanresult">UNKNOWN</span></p><p class="warn">Error: <span id="selectedscanerror">UNKNOWN</span></p><p class="small">Input delivery alone does not verify resource identity.</p></div><div class="actioncard"><h2>Approach current target</h2><p class="small">One shot: <span id="approachstate">UNKNOWN</span> · Readiness: <span id="approachreadiness">UNKNOWN</span></p><p class="small">Assessment context: <span id="assessmentcontext">UNKNOWN</span></p><div class="assessments"><label><input id="clearcorridor" type="checkbox"> I assessed a clear corridor</label><label><input id="alignedheading" type="checkbox"> I assessed heading alignment</label><label><input id="safestopped" type="checkbox"> I assessed a safe stopped scene</label><label><input id="flightpoint" type="checkbox"> I assessed the configured flight point <span id="flightpointvalue">UNKNOWN</span></label></div><button id="approachbutton" type="button" disabled>Start approach</button><p class="small">Phase: <span id="approachphase">UNKNOWN</span></p><p class="small">Processing: <span id="approachprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="approachwaiting">UNKNOWN</span></p><p class="small">Next: <span id="approachnext">UNKNOWN</span></p><p class="small">Result: <span id="approachresult">UNKNOWN</span></p><p class="warn">Error: <span id="approacherror">UNKNOWN</span></p></div></div><p class="small">Action acknowledgment: <span id="actionack">No action requested</span></p><p class="small">Routine input intent: <span id="actionintent">UNKNOWN</span> · Delivery: <span id="actiondelivery">UNKNOWN</span> · Image effect: <span id="actioneffect">UNKNOWN</span></p><p class="small">Last routine package: <span id="actionartifactpath">UNKNOWN</span> · <a id="actionartifactlink" href="#" hidden>View saved run</a></p><p class="small">Selected-target auto-scan: <span id="autoscantoggle">UNKNOWN</span></p></section>
+  <section class="manualactions" aria-label="Manual building-block actions"><h2>Manual actions <span class="small">· live routine ownership, independent of selected run</span><span id="syntheticactions" class="pill synthetic" hidden>SYNTHETIC DEMO · NO GAME INPUT</span></h2><p class="small">Overall mission mode stays Manual while one routine may temporarily own game input. Starts require an attached controller and its readiness check.</p><p class="small">Current session image: target <strong id="currenttarget">UNKNOWN</strong> · range <span id="currentrange">UNKNOWN</span> · speed <span id="currentspeed">UNKNOWN</span> · age <span id="currentage">UNKNOWN</span> · health <span id="currenthealth">UNKNOWN</span></p><p class="small">Input owner: <strong id="actionowner">UNKNOWN</strong> · Ownership state: <span id="actionownerstate">UNKNOWN</span> · Input scope: <span id="actionscope">UNKNOWN</span> · Run: <span id="actionrun">UNKNOWN</span> · Paused: <span id="actionpaused">UNKNOWN</span></p><p class="small">Focus handover: <span id="focushandover">UNKNOWN</span></p><div class="actiongrid"><div class="actioncard"><h2>Scan nearby unscanned asteroids</h2><p class="small">Toggle: <span id="scanstate">UNKNOWN</span> · Readiness: <span id="scanreadiness">UNKNOWN</span></p><button id="scanbutton" type="button" disabled>Start scanning</button><p class="small">Phase: <span id="scanphase">UNKNOWN</span></p><p class="small">Processing: <span id="scanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="scanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="scannext">UNKNOWN</span></p><p class="small">Result: <span id="scanresult">UNKNOWN</span></p><p class="warn">Error: <span id="scanerror">UNKNOWN</span></p></div><div class="actioncard"><h2>Auto-scan selected target</h2><p class="small">Toggle: <span id="autoscanstate">UNKNOWN</span> · Readiness: <span id="autoscanreadiness">UNKNOWN</span></p><label class="small"><input id="autoscansafe" type="checkbox"> I assessed a safe stopped scene for this selected target</label><br><button id="autoscanbutton" type="button" disabled>Start auto-scan</button><p class="small">Phase: <span id="autoscanphase">UNKNOWN</span></p><p class="small">Processing: <span id="autoscanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="autoscanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="autoscannext">UNKNOWN</span></p><p class="small">Result: <span id="autoscanresult">UNKNOWN</span></p><p class="warn">Error: <span id="autoscanerror">UNKNOWN</span></p><p class="small">Only the human-selected target; waits during ship motion and does not brake or retarget. Delivery alone does not verify a scan.</p></div><div class="actioncard"><h2>Scan selected asteroid</h2><p class="small">One shot: <span id="selectedscanstate">UNKNOWN</span> · Readiness: <span id="selectedscanreadiness">UNKNOWN</span></p><label class="small"><input id="scanselectedsafe" type="checkbox"> I assessed a safe stopped scene for this selected target</label><br><button id="selectedscanbutton" type="button" disabled>Scan selected</button><p class="small">Phase: <span id="selectedscanphase">UNKNOWN</span></p><p class="small">Processing: <span id="selectedscanprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="selectedscanwaiting">UNKNOWN</span></p><p class="small">Next: <span id="selectedscannext">UNKNOWN</span></p><p class="small">Result: <span id="selectedscanresult">UNKNOWN</span></p><p class="warn">Error: <span id="selectedscanerror">UNKNOWN</span></p><p class="small">Input delivery alone does not verify resource identity.</p></div><div class="actioncard"><h2>Approach current target</h2><p class="small">One shot: <span id="approachstate">UNKNOWN</span> · Readiness: <span id="approachreadiness">UNKNOWN</span></p><p class="small">Assessment context: <span id="assessmentcontext">UNKNOWN</span></p><div class="assessments"><label><input id="clearcorridor" type="checkbox"> I assessed a clear corridor</label><label><input id="alignedheading" type="checkbox"> I assessed heading alignment</label><label><input id="safestopped" type="checkbox"> I assessed a safe stopped scene</label><label><input id="flightpoint" type="checkbox"> I assessed the configured flight point <span id="flightpointvalue" class="flightcue">UNKNOWN</span></label></div><button id="approachbutton" type="button" disabled>Start approach</button><p class="small">Phase: <span id="approachphase">UNKNOWN</span></p><p class="small">Processing: <span id="approachprocessing">UNKNOWN</span></p><p class="small">Waiting: <span id="approachwaiting">UNKNOWN</span></p><p class="small">Next: <span id="approachnext">UNKNOWN</span></p><p class="small">Result: <span id="approachresult">UNKNOWN</span></p><p class="warn">Error: <span id="approacherror">UNKNOWN</span></p></div></div><p class="small">Action acknowledgment: <span id="actionack">No action requested</span></p><p class="small">Routine input intent: <span id="actionintent">UNKNOWN</span> · Delivery: <span id="actiondelivery">UNKNOWN</span> · Image effect: <span id="actioneffect">UNKNOWN</span></p><p class="small">Last routine package: <span id="actionartifactpath">UNKNOWN</span> · <a id="actionartifactlink" href="#" hidden>View saved run</a></p><p class="small">Selected-target auto-scan: <span id="autoscantoggle">UNKNOWN</span></p></section>
   <div id="passivebanner" class="passive" hidden>PASSIVE OBSERVATION · App decisions disabled · App controls disabled</div>
   <div class="grid">
     <section class="panel wide"><div class="eyebrow">Execution</div><h2><span id="lifecycle" class="pill">UNKNOWN</span><span id="synthetic" class="pill synthetic" hidden>SYNTHETIC DEMO</span> <span id="phase">UNKNOWN</span></h2><div class="rows"><div><div class="label">Processing</div><div id="processing" class="value">UNKNOWN</div></div><div><div class="label">Waiting for</div><div id="waiting" class="value">UNKNOWN</div></div></div><p><span class="label">Expected next step</span><br><span id="next" class="text">UNKNOWN</span></p><div id="progress" class="small">No progress message</div></section>
@@ -82,7 +99,7 @@
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  let imagesVisible = false, selected = '', actionSnapshot = null, actionInFlight = false, assessmentContextKey = null, lastApproachRunning = false, lastSelectedScanRunning = false, lastAutoScanRunning = false;
+  let imagesVisible = false, selected = '', actionSnapshot = null, actionInFlight = false, startupSnapshot = null, startupInFlight = false, connectionKey = null, assessmentContextKey = null, lastApproachRunning = false, lastSelectedScanRunning = false, lastAutoScanRunning = false;
   let approachAssessment = null, selectedScanAssessment = null, autoScanAssessment = null;
   const set = (id, value) => { $(id).textContent = value === null || value === undefined || value === '' ? 'UNKNOWN' : String(value); };
   const pretty = value => value === null || value === undefined ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
@@ -159,6 +176,7 @@
   }
   function renderMode(mode) {
     set('actualmode', String(mode.actual_mode || 'unknown').toUpperCase());
+    set('startupmode', String(mode.actual_mode || 'unknown').toUpperCase());
     set('missionowner', `Mission decisions: ${mode.mission_decisions_owner || 'UNKNOWN'}`);
     set('modeavailability', `App input: ${mode.app_control_enabled === true ? 'ENABLED' : mode.app_control_enabled === false ? 'DISABLED' : 'UNKNOWN'} · Mission planner: ${mode.decisions_enabled === true ? 'ENABLED' : mode.decisions_enabled === false ? 'DISABLED' : 'UNKNOWN'}`);
     set('routinedecisions', `Routine decisions: ${mode.routine_decisions_enabled === true ? 'ENABLED' : mode.routine_decisions_enabled === false ? 'DISABLED' : 'UNKNOWN'}`);
@@ -186,6 +204,70 @@
       else throw new Error(decision.error || `request failed (${response.status})`);
     } catch (error) { set('modeblocker', `Handover request failed: ${error}`); }
   }
+  function connectionMessage(snapshot) {
+    const reason = String(snapshot?.reason || '').toLowerCase();
+    if (snapshot?.phase === 'connected') return ['Game window attached', snapshot?.action_control?.enabled === true
+      ? 'Manual actions are enabled; each routine still requires fresh image readings and its own safety assessment.'
+      : 'Manual actions are paused until you explicitly enable them. A bound window alone does not prove fresh image readings or routine readiness.'];
+    if (snapshot?.phase === 'connecting') return ['Checking the game', 'Reading the game window and checking its layout. No game input is sent.'];
+    if (snapshot?.phase === 'waiting_for_game') return ['Waiting for the game', 'Open the game, then use Retry game connection if it is not found automatically.'];
+    if (reason.includes('no visible game') || reason.includes('game window not found')) return ['Waiting for the game', 'Open or restore the game window, then Retry game connection.'];
+    if (reason.includes('multiple') || reason.includes('ambiguous')) return ['More than one game window', 'Close or distinguish the extra game window, then retry. Nothing was selected automatically.'];
+    if (reason.includes('layout') || reason.includes('geometry') || reason.includes('size')) return ['Game layout needs attention', 'Set the game client to 2560 × 1440 with the enlarged HUD, then retry.'];
+    if (snapshot?.phase === 'unattached') return ['Observer only', 'Start the simple Manual-assist launcher to connect this page to the game. Historical reports remain available.'];
+    if (snapshot?.phase === 'disconnected') return ['Game disconnected', 'The observation session ended. Check the game and Retry game connection. Manual actions remain paused.'];
+    return ['Connection blocked', snapshot?.reason || 'The game connection needs attention; retry after checking the game.'];
+  }
+  function renderStartup(snapshot) {
+    startupSnapshot = snapshot;
+    const [title, detail] = connectionMessage(snapshot);
+    set('startupstate', title); set('startupdetail', detail);
+    const control = snapshot?.action_control || {};
+    set('startupactions', control.enabled === true ? 'ENABLED' : control.paused === true ? 'PAUSED' : 'UNAVAILABLE');
+    set('startuppausereason', control.pause_reason || (control.enabled === true ? 'Human owns the mission; routines run only when requested.' : snapshot?.reason || 'No attached controller'));
+    const game = snapshot?.game || {};
+    set('startupwindow', game.window_attached === true ? 'attached' : game.window_attached === false ? 'not attached' : snapshot?.phase === 'connected' ? 'attached; status details pending' : 'not confirmed');
+    const age = game.observation_age_seconds;
+    set('startupimage', game.observation_healthy === true && Number.isFinite(age) && age <= 2
+      ? `fresh captured image (${age.toFixed(1)}s); inspect HUD fields`
+      : game.observation_healthy === false ? `reading rejected: ${game.observation_reason || 'reason not reported'}`
+      : Number.isFinite(age) && age > 2 ? `stale (${age.toFixed(1)}s)` : 'no fresh reading confirmed');
+    set('startuproutines', 'checked separately in the action cards below');
+    set('startupacknotice', control.global_pause_present === true
+      ? 'An existing mining pause remains in place. Enable Manual actions acknowledges only this exact pause for this session; a new pause blocks actions again.'
+      : 'Enabling Manual actions does not start a scan, approach, focus change, or flight. Each routine still needs its own readiness and safety assessment.');
+    $('startupretry').disabled = startupInFlight || !snapshot || snapshot.phase === 'unattached' || snapshot.phase === 'connecting' || snapshot.retry_available === false;
+    $('startupenable').disabled = startupInFlight || snapshot?.phase !== 'connected' || control.enabled === true || !control.acknowledgment_token;
+    $('startuppause').disabled = startupInFlight || !snapshot || snapshot.phase === 'unattached';
+    const focus = snapshot?.focus_handover || {};
+    $('startupfocus').disabled = startupInFlight || snapshot?.phase !== 'connected' || focus.available !== true;
+    $('startupfocus').setAttribute('aria-pressed', String(focus.enabled === true));
+    set('startupfocus', `Return to game on Start/Cancel: ${focus.enabled === true ? 'ON' : 'OFF'}`);
+    set('startupfocusreason', focus.reason || (focus.available === true ? 'Optional, off by default.' : 'No focus handover controller attached.'));
+  }
+  async function refreshStartup() {
+    try {
+      const response = await fetch('/api/startup', {cache:'no-store'});
+      if (!response.ok) throw new Error(`startup unavailable (${response.status})`);
+      renderStartup(await response.json());
+    } catch (error) { renderStartup(null); set('startupack', `Connection status unavailable: ${error}`); }
+    finally { setTimeout(refreshStartup, 1000); }
+  }
+  async function requestStartup(action) {
+    if (!startupSnapshot || startupInFlight) return;
+    const token = startupSnapshot.action_control?.acknowledgment_token;
+    startupInFlight = true; renderStartup(startupSnapshot);
+    try {
+      const response = await fetch('/api/startup', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action,...(action === 'enable_manual_actions' ? {acknowledgment_token:token} : {}),
+          ...(action === 'set_focus_handover' ? {enabled:startupSnapshot.focus_handover?.enabled !== true} : {})})});
+      const decision = await response.json();
+      set('startupack', `${decision.accepted ? 'Accepted' : 'Rejected'} ${action.replaceAll('_',' ')}: ${decision.reason || 'controller response'}`);
+      if (decision.state) renderStartup(decision.state);
+    } catch (error) { set('startupack', `Startup request failed: ${error}`); }
+    finally { startupInFlight = false; renderStartup(startupSnapshot); }
+  }
   function renderActions(snapshot) {
     actionSnapshot = snapshot;
     $('syntheticactions').hidden = snapshot?.synthetic_demo !== true;
@@ -199,8 +281,11 @@
       return field && (field.valid !== true || field.fresh !== true) ? null : fallback;
     };
     const newKey = context.context_key || null;
-    if (assessmentContextKey !== newKey || (lastApproachRunning && !approachRunning) || (lastSelectedScanRunning && !selectedScanRunning) || (lastAutoScanRunning && !autoScanRunning)) {
-      if (assessmentContextKey !== newKey) {
+    const newConnectionKey = startupSnapshot?.instance_id ? `${startupSnapshot.instance_id}:${startupSnapshot.game?.connection_id || startupSnapshot.game?.session_id || startupSnapshot.game?.identity || ''}` : null;
+    const connectionChanged = connectionKey !== newConnectionKey;
+    if (connectionChanged) connectionKey = newConnectionKey;
+    if (assessmentContextKey !== newKey || connectionChanged || (lastApproachRunning && !approachRunning) || (lastSelectedScanRunning && !selectedScanRunning) || (lastAutoScanRunning && !autoScanRunning)) {
+      if (assessmentContextKey !== newKey || connectionChanged) {
         assessmentContextKey = newKey;
         approachAssessment = selectedScanAssessment = autoScanAssessment = null;
         for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint','scanselectedsafe','autoscansafe']) $(id).checked = false;
@@ -247,7 +332,7 @@
     const remaining = Number.isFinite(assessment.expires_at) && Number.isFinite(snapshot?.server_monotonic)
       ? Math.max(0, assessment.expires_at - snapshot.server_monotonic).toFixed(1) : null;
     set('assessmentcontext', context.token ? `${context.target_identity || 'target UNKNOWN'} · ${approachAssessment ? 'assessed image' : 'current image'} #${assessment.observation_sequence ?? 'UNKNOWN'} · expires in ${remaining ?? 'UNKNOWN'}s` : 'No fresh assessment token');
-    set('flightpointvalue', context.wheel_point ? pretty(context.wheel_point) : 'UNKNOWN');
+    set('flightpointvalue', context.wheel_point ? `${context.flight_point_description || 'configured flight area'} · inspect this spot in the game before checking` : 'not configured');
     const owner = ownership.owner;
     const ownerActive = owner && owner !== 'none' && owner !== 'idle';
     set('actionowner', owner || 'none'); set('actionownerstate', ownership.state);
@@ -362,6 +447,10 @@
   $('runs').addEventListener('change', event => { selected = event.target.value; });
   $('manualmode').addEventListener('click', () => requestMode('manual'));
   $('automode').addEventListener('click', () => requestMode('autopilot'));
+  $('startupretry').addEventListener('click', () => requestStartup('retry_connection'));
+  $('startupenable').addEventListener('click', () => requestStartup('enable_manual_actions'));
+  $('startuppause').addEventListener('click', () => requestStartup('pause_manual_actions'));
+  $('startupfocus').addEventListener('click', () => requestStartup('set_focus_handover'));
   $('scanbutton').addEventListener('click', () => requestAction('scan_nearby_unscanned'));
   $('autoscanbutton').addEventListener('click', () => requestAction('auto_scan_selected'));
   $('selectedscanbutton').addEventListener('click', () => requestAction('scan_selected'));
@@ -380,6 +469,7 @@
   refresh();
   refreshMode();
   refreshActions();
+  refreshStartup();
 })();
 </script>
 </body>

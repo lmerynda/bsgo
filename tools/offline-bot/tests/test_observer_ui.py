@@ -346,6 +346,10 @@ class ObserverUiTests(unittest.TestCase):
             try:
                 with urlopen(base + "/api/manual-actions") as response:
                     state = json.load(response)
+                with urlopen(base + "/api/startup") as response:
+                    startup = json.load(response)
+                self.assertEqual(startup["phase"], "unattached")
+                self.assertFalse(startup["action_control"]["enabled"])
                 self.assertEqual(state["actual_mode"], "manual")
                 self.assertIsInstance(state["server_monotonic"], float)
                 self.assertFalse(state["routines"]["scan_nearby_unscanned"]["ready"])
@@ -618,11 +622,191 @@ class ObserverUiTests(unittest.TestCase):
                 server.server_close()
                 thread.join(2)
 
+    def test_startup_connection_and_exact_pause_acknowledgment_guard_actions(self):
+        class Startup:
+            phase = "waiting_for_game"
+            enabled = False
+            token = "pause-fingerprint-one"
+            retry_count = 0
+            owner = None
+            focus_enabled = False
+
+            def startup_snapshot(self):
+                return {"protocol":"bsgo-manual-assist-launcher-v1", "instance_id":"fixture",
+                    "phase":self.phase, "reason":None,
+                    "game":{"connection_id":"game-one"} if self.phase == "connected" else None,
+                    "focus_handover":{"enabled":self.focus_enabled,"available":self.phase == "connected",
+                        "reason":None if self.phase == "connected" else "game_not_connected"},
+                    "action_control":{"paused":not self.enabled,"enabled":self.enabled,
+                        "global_pause_present":True,"pause_reason":"persistent_mining_pause",
+                        "acknowledgment_required":True,"acknowledgment_token":self.token}}
+
+            def retry_connection(self):
+                self.retry_count += 1
+                self.phase = "connected"
+                return {"accepted":True,"reason":"read_only_connection_checked"}
+
+            def resume_actions(self, *, acknowledgment_token):
+                if acknowledgment_token != self.token:
+                    return {"accepted":False,"reason":"pause_acknowledgment_stale"}
+                self.enabled = True
+                return {"accepted":True,"reason":"manual_actions_enabled"}
+
+            def pause_actions(self):
+                self.enabled = False
+                return {"accepted":True,"reason":"manual_actions_paused"}
+
+            def set_focus_handover(self, enabled):
+                if self.phase != "connected":
+                    return {"accepted":False,"reason":"game_not_connected"}
+                self.focus_enabled = enabled
+                return {"accepted":True,"reason":"focus_preference_updated"}
+
+            def actions_snapshot(self):
+                return {"actual_mode":"manual","paused":False,
+                    "ownership":{"owner":self.owner,"state":"active" if self.owner else "idle"},
+                    "routines":{"scan_selected":{"available":True,"ready":True,
+                        "active":self.owner == "scan_selected"}}}
+
+            def start_action(self, name, request=None):
+                self.owner = name
+                return {"accepted":True,"reason":"started"}
+
+            def stop_action(self, name):
+                self.owner = None
+                return {"accepted":True,"reason":"stopping"}
+
+        with scratch_directory() as directory:
+            adapter = Startup()
+            server = make_server(directory, 0, action_adapter=adapter,
+                                 startup_adapter=adapter)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(path, payload, origin=None):
+                req = Request(base + path, method="POST", data=json.dumps(payload).encode(),
+                    headers={"Content-Type":"application/json","Origin":origin or base})
+                try:
+                    with urlopen(req, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                with urlopen(base + "/api/startup") as response:
+                    initial = json.load(response)
+                self.assertEqual(initial["phase"], "waiting_for_game")
+                self.assertEqual(adapter.retry_count, 0)
+                self.assertFalse(adapter.enabled)
+                self.assertEqual(post("/api/startup", {"action":"retry_connection"},
+                                      origin="http://outside.example")[0], 403)
+                self.assertEqual(post("/api/startup", {"action":"enable_manual_actions"})[0], 400)
+                self.assertEqual(post("/api/startup", {"action":"invalid"})[0], 400)
+                self.assertEqual(post("/api/startup", {"action":"set_focus_handover",
+                    "enabled":"true"})[0], 400)
+                code, retry = post("/api/startup", {"action":"retry_connection"})
+                self.assertEqual(code, 200)
+                self.assertEqual(retry["state"]["phase"], "connected")
+                self.assertFalse(adapter.enabled)
+                self.assertFalse(adapter.focus_enabled)
+                self.assertEqual(post("/api/startup", {"action":"set_focus_handover",
+                    "enabled":True})[0], 200)
+                self.assertTrue(adapter.focus_enabled)
+                self.assertFalse(adapter.enabled)
+                self.assertEqual(post("/api/manual-actions", {"action":"start",
+                    "routine":"scan_selected"})[1]["reason"], "manual_actions_paused")
+                self.assertEqual(post("/api/startup", {"action":"enable_manual_actions",
+                    "acknowledgment_token":"stale"})[1]["reason"], "pause_acknowledgment_stale")
+                self.assertFalse(adapter.enabled)
+                code, enabled = post("/api/startup", {"action":"enable_manual_actions",
+                    "acknowledgment_token":adapter.token})
+                self.assertEqual(code, 200)
+                self.assertTrue(enabled["state"]["action_control"]["enabled"])
+                self.assertEqual(post("/api/manual-actions", {"action":"start",
+                    "routine":"scan_selected"})[0], 200)
+                self.assertEqual(post("/api/startup", {"action":"pause_manual_actions"})[0], 200)
+                self.assertFalse(adapter.enabled)
+                self.assertEqual(adapter.owner, "scan_selected")
+                self.assertEqual(post("/api/manual-actions", {"action":"stop",
+                    "routine":"scan_selected"})[0], 200)
+                adapter.token = "pause-fingerprint-two"
+                self.assertEqual(post("/api/startup", {"action":"enable_manual_actions",
+                    "acknowledgment_token":"pause-fingerprint-one"})[0], 409)
+                self.assertFalse(adapter.enabled)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
+    def test_advanced_attached_session_can_enable_without_launcher_adapter(self):
+        class PinnedActions:
+            enabled = False
+            starts = 0
+
+            def action_control_snapshot(self):
+                return {"enabled":self.enabled,"paused":not self.enabled,
+                    "pause_reason":None if self.enabled else "session_paused",
+                    "acknowledgment_token":"pinned-token"}
+
+            def resume_actions(self, *, acknowledgment_token):
+                if acknowledgment_token != "pinned-token":
+                    return {"accepted":False,"reason":"stale_token"}
+                self.enabled = True
+                return {"accepted":True,"reason":"enabled"}
+
+            def pause_actions(self):
+                self.enabled = False
+                return {"accepted":True,"reason":"paused"}
+
+            def actions_snapshot(self):
+                return {"actual_mode":"manual","paused":not self.enabled,
+                    "ownership":{"owner":None,"state":"idle"},
+                    "routines":{"scan_selected":{"available":True,"ready":True,"active":False}}}
+
+            def start_action(self, name, request=None):
+                self.starts += 1
+                return {"accepted":True,"reason":"started"}
+
+            def stop_action(self, name):
+                return {"accepted":False,"reason":"no_owner"}
+
+        with scratch_directory() as directory:
+            actions = PinnedActions()
+            server = make_server(directory, 0, action_adapter=actions)
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            def post(path, payload):
+                req = Request(base + path, method="POST", data=json.dumps(payload).encode(),
+                    headers={"Content-Type":"application/json","Origin":base})
+                try:
+                    with urlopen(req, timeout=3) as response:
+                        return response.status, json.load(response)
+                except HTTPError as error:
+                    return error.code, json.load(error)
+            try:
+                with urlopen(base + "/api/startup") as response:
+                    state = json.load(response)
+                self.assertEqual(state["phase"], "connected")
+                self.assertFalse(state["action_control"]["enabled"])
+                self.assertEqual(post("/api/manual-actions", {"action":"start",
+                    "routine":"scan_selected"})[1]["reason"], "manual_actions_paused")
+                self.assertEqual(post("/api/startup", {"action":"retry_connection"})[1]["reason"],
+                                 "pinned_session_retry_unavailable")
+                self.assertEqual(post("/api/startup", {"action":"enable_manual_actions",
+                    "acknowledgment_token":"pinned-token"})[0], 200)
+                self.assertEqual(post("/api/manual-actions", {"action":"start",
+                    "routine":"scan_selected"})[0], 200)
+                self.assertEqual(actions.starts, 1)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(2)
+
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
     def test_canceled_budget_skip_renders_canceled_but_true_blocker_renders_blocked(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text()).group(1)
-        script = script.replace("  refresh();\n  refreshMode();\n  refreshActions();",
-                                "  globalThis.testRender = render; globalThis.testActions = renderActions; globalThis.testCapture = captureAssessment; globalThis.testActionRequest = actionRequest;")
+        script = script.replace("  refresh();\n  refreshMode();\n  refreshActions();\n  refreshStartup();",
+                                "  globalThis.testRender = render; globalThis.testActions = renderActions; globalThis.testStartup = renderStartup; globalThis.testCapture = captureAssessment; globalThis.testActionRequest = actionRequest;")
         harness = f"""
 const elements = {{}};
 globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
@@ -630,6 +814,38 @@ globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
   addEventListener(){{}}
 }}; }} }};
 eval({json.dumps(script)});
+const startup = {{instance_id:'launcher-one',phase:'waiting_for_game',reason:'game_not_found',game:null,
+  focus_handover:{{enabled:false,available:false,reason:'game_not_connected'}},
+  action_control:{{paused:true,enabled:false,pause_reason:'startup_paused',
+    global_pause_present:true,acknowledgment_token:'pause-one'}}}};
+testStartup(startup);
+const waitingStartup = {{state:elements.startupstate.textContent,
+  enableDisabled:elements.startupenable.disabled,
+  notice:elements.startupacknotice.textContent}};
+startup.phase='blocked'; startup.reason='No visible game window found. Open or restore the game.';
+testStartup(startup);
+const missingGameStartup = elements.startupstate.textContent;
+startup.phase='blocked'; startup.reason='multiple_game_windows';
+testStartup(startup);
+const ambiguousStartup = elements.startupstate.textContent;
+startup.reason='unsupported_layout';
+testStartup(startup);
+const layoutStartup = elements.startupstate.textContent;
+startup.phase='connected'; startup.reason=null; startup.game={{connection_id:'game-one',window_attached:true,observation_healthy:false,observation_reason:'HUD waiting'}};
+startup.focus_handover={{enabled:false,available:true,reason:null}};
+testStartup(startup);
+const connectedStartup = {{state:elements.startupstate.textContent,
+  enableDisabled:elements.startupenable.disabled,
+  pauseDisabled:elements.startuppause.disabled,
+  focusDisabled:elements.startupfocus.disabled,
+  image:elements.startupimage.textContent}};
+startup.action_control.enabled=true; startup.action_control.paused=false;
+testStartup(startup);
+const enabledStartup = {{actions:elements.startupactions.textContent,
+  detail:elements.startupdetail.textContent,
+  pauseDisabled:elements.startuppause.disabled}};
+startup.action_control.enabled=false; startup.action_control.paused=true;
+testStartup(startup);
 const common = {{run:'passive',run_path:'fixture',lifecycle:'finalized',
   status_age_seconds:1,manifest:{{mode:'synthetic_passive_observer',synthetic:true}},
   status:{{execution:{{phase:'canceled',first_blocker:'cancel_requested'}},
@@ -653,7 +869,7 @@ const actions = {{actual_mode:'manual',paused:false,server_monotonic:100,
   ownership:{{owner:null,state:'idle'}},
   current_observation:{{target_identity:'asteroid:4500',distance:700,speed:0,
     fields:{{distance:{{valid:true,fresh:true}},speed:{{valid:true,fresh:true}}}}}},
-  assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',expires_at:115,wheel_point:{{x:1280,y:400}}}},
+  assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',expires_at:115,wheel_point:{{x:1280,y:400}},flight_point_description:'upper-center flight view'}},
   action_artifacts:{{directory:'fixture/last-run',run:'last-run'}},
   selected_scan_toggle:{{enabled:false,scope:'human_selected_target_only',waiting_for:'stationary_ship_required'}},
   routines:{{scan_nearby_unscanned:{{available:false,ready:false,reason:'discovery_provider_missing'}},
@@ -669,6 +885,7 @@ const independent = {{nearDisabled:elements.scanbutton.disabled,
   target:elements.currenttarget.textContent,
   assessment:elements.assessmentcontext.textContent,
   selectedReadiness:elements.selectedscanreadiness.textContent,
+  flightCue:elements.flightpointvalue.textContent,
   focus:elements.focushandover.textContent,
   artifact:elements.actionartifactlink.dataset.run,
   artifactLinkVisible:!elements.actionartifactlink.hidden,
@@ -706,11 +923,39 @@ actions.routines.auto_scan_selected.active=true;
 testActions(actions);
 const waitingScan = {{button:elements.autoscanbutton.textContent,
   canStop:!elements.autoscanbutton.disabled, approachDisabled:elements.approachbutton.disabled}};
-console.log(JSON.stringify({{canceled,recovered,blocked,independent,missingArtifactOptionHidden,autoAssessedEnabled,selectedAssessedEnabled,assessedEnabled,originalTokenHeld,originalExpired,changedDisabled,waitingScan}}));
+actions.routines.auto_scan_selected.active=false;
+actions.assessment_context={{token:'t4',context_key:'target-B',target_identity:'asteroid:5000',expires_at:145,wheel_point:{{x:1280,y:400}}}};
+actions.server_monotonic=120;
+testActions(actions);
+elements.scanselectedsafe.checked=true;
+testCapture('scan_selected');
+const beforeReconnect = !elements.selectedscanbutton.disabled;
+startup.game={{connection_id:'game-two'}};
+testStartup(startup);
+testActions(actions);
+const afterReconnect = elements.selectedscanbutton.disabled && !elements.scanselectedsafe.checked;
+console.log(JSON.stringify({{waitingStartup,missingGameStartup,ambiguousStartup,layoutStartup,connectedStartup,enabledStartup,canceled,recovered,blocked,independent,missingArtifactOptionHidden,autoAssessedEnabled,selectedAssessedEnabled,assessedEnabled,originalTokenHeld,originalExpired,changedDisabled,waitingScan,beforeReconnect,afterReconnect}}));
 """
-        result = subprocess.run(["node", "-e", harness], capture_output=True,
-                                text=True, check=True)
+        with scratch_directory() as directory:
+            path = Path(directory) / "observer-render-smoke.js"
+            path.write_text(harness, encoding="utf-8")
+            result = subprocess.run(["node", str(path)], capture_output=True,
+                                    text=True, check=True)
         rendered = json.loads(result.stdout)
+        self.assertEqual(rendered["waitingStartup"]["state"], "Waiting for the game")
+        self.assertTrue(rendered["waitingStartup"]["enableDisabled"])
+        self.assertIn("exact pause", rendered["waitingStartup"]["notice"])
+        self.assertEqual(rendered["missingGameStartup"], "Waiting for the game")
+        self.assertEqual(rendered["ambiguousStartup"], "More than one game window")
+        self.assertEqual(rendered["layoutStartup"], "Game layout needs attention")
+        self.assertEqual(rendered["connectedStartup"]["state"], "Game window attached")
+        self.assertFalse(rendered["connectedStartup"]["enableDisabled"])
+        self.assertFalse(rendered["connectedStartup"]["pauseDisabled"])
+        self.assertFalse(rendered["connectedStartup"]["focusDisabled"])
+        self.assertIn("HUD waiting", rendered["connectedStartup"]["image"])
+        self.assertEqual(rendered["enabledStartup"]["actions"], "ENABLED")
+        self.assertNotIn("remain paused", rendered["enabledStartup"]["detail"])
+        self.assertFalse(rendered["enabledStartup"]["pauseDisabled"])
         self.assertIn("CANCELED", rendered["canceled"]["badge"])
         self.assertEqual(rendered["canceled"]["outcome"], "CANCELED (explicit stop)")
         self.assertIn("64/64", rendered["canceled"]["coverage"])
@@ -733,6 +978,8 @@ console.log(JSON.stringify({{canceled,recovered,blocked,independent,missingArtif
         self.assertTrue(rendered["independent"]["artifactLinkVisible"])
         self.assertTrue(rendered["missingArtifactOptionHidden"])
         self.assertIn("human_selected_target_only", rendered["independent"]["toggle"])
+        self.assertIn("upper-center flight view", rendered["independent"]["flightCue"])
+        self.assertNotIn("1280", rendered["independent"]["flightCue"])
         self.assertTrue(rendered["autoAssessedEnabled"])
         self.assertTrue(rendered["selectedAssessedEnabled"])
         self.assertTrue(rendered["assessedEnabled"])
@@ -742,6 +989,8 @@ console.log(JSON.stringify({{canceled,recovered,blocked,independent,missingArtif
         self.assertEqual(rendered["waitingScan"]["button"], "Stop scanning")
         self.assertTrue(rendered["waitingScan"]["canStop"])
         self.assertTrue(rendered["waitingScan"]["approachDisabled"])
+        self.assertTrue(rendered["beforeReconnect"])
+        self.assertTrue(rendered["afterReconnect"])
 
 
 if __name__ == "__main__":

@@ -484,10 +484,27 @@ navigation, or model decisions. Saved-pixel OCR and the synthetic control loop
 are complementary experiments; synthetic motion does not certify OCR accuracy
 or gameplay safety. [Recorded offline results](../../docs/architecture/offline-bot-experiments.md).
 
-## Local mining observer
+## Mining dashboard
 
-Run the local observer in a separate terminal while the mining probes create
-diagnostic packages:
+For normal use on Windows, double-click [Mining Dashboard.cmd](../../Mining%20Dashboard.cmd)
+at the project root. The launcher opens the localhost dashboard, looks for a
+single visible game window, and attaches passive image observation only after
+checking the 2560 × 1440 enlarged-HUD layout. It starts with **Manual actions
+paused**. If the game is missing, duplicated, or in an unsupported layout, the
+connection card explains the issue and offers **Retry game connection**.
+Opening the dashboard or retrying never focuses the game or sends an input.
+
+Choose **Enable Manual actions** only when ready. That button acknowledges the
+exact existing mining pause for this dashboard session; it neither removes the
+pause marker nor starts a scan or approach. A later pause-marker change blocks
+actions again. **Pause Manual actions** stops the selected-target scan toggle
+and cancels an owned routine while preserving cleanup evidence. The optional
+return-to-game setting affects only an explicit routine Start/Cancel and stays
+off by default. Overall control remains Manual: each individual action still
+needs current image readings and its own safety assessment.
+
+For an observer-only historical view without a connected action controller,
+use this advanced command in a separate terminal:
 
 ```powershell
 $env:PYTHONPATH = 'tools/offline-bot'
@@ -506,7 +523,7 @@ run's retained frame directories. A synthetic demonstration is labeled in the
 run selector and display and never becomes the automatic latest run. Stop the
 observer with Ctrl+C.
 
-The standalone command above has no attached action controller, so its Manual
+The standalone observer command has no attached action controller, so its Manual
 action buttons are disabled with `controller_not_attached` and it sends no game
 input. The top control-mode display is independent of the selected run. It shows the
 controller-acknowledged actual mode, app input and decision availability,
@@ -538,10 +555,10 @@ Manual mode means the human retains mission decisions while a routine may
 temporarily own its stated input scope. Manual actions never inherit readiness
 from the selected historical diagnostic package.
 
-To attach Manual actions to the current game session, first stop the standalone
-observer on port 8765. Refresh the game's HWND and PID after every client
-restart, inspect the current scene and flight point, and then launch the
-Manual-assist session with its own cancellation marker:
+For advanced pinned native startup, first stop the standalone observer on port
+8765. Refresh the game's HWND and PID after every client restart, inspect the
+current scene and flight point, and then launch a Manual-assist session with its
+own cancellation marker:
 
 ```powershell
 $env:PYTHONPATH = 'tools/offline-bot'

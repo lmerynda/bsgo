@@ -10,6 +10,7 @@ import re
 from threading import Lock
 import time
 from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 
 RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
@@ -47,6 +48,68 @@ class UnattachedManualActions:
     def stop_action(self, name):
         return {"accepted": False, "reason": "controller_not_attached",
                 "state": self.actions_snapshot()}
+
+
+class UnattachedStartup:
+    """A historical observer cannot attach to or control a game session."""
+
+    def startup_snapshot(self):
+        return {"protocol": "bsgo-manual-assist-launcher-v1",
+                "phase": "unattached", "reason": "launcher_not_attached",
+                "retry_available": False,
+                "game": None,
+                "action_control": {"paused": True, "enabled": False,
+                                   "pause_reason": "launcher_not_attached",
+                                   "global_pause_present": None,
+                                   "acknowledgment_required": False,
+                                   "acknowledgment_token": None}}
+
+    def retry_connection(self):
+        return {"accepted": False, "reason": "launcher_not_attached"}
+
+    def resume_actions(self, *, acknowledgment_token):
+        return {"accepted": False, "reason": "launcher_not_attached"}
+
+    def pause_actions(self):
+        return {"accepted": False, "reason": "launcher_not_attached"}
+
+    def set_focus_handover(self, enabled):
+        return {"accepted": False, "reason": "launcher_not_attached"}
+
+
+class AttachedSessionStartup:
+    """Startup controls for a pre-pinned advanced Manual-assist session."""
+
+    def __init__(self, actions):
+        self.actions = actions
+        self.instance_id = uuid4().hex
+
+    def startup_snapshot(self):
+        return {"protocol": "bsgo-manual-assist-launcher-v1",
+                "instance_id": self.instance_id,
+                "phase": "connected", "reason": None,
+                "retry_available": False,
+                "game": {"connection_id": self.instance_id,
+                         "description": "pinned Manual-assist session"},
+                "action_control": self.actions.action_control_snapshot(),
+                "focus_handover": self.actions.focus_handover_snapshot()
+                    if hasattr(self.actions, "focus_handover_snapshot") else
+                    {"enabled": False, "available": False,
+                     "reason": "focus_handover_not_attached"}}
+
+    def retry_connection(self):
+        return {"accepted": False, "reason": "pinned_session_retry_unavailable"}
+
+    def resume_actions(self, *, acknowledgment_token):
+        return self.actions.resume_actions(acknowledgment_token=acknowledgment_token)
+
+    def pause_actions(self):
+        return self.actions.pause_actions()
+
+    def set_focus_handover(self, enabled):
+        if not hasattr(self.actions, "set_focus_handover"):
+            return {"accepted": False, "reason": "focus_handover_not_attached"}
+        return self.actions.set_focus_handover(enabled)
 
 
 class UnattachedModeController:
@@ -281,10 +344,14 @@ class ObserverIndex:
 
 
 def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
-                action_adapter=None):
+                action_adapter=None, startup_adapter=None):
     index = ObserverIndex(runs_root)
     actions = action_adapter or UnattachedManualActions()
     controller = mode_controller or UnattachedModeController(actions)
+    startup = (startup_adapter if startup_adapter is not None else
+               AttachedSessionStartup(actions) if all(hasattr(actions, name) for name in
+                   ("action_control_snapshot", "resume_actions", "pause_actions")) else
+               UnattachedStartup())
     actions_lock = Lock()
 
     def mode_snapshot():
@@ -312,6 +379,12 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 "mode_pending": mode.get("pending") is True,
                 "mode_reason": mode.get("reason"),
                 "server_monotonic": time.monotonic()}
+
+    def startup_status():
+        state = startup.startup_snapshot()
+        if not isinstance(state, dict) or not isinstance(state.get("action_control"), dict):
+            raise ValueError("invalid_startup_snapshot")
+        return state
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code, body: bytes, mime: str):
@@ -360,6 +433,15 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                     payload = action_status()
                 except Exception as exc:
                     self._json(503, {"error": "action_status_unavailable",
+                                     "cause": type(exc).__name__})
+                    return
+                self._json(200, payload)
+                return
+            if request.path == "/api/startup":
+                try:
+                    payload = startup_status()
+                except Exception as exc:
+                    self._json(503, {"error": "startup_status_unavailable",
                                      "cause": type(exc).__name__})
                     return
                 self._json(200, payload)
@@ -413,7 +495,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 self._json(403, {"error": "invalid_origin"})
                 return
             path = urlsplit(self.path).path
-            if path not in ("/api/control-mode", "/api/manual-actions"):
+            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup"):
                 self._json(404, {"error": "not_found"})
                 return
             if self.headers.get("Content-Type") != "application/json":
@@ -421,7 +503,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 return
             try:
                 size = int(self.headers.get("Content-Length", ""))
-                if not 0 < size <= (4096 if path == "/api/manual-actions" else 256):
+                if not 0 < size <= (4096 if path == "/api/manual-actions" else 1024):
                     raise ValueError
                 data = json.loads(self.rfile.read(size))
             except (ValueError, json.JSONDecodeError):
@@ -435,6 +517,31 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                         return
                     decision = controller.request(mode)
                     decision["state"] = mode_snapshot()
+                elif path == "/api/startup":
+                    if not isinstance(data, dict) or data.get("action") not in (
+                            "retry_connection", "enable_manual_actions", "pause_manual_actions",
+                            "set_focus_handover"):
+                        self._json(400, {"error": "invalid_startup_action"})
+                        return
+                    action = data["action"]
+                    token = data.get("acknowledgment_token")
+                    if action == "enable_manual_actions" and (
+                            not isinstance(token, str) or not 0 < len(token) <= 256):
+                        self._json(400, {"error": "acknowledgment_token_required"})
+                        return
+                    if action == "set_focus_handover" and type(data.get("enabled")) is not bool:
+                        self._json(400, {"error": "focus_preference_boolean_required"})
+                        return
+                    with actions_lock:
+                        if action == "retry_connection":
+                            decision = startup.retry_connection()
+                        elif action == "enable_manual_actions":
+                            decision = startup.resume_actions(acknowledgment_token=token)
+                        elif action == "set_focus_handover":
+                            decision = startup.set_focus_handover(data["enabled"])
+                        else:
+                            decision = startup.pause_actions()
+                        decision["state"] = startup_status()
                 else:
                     if (not isinstance(data, dict) or data.get("action") not in ("start", "stop")
                             or data.get("routine") not in MANUAL_ROUTINES
@@ -451,6 +558,10 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                         if action == "start" and (current.get("actual_mode") != "manual"
                                                   or current.get("mode_pending")):
                             decision = {"accepted": False, "reason": "manual_mode_required",
+                                        "state": current}
+                        elif (action == "start" and not isinstance(startup, UnattachedStartup)
+                                and startup_status()["action_control"].get("enabled") is not True):
+                            decision = {"accepted": False, "reason": "manual_actions_paused",
                                         "state": current}
                         elif action == "start" and (owner not in (None, "none", "idle") or active):
                             decision = {"accepted": False, "reason": "input_owner_busy",
