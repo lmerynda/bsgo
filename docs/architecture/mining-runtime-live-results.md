@@ -1224,3 +1224,59 @@ presence of nearby contacts and clutter. It launched no process or inputs.
 The user then stopped gameplay; the persistent stop request remains set and
 manual mining is paused. Subsequent human gameplay is excluded from these
 app results and reward totals. UI development continues without game control.
+
+The observer UI is implemented in `e42a8500`, with execution telemetry in
+`76834dc0` and probe instrumentation in `0b0c4864`. The page shows recorded
+phase, processing, wait condition and expected next step; current-image HUD
+validity/freshness; input intent versus delivered insertion versus confirmed
+image effect; and retained first-failure evidence. Historical packages lacking
+the new telemetry remain UNKNOWN. Finalized blocked runs stay visibly blocked,
+and autofire warnings survive read-only OCR recovery. Images are hidden by
+default. The server is bound to 127.0.0.1 and retained file access stays within
+the selected run. Browser checks verified live synthetic phase/readout updates,
+historical blockers, compact evidence and hidden previews. The instrumentation
+passed 120 existing probe tests, 22 diagnostics tests and seven observer seams.
+
+The first synthetic moving-approach UI demonstration finalized with motion
+proof but incomplete diagnostics: Windows denied one atomic status-file
+replacement while the observer read it. That original blocker remains in its
+report. A bounded replacement retry was added on the diagnostic writer/sampler,
+without changing control timing or hiding an exhausted write failure.
+
+Commit `8f53f521` adds a separate continuous passive observer: source,
+recognizer, snapshot store and diagnostic writers run without a coordinator,
+planner, input backend or dispatcher. It records actual Manual mode with
+decisions and app controls disabled, and has no total runtime limit. An
+independent observation stop file or Ctrl+C stops it without clearing the
+mining stop request. Routine images retain the declared first-64 budget by
+default; failed-recognition images remain uncapped. The visible-client native
+source permits the game to be unfocused while retaining title/PID/geometry,
+visibility and occlusion checks. Nine passive-pipeline tests and 22 diagnostics
+tests passed; an isolated import audit confirmed no input or decision modules
+loaded. Native passive acceptance is pending a current live game window; the
+previous HWND was no longer alive when inspected.
+
+Commit `37848d92` adds the top Manual/Autopilot handover request and separate
+current-control reporting. Current mode, app input permission, decision
+permission, requested mode, pending handover and acknowledgment remain visible
+independently of the selected historical run. The current server has no attached
+control runner: Autopilot requests are explicitly rejected and actual Manual
+mode stays active. No button launches a native probe. Ten focused HTTP/mode
+tests cover accepted, pending and failed acknowledgments with fake controllers.
+Browser checks verified the rejected Autopilot request and accepted return to
+Manual. This completes the UI handover interface, not native autopilot handover.
+Passive usage instructions are committed in `9a8e13ce`.
+
+A cancellable synthetic passive source verified the final browser display:
+observation 52 showed 18 m/s, range 1540 m and HP3636/4000; observation 61
+advanced to 27 m/s, 1495 m and HP3573/4000. Both views showed LIVE/observing,
+fresh numeric fields, full hull, actual Manual, decisions/app inputs disabled,
+and no input intent, delivery or image-effect proof. The screenshot is retained
+locally at `logs/offline-bot/observer-ui-qa/manual-passive-ui.jpg`; every value
+is explicitly synthetic, not native recognition acceptance or mining profit.
+The dedicated synthetic stop marker ended the source after 71 observations,
+with all five worker/writer shutdown flags true, no status write errors and
+all 136 trace events retained. Sixty-four routine images were retained and
+seven were deliberately skipped under the declared cap, so complete image
+diagnostics remain false. No failed image was missing. The mining stop marker
+stayed set and no game input was requested.
