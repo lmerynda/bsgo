@@ -675,3 +675,22 @@ cap, no drops and complete diagnostics. This is actual uncapped motion and
 fault cleanup evidence, not full threshold completion. The failed image shows
 complete 33.0 digits with another star in the remaining two-pixel left margin;
 that strict parsing gap is the next measured correction.
+
+The margin correction ignores only disconnected scenery components wholly
+inside those unused two pixels. Components extending into the font region and
+clipped real glyphs still reject. All nine approach-004 images now replay valid
+speeds (0.0, 0.0, 10.7, 23.2, 33.0, 22.3, 10.1, 0.0, 0.0), and all 205 prior
+approach images still replay correctly. The focused HUD suite passed 22 tests.
+The original live fault result is preserved rather than rewritten as success.
+
+`continuous-approach-005` (`ef92785b073b4ec7a1ee0e21722a8738`) then proved
+the normal uncapped native threshold path on Water 4102. It started at 1,304 m,
+observed 10.8 at 1,279 m, 23.0 at 1,193 m and 33.0 at 1,049 m, then requested
+PageDown at 885 m. It verified fresh zeros on sequences 9 and 10. Independent
+supervision at game clock 00:16:13 confirmed distance 649 m, speed 0.0, hull
+5005/5005 and energy 800/800. All ten images and all 35 trace events were
+retained, with no failed readings or drops, no total frame-count cap, complete
+diagnostics and joined components with input idle. This completes the measured
+five-second distance-check approach requested by the user, with no elapsed
+flight cutoff. The Water candidate is inside 760 m optimal range and the
+supervised loop continues to firing.
