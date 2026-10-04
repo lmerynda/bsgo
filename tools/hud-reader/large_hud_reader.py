@@ -141,6 +141,13 @@ class LargeHudReader:
         # Read the measured text region with a two-pixel left margin; stars in
         # unused padding must not be mistaken for partial HUD digits.
         a = mask(image, self.data['speed_text_box'])
+        # A native star may also land wholly within the two-pixel margin.
+        # Clear only separate components ending before the fixed font origin.
+        # A glyph reaching into that margin spans farther right and retains
+        # its pixels, so the clipping guard still rejects it.
+        for left, right, _, _ in pieces(a):
+            if right <= 2:
+                a[:, left:right] = False
         if a[:4].any() or a[25:].any() or a[:, :2].any() or a[:, -2:].any():
             return None, 'clipped_or_shifted_speed', 0.
         gs = pieces(a)

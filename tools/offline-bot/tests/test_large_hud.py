@@ -31,6 +31,18 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_star_wholly_in_margin_preserves_complete_speed(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        with Image.open(FIXTURES/'speed-33p0-star-margin.png') as crop:
+            im.paste(crop, tuple(data['speed_box'][:2]))
+        self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['speed'].value,33.)
+        # A leading glyph extending into the margin must not be cleared.
+        ImageDraw.Draw(im).rectangle(tuple(data['speed_box']),fill='black')
+        with Image.open(FIXTURES/'speed-33p0-star-margin.png') as crop:
+            im.paste(crop,(data['speed_box'][0]-4,data['speed_box'][1]))
+        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
     def test_measured_stars_outside_speed_text_do_not_hide_complete_digits(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for fixture in ('speed-0p0-star-near.png', 'speed-0p0-star-far.png'):
