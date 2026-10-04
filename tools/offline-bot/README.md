@@ -343,6 +343,25 @@ optimal and 800 m maximum, but this experiment does not fire, scan or mine.
 image sidecars, requests, deliveries, observations, shutdown and blockers.
 `mining_ready` remains false even after a successful approach stop.
 
+The explicit two-regime experiment adds `--brake-at 800
+--reduced-transition-at 1300 --wheel-x <fresh-flight-area-x>
+--wheel-y <fresh-flight-area-y> --flight-point-assessed` to the approach command.
+It requires five-second sampling, no `--max-thrust-seconds`, a stopped target at
+least 1550 m away, and the usual fresh full-hull/clear-corridor/heading evidence.
+At the first fresh range at or below 1300 m, one ordinary PageDown pair reduces
+thrust; exactly one upward wheel notch follows only after that pair's confirmed
+native delivery. Fault or cancellation preempts the queued wheel with reserved
+PageDown cleanup. The ship need not stop between the cruise and reduced phases.
+
+Images must show deceleration after the wheel delivery and three closing
+observations at 5.0 ± 0.3 m/s. Post-wheel speed increase or departure from the
+proved reduced regime blocks the run and brakes. The first fresh range at or
+below 800 m requests the final reserved PageDown. Proof requires two fresh zeros,
+continued same-target/full-hull evidence and a final range of 700–800 m. The
+report distinguishes transition requests and actual delivery from observed
+speed effect. This opt-in mode still requires supervised native acceptance;
+the one-notch-from-idle trial does not establish its moving transition.
+
 To measure incremental thrust before choosing distance-based speed regimes,
 use the supervised one-notch calibration probe:
 
