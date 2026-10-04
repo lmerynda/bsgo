@@ -599,3 +599,58 @@ supervised application-commanded mining harvest. The reward was read by the
 supervisor; the application itself has not yet validated destruction or
 inventory/reward pixels, nor connected these probes into an autonomous native
 mission. The ship was left at this natural stopped boundary in Exrun.
+
+### Continued supervised loop and distance-based transit, October 3
+
+The user requested continued operation until an explicit stop. A single mining
+agent owns live game input while the parent supervises and repairs the app.
+After a closed client was relaunched, the native 2560×1440 large-HUD profile
+again observed full hull and energy in Exrun. Application selection and scan
+acquired yellow Tylium, maximum HP 4,384 at 2,902 m.
+
+`continuous-approach-001` (`d5141e88424a48329d9e4a9a976a2140`) requested
+PageDown at 894 m and observed a final stop at 658 m. All components joined,
+input was idle, and all 205 images and failed-reading sidecars were retained.
+Its overall result correctly remains blocked: the final journal event embedded
+the complete motion/portrait history, exceeded the event byte limit and dropped
+one of 425 submitted events. The terminal event now stores a compact summary
+and reference to the full `report.json`; a 205-observation regression verifies
+complete evidence without increasing the event limit. This fix applies to
+future runs and does not retroactively change the incomplete live report.
+
+The first firing attempt was blocked before G by the 4384 current-HP geometry
+guard. Its complete trailing 4 left a six-pixel slash gap. A measured raster
+anchor now accepts that complete glyph while a clipped-column regression stays
+rejected. All 205 retained approach images replayed with current/max HP 4384
+after the correction; 19 focused HUD tests passed. Further scans identified
+empty and Titanium targets to skip and blue Water HP 4,102 at 1,786 m to revisit.
+
+`continuous-fire-002` (`a3730a1463ee45c7b79d60baaef0e15a`) then proved the
+application's G effect on Tylium 4,384 at 658 m. It observed post-delivery HP
+3,377 then 2,576, complete diagnostics and joined workers. The inserted key hold
+was 62 ms. Later supervision saw the target and asteroid disappear, speed zero,
+hull 5005/5005 and energy 419/800 recovering. The reward amount was not visible
+and is recorded as unknown. This is observed damage and subsequent disappearance;
+it adds no quantified reward to the earlier verified 6,158 Tylium harvest.
+
+At the user's direction, normal native approach now has no elapsed flight
+cutoff. It captures and checks distance every five seconds (`--sample-seconds`
+accepts five to ten), retains routine frames without a total count cap, and
+brakes at the distance threshold. Cadence-aware image-age and observation-gap
+guards still reject missing or invalid observations. Two fresh post-delivery
+zero-speed images reject an ignored acceleration command. A separate optional
+time bound remains available only when explicitly requested for a diagnostic
+trial. The stop observation window verifies cleanup; it does not limit flight.
+All 349 offline tests passed, including an actual five-second quiet capture
+interval, uncapped threshold completion, ignored input, persistent cancellation
+and configured five/ten-second policy observations.
+
+All four supervised probes accept a persistent `--cancel-file` marker. It
+blocks pending selection, scan, acceleration and firing input. During flight,
+an independent watchdog requests reserved PageDown and verifies later fresh
+zero-speed images. The marker persists across subsequent probes. Cancellation
+after G cannot establish ceased autofire, so supervision remains necessary.
+Resource semantics, reward reading, radar avoidance and full native mission
+orchestration remain unfinished. The live loop continues through these
+supervised application probes while the next changes are grounded in retained
+images and actual control outcomes.
