@@ -58,6 +58,7 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
     stop_lock = Lock()
     initial = context = None
     baseline, motion, stop_images = [], [], []
+    stopped_target_ranges = []
     wheel_request = brake_records = ()
     wheel_requested_at = brake_at = None
     brake_reason = blocker = error = None
@@ -73,6 +74,7 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
         "brake_requests": [], "deliveries": [], "first_rejection": None,
         "observed_partial_speed": None, "final_stop_observed": False,
         "final_stop_distance": None, "brake_at": range_threshold,
+        "stopped_target_ranges": stopped_target_ranges,
         "unverified": ["throttle_setting", "other_wheel_direction", "combat_detection",
                        "resource", "mining", "inventory"]}
 
@@ -321,6 +323,14 @@ def run_throttle_probe(output, *, source_factory, recognizer_factory,
                         row = valid(snapshot, now)
                         if row["speed"] == 0:
                             result["final_stop_distance"] = row["distance"]
+                            previous_stopped_range = (stopped_target_ranges[-1]
+                                if stopped_target_ranges else None)
+                            stopped_target_ranges.append(row["distance"])
+                            if transit_mode and not 700 <= row["distance"] <= 800:
+                                raise ValueError("final_range_outside_reduced_speed_acceptance_band")
+                            if (previous_stopped_range is not None
+                                    and abs(row["distance"] - previous_stopped_range) > 5):
+                                raise ValueError("stopped_target_distance_changed")
                     except ValueError as exc:
                         blocker = blocker or str(exc)
                         reject(str(exc), snapshot)

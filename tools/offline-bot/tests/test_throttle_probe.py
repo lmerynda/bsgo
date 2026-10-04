@@ -266,6 +266,31 @@ class ThrottleProbeTests(unittest.TestCase):
             self.assertTrue(result["final_stop_observed"])
             self.assertLess(result["final_stop_distance"], 700)
 
+    def test_transit_both_zero_ranges_must_be_in_band_and_consistent(self):
+        class ContradictoryStoppedSource(PixelSource):
+            def __init__(self, ship, ranges):
+                super().__init__(ship)
+                self.ranges = iter(ranges)
+
+            def next_sample(self, stop):
+                sample = super().next_sample(stop)
+                if sample is not None and self.ship.brake_requested and sample.speed == 0:
+                    sample.distance = next(self.ranges, 790.)
+                return sample
+
+        for ranges, reason in (((690., 740.), "final_range_outside_reduced_speed_acceptance_band"),
+                               ((750., 790.), "stopped_target_distance_changed")):
+            with self.subTest(ranges=ranges), scratch_directory() as directory:
+                result, ship, source, _ = self.run_fixture(directory, speed=5., brake_at=800.,
+                    source_factory=lambda ship: ContradictoryStoppedSource(ship, ranges))
+                self.assertEqual(result["state"], "blocked", result)
+                self.assertEqual(result["reason"], reason)
+                self.assertEqual(result["first_rejection"]["reason"], reason)
+                self.assertEqual(result["stopped_target_ranges"], list(ranges))
+                self.assertTrue(result["final_stop_observed"])
+                self.assertEqual(ship.speed, 0)
+                self.assertTrue(source.closed)
+
 
 if __name__ == "__main__":
     unittest.main()
