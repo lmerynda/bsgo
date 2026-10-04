@@ -19,7 +19,8 @@ class Source:
                  change_target=False, stall_after=None, cancel_at=None,
                  cancel_path=None, effect_delay=0, gone_after=None,
                  unknown_after=None, invalid_after_step=None,
-                 cancel_after_delivery=None, unknown_baseline=False):
+                 cancel_after_delivery=None, unknown_baseline=False,
+                 valid_none_baseline=False, post_gone_speed=0.):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -32,6 +33,8 @@ class Source:
         self.unknown_after, self.invalid_after_step = unknown_after, invalid_after_step
         self.cancel_after_delivery = cancel_after_delivery
         self.unknown_baseline = unknown_baseline
+        self.valid_none_baseline = valid_none_baseline
+        self.post_gone_speed = post_gone_speed
         self.delivery_sequence = None
 
     def next_sample(self, stop):
@@ -51,7 +54,7 @@ class Source:
         hp = 4500
         if self.baseline_damage and self.sequence >= 3:
             hp = 4490
-        if self.unknown_baseline and self.sequence == 1:
+        if (self.unknown_baseline or self.valid_none_baseline) and self.sequence == 1:
             hp = None
         if after and self.effect and step > self.effect_delay:
             hp = 4500 - 10 * (step - self.effect_delay)
@@ -69,11 +72,14 @@ class Source:
         if after and self.gone_after is not None and step >= self.gone_after:
             values.update(asteroid_selected=False, distance=None, target_identity=None,
                           target_portrait=None, target_max_hp=None, target_current_hp=None)
+            if step >= self.gone_after + 2:
+                values["speed"] = self.post_gone_speed
         sample = PixelSample(self.sequence, time.monotonic(), values)
         sample.layout = PROFILE
         sample.unknown_hp = ((after and self.unknown_after is not None
                              and step >= self.unknown_after)
                             or (self.unknown_baseline and self.sequence == 1))
+        sample.valid_none_hp = self.valid_none_baseline and self.sequence == 1
         return sample
 
     def close(self):
@@ -82,7 +88,7 @@ class Source:
 
 def recognize(sample):
     return RecognitionResult((4, 3), {name: FieldValue(value, sample.acquired_at,
-        valid=value is not None,
+        valid=value is not None or (name == "target_current_hp" and sample.valid_none_hp),
         reason=("unvalidated_current_hp_digit_count" if name == "target_current_hp"
                 and sample.unknown_hp else "fixture_rejection") if value is None else None)
         for name, value in sample.values.items()})
@@ -312,6 +318,15 @@ class FiringProbeTests(unittest.TestCase):
             self.assertEqual(dispatchers, [])
             self.assertEqual(result["requests"], [])
 
+    def test_valid_none_current_hp_cannot_authorize_G(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(valid_none_baseline=True), observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("four_digit_hp_required", result["reason"])
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
+
     def test_continuous_mode_bad_hp_blocks_without_target_loss_inference(self):
         with scratch_directory() as directory:
             source = Source(invalid_after_step=5)
@@ -333,6 +348,17 @@ class FiringProbeTests(unittest.TestCase):
             self.assertTrue(result["target_disappearance_observed"])
             self.assertFalse(result["firing_effect_verified"])
             self.assertEqual(len(result["post_disappearance_images"]), 2)
+
+    def test_post_disappearance_motion_blocks_recorded_completion(self):
+        with scratch_directory() as directory:
+            result, _ = self.run_probe(directory,
+                Source(gone_after=4, post_gone_speed=1.),
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("fresh_stopped_speed_required_after_disappearance", result["reason"])
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertEqual(result["post_disappearance_images"], [])
 
     def test_continuous_mode_cancel_after_proof_preserves_proof_but_not_ceasefire_claim(self):
         with scratch_directory() as directory:

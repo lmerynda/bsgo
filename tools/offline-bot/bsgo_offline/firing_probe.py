@@ -51,6 +51,8 @@ def _read(snapshot, now, window_id, frame_size, context, initial,
             or not isinstance(values["target_identity"], str)
             or not values["target_identity"]
             or type(values["target_max_hp"]) not in (int, float)
+            or (values["target_current_hp"] is None
+                and "target_current_hp_reason" not in values)
             or (values["target_current_hp"] is not None
                 and (type(values["target_current_hp"]) not in (int, float)
                      or not 1000 <= values["target_current_hp"] <= values["target_max_hp"]))
@@ -242,6 +244,11 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                         or snapshot.context != context or not snapshot.healthy
                         or not 0 <= time.monotonic() - snapshot.acquired_at < 2):
                     raise RuntimeError("invalid_post_disappearance_capture")
+                speed = snapshot.fields.get("speed")
+                if (not speed or not speed.valid or speed.observed_at != snapshot.acquired_at
+                        or not 0 <= time.monotonic() - speed.observed_at < 2
+                        or type(speed.value) not in (int, float) or speed.value != 0):
+                    raise RuntimeError("fresh_stopped_speed_required_after_disappearance")
                 selected = snapshot.fields.get("asteroid_selected")
                 post_disappearance.append({"sequence": snapshot.sequence,
                     "acquisition_sequence": snapshot.acquisition_sequence,
