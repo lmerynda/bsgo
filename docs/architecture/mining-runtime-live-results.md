@@ -977,3 +977,46 @@ of the current hull-guarded approach; it does not exercise a hull-loss brake.
 The miner proceeded to continuous firing with the normal 480–760 m range
 guard. Choosing this safer distinct route resolved the earlier execution block
 without retrying the rejected corridor.
+
+`continuous-fire-009` (`de0cb2737b224c7e8ae1540770756a23`) mined Water
+HP3097 at 644 m with the normal firing range guard. Early firing effect and
+target disappearance were observed with complete diagnostics. The retained
+sequence 53 reward image shows 1237 Water and 112 experience, with full hull,
+speed 0.0 and energy 333/800 recovering at game clock 01:34:50. The original
+identity blocker remains preserved. Commit `5fd77d25` adds the complete
+measured 1438/3097 and 403/3097 layouts; all 50 selected frames replay valid,
+and the four subsequent absent-target frames remain unknown.
+
+Stationary selection and scan next found Tylium HP4046 at 536 m.
+`continuous-fire-010` (`f2d0ee20672143f8b203b1b8542c4a3d`) again observed
+early firing effect and target disappearance, retained its original identity
+blocker, and completed diagnostics. The sequence 73 reward image shows 5936
+Tylium and 112 experience, with full hull, speed 0.0 and energy 272/800
+recovering at game clock 01:37:34. Both reward images were reviewed by parent
+and miner. Quantified continuous-loop totals are 6146 Water and 19436 Tylium;
+the earlier unquantified Tylium reward and previous-session harvest are excluded.
+
+These two native runs exercised first-rejection observability from commit
+`f4fbb056`. Both retain observation/acquisition sequence 32 and the failed PNG
+and JSON sidecar paths. The terminal identity error is traceable to upstream
+`invalid_target_hp_separator` on maximum HP, followed by
+`maximum_hp_context_unverified` on current HP. Speed, distance, selected
+asteroid and portrait remained fresh and valid. The compact rejection record
+survives later observations and does not authorize additional G input.
+
+Commit `edb236c2` adds four complete measured fire-010 ratio layouts:
+1806/4046, 1365/4046, 722/4046 and 26/4046. The last is the first genuine
+native two-digit remainder in this loop, retained on sequences 61–70. All 70
+selected frames now replay valid; four disappearance frames remain unknown.
+Prior fire-007, fire-008 and fire-009 selected frames remain valid. No font
+templates, thresholds or generic partial-digit fallback were relaxed, and
+per-glyph removal and edge-clipping negatives still reject. The 33 focused HUD
+tests and full 397-test integration passed. Offline replay does not rewrite
+the original blocked native reports.
+
+Continued stationary scanning found wanted Tylium HP4062 at 880 m, with full
+hull/energy and speed 0.0 at game clock 01:42:15. This exposes a gap between
+the 760 m firing guard and the normal approach launch guard (900 m braking
+threshold plus 250 m clearance). The candidate was deferred while an explicit
+short-approach calibration option was prepared; no manual thrust bypass was
+used. Native stopping distance for this shorter launch remains to be measured.
