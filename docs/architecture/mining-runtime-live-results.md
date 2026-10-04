@@ -654,3 +654,24 @@ Resource semantics, reward reading, radar avoidance and full native mission
 orchestration remain unfinished. The live loop continues through these
 supervised application probes while the next changes are grounded in retained
 images and actual control outcomes.
+
+The first two Water 4102 approach attempts were blocked before PageUp by speed
+recognition failures. Inspection showed complete 0.0 digits with bright stars
+in unused left crop padding, rather than the initially suspected nearby ship
+label occlusion. Restricting speed parsing to the measured fixed text region
+corrected both retained images. Intrusion into the font region and shifted text
+remain rejected; all 351 tests passed and the earlier 205-frame approach still
+replayed speeds 0.0–33.0 successfully.
+
+`continuous-approach-004` (`3fb622d5b8ab4799b315d0d4184c91b0`) then exercised
+the actual uncapped native path. It began stopped at 1,786 m, read speed 10.7 at
+1,761 m and 23.2 at 1,677 m, with exactly five seconds between those motion
+acquisitions. A later image at 1,535 m rejected speed as
+`clipped_or_shifted_speed`, so the application requested PageDown and verified
+fresh zeros on sequences 8 and 9. Independent supervision confirmed a final
+stop at 1,304 m, full hull 5005/5005 and energy 800/800. All nine frames, the
+failed-image sidecar and all 33 trace events were written, with no frame-count
+cap, no drops and complete diagnostics. This is actual uncapped motion and
+fault cleanup evidence, not full threshold completion. The failed image shows
+complete 33.0 digits with another star in the remaining two-pixel left margin;
+that strict parsing gap is the next measured correction.
