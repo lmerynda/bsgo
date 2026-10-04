@@ -55,6 +55,13 @@ def locate_selected_marker(image, *, selected_asteroid_verified=False):
     shape = (area.shape[0]-height+1, area.shape[1]-width+1)
     positive = list(zip(*np.where(template)))
     negative = list(zip(*np.where(~template)))
+    glyphs, start = [], None
+    for column, ink in enumerate(list(np.any(template, axis=0)) + [False]):
+        if ink and start is None:
+            start = column
+        if not ink and start is not None:
+            glyphs.append((start, column))
+            start = None
     hits, misses = np.zeros(shape, np.uint8), np.zeros(shape, np.uint8)
     for index in range(10):
         y, x = positive[index*len(positive)//10]
@@ -70,7 +77,10 @@ def locate_selected_marker(image, *, selected_asteroid_verified=False):
         common = np.count_nonzero(patch & template)
         recall = common / np.count_nonzero(template)
         precision = common / max(1, np.count_nonzero(patch))
-        if recall >= .8 and precision >= .85:
+        complete_letters = all(np.count_nonzero(patch[:, left:right] & template[:, left:right])
+                               / np.count_nonzero(template[:, left:right]) >= .6
+                               for left, right in glyphs)
+        if recall >= .8 and precision >= .85 and complete_letters:
             matches.append((recall+precision, int(x), int(y)+200))
     # Adjacent antialias matches are the same label; preserve distinct labels.
     labels = []

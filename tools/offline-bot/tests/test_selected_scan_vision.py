@@ -128,6 +128,15 @@ class SelectedScanVisionTests(unittest.TestCase):
         self.assertIsNone(locate_selected_marker(image.resize((1920, 1080)),
             selected_asteroid_verified=True).box)
 
+    def test_clipped_label_cannot_pass_on_high_total_template_similarity(self):
+        with Image.open(FIXTURES / "scan37-scanned-marker.png") as source:
+            fragment = source.copy()
+        # Erase the final D (only about 10% of all template ink).
+        fragment.paste((0, 0, 0), (93, 2, 104, 18))
+        image = Image.new("RGB", (2560, 1440))
+        image.paste(fragment, (300, 300))
+        self.assertIsNone(locate_selected_marker(image, selected_asteroid_verified=True).box)
+
 
 if __name__ == "__main__":
     unittest.main()
