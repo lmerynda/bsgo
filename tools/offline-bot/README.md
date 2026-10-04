@@ -295,7 +295,8 @@ blocked even after a verified stop. The marker is never removed by the probe.
 The supervisor must inspect the fresh scene and confirm full hull, no combat,
 an unobstructed corridor, a heading aligned toward one already selected
 asteroid, and a stopped ship. These assertions are recorded separately from
-image evidence because hull, combat and heading are not yet validated fields.
+image evidence because combat, corridor clearance and heading are not yet
+validated fields. Hull is also checked from fresh HUD readings below.
 The native client must be exactly 2560×1440. The probe requires two fresh,
 consistent stopped target readings before one PageUp press. It validates target
 identity, portrait, maximum HP, context, distance and speed on every new image.
@@ -341,6 +342,31 @@ optimal and 800 m maximum, but this experiment does not fire, scan or mine.
 `approach-probe.json` and the diagnostic package retain every frame, rejected
 image sidecars, requests, deliveries, observations, shutdown and blockers.
 `mining_ready` remains false even after a successful approach stop.
+
+To measure incremental thrust before choosing distance-based speed regimes,
+use the supervised one-notch calibration probe:
+
+```powershell
+& $offlinePython -m bsgo_offline.throttle_probe --hwnd <current-game-window-handle> --pid <current-game-pid> --profile largehud-20261003 --wheel-x <fresh-flight-area-x> --wheel-y <fresh-flight-area-y> --wheel-steps 1 --clear-corridor-assessed --aligned-heading-assessed --safe-stopped-scene-assessed --flight-point-assessed --cancel-file logs/mining/live-20261003/continuous-stop.request --output logs/mining/<new-throttle-run>
+```
+
+Start stopped with full hull, one selected wanted asteroid and an independently
+assessed clear heading. The wheel point must be a fresh flight-area coordinate,
+clear of HUD panels. The probe sends exactly one signed notch (`1` or `-1`),
+with a 50 ms pointer settle and delivery-time context checks. Direction and
+throttle effect are experimental; Windows accepting the input is not proof.
+Native images arrive every five seconds with no elapsed-flight or total-frame
+limit. Three stable positive speed observations below full speed, with observed
+range closure after wheel delivery, trigger PageDown. Full speed, 300 m of
+approach travel, stale/invalid images, target/hull change or cancellation also
+request cleanup and block proof. Two fresh post-delivery zeros with no movement
+block an ignored or ineffective notch; the probe does not repeat it.
+
+Cleanup verifies two fresh zero-speed images independently of a bad target or
+hull reading. `throttle-probe.json` and the diagnostic package retain images,
+requests, native deliveries, speed/range observations and rejection evidence.
+A successful trial establishes one measured wheel effect and stop for that
+scene; it does not calibrate other throttle levels or enable mining readiness.
 
 For a single supervised mining-gun feedback experiment on an already scanned
 Water or Tylium asteroid, run:
