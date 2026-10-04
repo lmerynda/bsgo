@@ -174,6 +174,7 @@ class DiagnosticRun:
         self._store = self._worker = self._coordinator = self._backend = None
         self._dispatcher = None
         self._last_retained_frame = None
+        self._control_status = None
         self.execution = ExecutionStatus()
         self._capabilities = None
         self._status_interval = status_interval
@@ -222,6 +223,12 @@ class DiagnosticRun:
 
     def update_execution(self, **values):
         self.execution.update(**values)
+
+    def set_control_status(self, values):
+        """Publish a caller's explicit control contract; never attach a controller."""
+        copied = plain(freeze(values))
+        with self._condition:
+            self._control_status = copied
 
     def _observation_status(self, snapshot, now):
         if snapshot is None:
@@ -349,6 +356,7 @@ class DiagnosticRun:
             delivery_error = f"{type(exc).__name__}: {exc}"
         with self._condition:
             retained = self._last_retained_frame
+            control = self._control_status
         return plain({"run_id": self.journal.run_id, "mode": self.manifest["mode"],
             "sampled_utc": datetime.now(timezone.utc).isoformat(),
             "sampled_monotonic": time.monotonic(),
@@ -356,6 +364,7 @@ class DiagnosticRun:
                                              delivery=deliveries[-1] if deliveries else None),
             "observation": self._observation_status(snapshot, time.monotonic()),
             "last_retained_frame": retained,
+            "control": control,
             "runtime": self._coordinator.read_status() if self._coordinator else None,
             "preflight": self._coordinator.read_preflight(self._capabilities) if self._coordinator else None,
             "worker": self._worker.metrics() if self._worker else None,
