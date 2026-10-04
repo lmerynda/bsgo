@@ -185,9 +185,11 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
             error = error or "manual_action_ownership_unresolved; human intervention required"
             result.update(state="blocked",reason=error)
         if server:
-            server.shutdown()
+            if server_thread and server_thread.ident is not None:
+                server.shutdown()
             server.server_close()
-            server_thread.join(2.)
+            if server_thread and server_thread.ident is not None:
+                server_thread.join(2.)
         shutdown["observer_server"] = server_thread is None or not server_thread.is_alive()
         if worker:
             worker.stop()
