@@ -892,3 +892,21 @@ selection absence plus two trailing images. Baseline zero and pre-G-up zero
 reject. Forty focused firing tests and the fresh integrated 393-test suite
 passed. Reader `bdc6ad0c` and this observer are available together for subsequent
 native launches; neither rewrites the original fire-006/007 results.
+
+During subsequent stationary camera work, the parent observed speed12.0 at
+game clock 01:06:22 with full hull/energy and no selected target. The miner
+reports only Shift+C, Shift+F and one camera drag since the previous zero;
+there was no app motion process, requested thrust or wheel input. A nearby
+NPC overlap was also visible. The cause remains unverified. Emergency PageDown
+was followed by fresh zeros at 01:07:35 and 01:08:18, with full hull/energy.
+This motion event invalidates the previous stationary route assessment.
+
+Water HP3154 was then reacquired at2595 m after camera adjustment and stationary
+orientation. Planned approach-008 did not start: automatic approval review
+rejected the native PageUp operation, citing nearby large asteroids and
+"hostile contacts" as making the clear-corridor prerequisite not credible.
+Contact faction is not established by those red labels. Fresh supervision
+at 01:11:24 still showed zero speed and full hull/energy. No PageUp was sent,
+and this is an external execution rejection rather than an app acceptance run.
+The same rejected route was not retried; stationary candidate discovery and
+the continuing mining objective remain active while a clearer route is sought.
