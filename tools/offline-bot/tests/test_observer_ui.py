@@ -347,6 +347,7 @@ class ObserverUiTests(unittest.TestCase):
                 with urlopen(base + "/api/manual-actions") as response:
                     state = json.load(response)
                 self.assertEqual(state["actual_mode"], "manual")
+                self.assertIsInstance(state["server_monotonic"], float)
                 self.assertFalse(state["routines"]["scan_nearby_unscanned"]["ready"])
                 self.assertFalse(state["routines"]["scan_selected"]["ready"])
                 self.assertFalse(state["routines"]["approach_current_target"]["ready"])
@@ -557,7 +558,7 @@ class ObserverUiTests(unittest.TestCase):
     def test_canceled_budget_skip_renders_canceled_but_true_blocker_renders_blocked(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text()).group(1)
         script = script.replace("  refresh();\n  refreshMode();\n  refreshActions();",
-                                "  globalThis.testRender = render; globalThis.testActions = renderActions;")
+                                "  globalThis.testRender = render; globalThis.testActions = renderActions; globalThis.testCapture = captureAssessment; globalThis.testActionRequest = actionRequest;")
         harness = f"""
 const elements = {{}};
 globalThis.document = {{getElementById(id) {{ return elements[id] ||= {{
@@ -583,10 +584,12 @@ common.status.execution.phase='blocked'; common.status.execution.first_blocker='
 common.status.result.state='blocked'; common.report.result.state='blocked';
 testRender(common);
 const blocked = {{badge:elements.lifecycle.textContent, outcome:elements.outcome.textContent}};
-const actions = {{actual_mode:'manual',paused:false,ownership:{{owner:null,state:'idle'}},
+const actions = {{actual_mode:'manual',paused:false,server_monotonic:100,
+  focus_handover_enabled:true,focus_handover:{{accepted:false,reason:'game_focus_wait'}},
+  ownership:{{owner:null,state:'idle'}},
   current_observation:{{target_identity:'asteroid:4500',distance:700,speed:0,
     fields:{{distance:{{valid:true,fresh:true}},speed:{{valid:true,fresh:true}}}}}},
-  assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',wheel_point:{{x:1280,y:400}}}},
+  assessment_context:{{token:'t1',context_key:'target-A',target_identity:'asteroid:4500',expires_at:115,wheel_point:{{x:1280,y:400}}}},
   routines:{{scan_nearby_unscanned:{{available:false,ready:false,reason:'discovery_provider_missing'}},
     scan_selected:{{available:true,ready:true}},
     approach_current_target:{{available:true,ready:true}}}}}};
@@ -594,21 +597,34 @@ testActions(actions);
 const independent = {{nearDisabled:elements.scanbutton.disabled,
   selectedDisabled:elements.selectedscanbutton.disabled,
   approachDisabled:elements.approachbutton.disabled,
-  target:elements.currenttarget.textContent}};
+  target:elements.currenttarget.textContent,
+  assessment:elements.assessmentcontext.textContent,
+  selectedReadiness:elements.selectedscanreadiness.textContent,
+  focus:elements.focushandover.textContent}};
 elements.scanselectedsafe.checked=true;
-testActions(actions);
+testCapture('scan_selected');
 const selectedAssessedEnabled = !elements.selectedscanbutton.disabled;
 for (const id of ['clearcorridor','alignedheading','safestopped','flightpoint']) elements[id].checked=true;
-testActions(actions);
+testCapture('approach_current_target');
 const assessedEnabled = !elements.approachbutton.disabled;
-actions.assessment_context={{token:'t2',context_key:'target-B',target_identity:'asteroid:5000',wheel_point:{{x:1280,y:400}}}};
+actions.assessment_context={{token:'t2',context_key:'target-A',target_identity:'asteroid:4500',expires_at:130,wheel_point:{{x:1280,y:400}}}};
+actions.server_monotonic=105;
+testActions(actions);
+const originalTokenHeld = testActionRequest('approach_current_target','start').assessment_token === 't1'
+  && testActionRequest('scan_selected','start').assessment_token === 't1'
+  && !elements.approachbutton.disabled;
+actions.server_monotonic=116;
+testActions(actions);
+const originalExpired = elements.approachbutton.disabled && elements.selectedscanbutton.disabled
+  && !elements.clearcorridor.checked && !elements.scanselectedsafe.checked;
+actions.assessment_context={{token:'t3',context_key:'target-B',target_identity:'asteroid:5000',expires_at:130,wheel_point:{{x:1280,y:400}}}};
 testActions(actions);
 const changedDisabled = elements.approachbutton.disabled && !elements.clearcorridor.checked;
 actions.routines.scan_nearby_unscanned.active=true;
 testActions(actions);
 const waitingScan = {{button:elements.scanbutton.textContent,
   canStop:!elements.scanbutton.disabled, approachDisabled:elements.approachbutton.disabled}};
-console.log(JSON.stringify({{canceled,recovered,blocked,independent,selectedAssessedEnabled,assessedEnabled,changedDisabled,waitingScan}}));
+console.log(JSON.stringify({{canceled,recovered,blocked,independent,selectedAssessedEnabled,assessedEnabled,originalTokenHeld,originalExpired,changedDisabled,waitingScan}}));
 """
         result = subprocess.run(["node", "-e", harness], capture_output=True,
                                 text=True, check=True)
@@ -627,8 +643,13 @@ console.log(JSON.stringify({{canceled,recovered,blocked,independent,selectedAsse
         self.assertTrue(rendered["independent"]["selectedDisabled"])
         self.assertTrue(rendered["independent"]["approachDisabled"])
         self.assertEqual(rendered["independent"]["target"], "asteroid:4500")
+        self.assertIn("expires in 15.0s", rendered["independent"]["assessment"])
+        self.assertIn("no blocker", rendered["independent"]["selectedReadiness"])
+        self.assertIn("game_focus_wait", rendered["independent"]["focus"])
         self.assertTrue(rendered["selectedAssessedEnabled"])
         self.assertTrue(rendered["assessedEnabled"])
+        self.assertTrue(rendered["originalTokenHeld"])
+        self.assertTrue(rendered["originalExpired"])
         self.assertTrue(rendered["changedDisabled"])
         self.assertEqual(rendered["waitingScan"]["button"], "Stop scanning")
         self.assertTrue(rendered["waitingScan"]["canStop"])

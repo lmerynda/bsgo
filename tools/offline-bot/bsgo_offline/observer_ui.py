@@ -302,7 +302,8 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
         mode = controller.snapshot()
         return {**state, "actual_mode": mode.get("actual_mode", "unknown"),
                 "mode_pending": mode.get("pending") is True,
-                "mode_reason": mode.get("reason")}
+                "mode_reason": mode.get("reason"),
+                "server_monotonic": time.monotonic()}
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code, body: bytes, mime: str):
