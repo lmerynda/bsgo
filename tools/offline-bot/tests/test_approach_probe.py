@@ -119,10 +119,14 @@ def recognize(sample):
 
 class FakeDispatcher:
     def __init__(self, backend, ship, *, ignore_acceleration=False,
-                 cancel_on_acceleration=None):
+                 cancel_on_acceleration=None, reduced_wheel_speed=5.,
+                 ignore_transition_down=False, cancel_on_transition_down=None):
         self.backend, self.ship = backend, ship
         self.ignore_acceleration = ignore_acceleration
         self.cancel_on_acceleration = cancel_on_acceleration
+        self.reduced_wheel_speed = reduced_wheel_speed
+        self.ignore_transition_down = ignore_transition_down
+        self.cancel_on_transition_down = cancel_on_transition_down
         self.stop_event, self.lock = Event(), Lock()
         self.thread = None
         self.rows = []
@@ -140,6 +144,10 @@ class FakeDispatcher:
                 continue
             permitted = (record.kind == "key_up" and record.key in self.held)
             permitted = permitted or self.backend.delivery_allowed(record)
+            if (self.ignore_transition_down and record.kind == "key_down"
+                    and record.key == "PageDown"
+                    and not dict(record.metadata).get("cleanup")):
+                permitted = False
             outcome = "injected" if permitted else "skipped_dependency"
             if permitted and record.kind == "key_down":
                 self.held.add(record.key)
@@ -149,6 +157,10 @@ class FakeDispatcher:
                         self.cancel_on_acceleration.touch()
                 elif record.key == "PageDown":
                     self.ship.set_speed(0.)
+                    if self.cancel_on_transition_down and not dict(record.metadata).get("cleanup"):
+                        self.cancel_on_transition_down.touch()
+            elif permitted and record.kind == "mouse_wheel" and self.reduced_wheel_speed is not None:
+                self.ship.set_speed(self.reduced_wheel_speed)
             elif permitted and record.kind == "key_up":
                 self.held.discard(record.key)
             row = DeliveryRecord(record.sequence, time.monotonic(), record.kind,
@@ -173,14 +185,19 @@ class ApproachProbeTests(unittest.TestCase):
                     max_thrust_seconds=3., stop_seconds=.8,
                     brake_decay_seconds=0., cancel_file=None,
                     cancel_on_acceleration=False, sample_interval=.4,
-                    distance=1155., brake_at=900., launch_clearance=250.):
+                    distance=1155., brake_at=900., launch_clearance=250.,
+                    reduced_transition_at=None, reduced_wheel_speed=5.,
+                    ignore_transition_down=False, cancel_on_transition_down=False):
         ship = Ship(brake_decay_seconds, distance)
         source = PixelSource(ship, **(source_options or {}))
         dispatchers = []
         def dispatcher_factory(backend, journal):
             dispatcher = FakeDispatcher(backend, ship,
                 ignore_acceleration=ignore_acceleration,
-                cancel_on_acceleration=cancel_file if cancel_on_acceleration else None)
+                cancel_on_acceleration=cancel_file if cancel_on_acceleration else None,
+                reduced_wheel_speed=reduced_wheel_speed,
+                ignore_transition_down=ignore_transition_down,
+                cancel_on_transition_down=(cancel_file if cancel_on_transition_down else None))
             dispatchers.append(dispatcher)
             return dispatcher
         result = run_approach_probe(directory / "run", source_factory=lambda: source,
@@ -193,7 +210,10 @@ class ApproachProbeTests(unittest.TestCase):
             baseline_seconds=.3, max_thrust_seconds=max_thrust_seconds,
             stop_seconds=stop_seconds, decision_interval=.1,
             cancel_file=cancel_file, sample_interval=sample_interval,
-            brake_at=brake_at, launch_clearance=launch_clearance)
+            brake_at=brake_at, launch_clearance=launch_clearance,
+            reduced_transition_at=reduced_transition_at,
+            wheel_point=(1, 1) if reduced_transition_at is not None else None,
+            flight_point_assessed=reduced_transition_at is not None)
         return result, ship, source, dispatchers
 
     def test_short_approach_requires_explicit_launch_clearance(self):
@@ -514,6 +534,87 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertFalse(result["shutdown"]["dispatcher"])
             self.assertTrue(result["shutdown"]["recognition"])
             self.assertTrue(source.closed)
+
+    def test_two_regime_transition_delivers_idle_then_one_wheel_and_stops_in_range(self):
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.)
+            self.assertEqual(result["state"], "proved", result["reason"])
+            self.assertTrue(result["deceleration_observed"])
+            self.assertGreaterEqual(len(result["reduced_speed_sequences"]), 3)
+            self.assertTrue(700 <= result["final_stop_distance"] <= 800)
+            self.assertEqual(result["brake_reason"], "threshold")
+            self.assertEqual([d.kind for d in dispatchers[0].deliveries()],
+                ["key_down", "key_up", "key_down", "key_up", "mouse_wheel",
+                 "key_down", "key_up"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+            self.assertTrue(result["complete_diagnostics"])
+
+    def test_two_regime_rejects_near_launch_without_input(self):
+        with scratch_directory() as directory:
+            result, ship, _, dispatchers = self.run_fixture(directory,
+                distance=1400., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("1550", result["reason"])
+            self.assertEqual(dispatchers, [])
+            self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_rejected_transition_down_never_delivers_wheel(self):
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.,
+                ignore_transition_down=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(len(result["wheel_requests"]), 1)
+            self.assertNotIn("injected", [d.outcome for d in dispatchers[0].deliveries()
+                if d.kind == "mouse_wheel"])
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_cancel_between_idle_and_wheel_blocks_wheel(self):
+        with scratch_directory() as directory:
+            marker = directory / "stop.request"
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.,
+                cancel_file=marker, cancel_on_transition_down=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "cancel_requested")
+            self.assertTrue(marker.exists())
+            self.assertNotIn("injected", [d.outcome for d in dispatchers[0].deliveries()
+                if d.kind == "mouse_wheel"])
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_ignored_wheel_or_full_speed_cannot_prove(self):
+        for speed, reason in ((None, "Reduced throttle did not sustain motion"),
+                              (33., "Full speed persisted after wheel delivery")):
+            with self.subTest(speed=speed), scratch_directory() as directory:
+                result, ship, source, dispatchers = self.run_fixture(directory,
+                    distance=1555., brake_at=800., max_thrust_seconds=None,
+                    sample_interval=5., reduced_transition_at=1300.,
+                    reduced_wheel_speed=speed)
+                self.assertEqual(result["state"], "blocked")
+                self.assertIn(reason, result["reason"])
+                self.assertEqual(len(result["wheel_requests"]), 1)
+                self.assertTrue(result["final_stop_observed"])
+                self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_late_target_or_hull_change_requests_cleanup(self):
+        for source_options in ({"change_at": 65}, {"damage_at": 65}):
+            with self.subTest(source_options=source_options), scratch_directory() as directory:
+                result, ship, source, _ = self.run_fixture(directory,
+                    distance=1555., brake_at=800., max_thrust_seconds=None,
+                    sample_interval=5., reduced_transition_at=1300.,
+                    source_options=source_options)
+                self.assertEqual(result["state"], "blocked")
+                self.assertTrue(result["final_stop_observed"])
+                self.assertEqual(ship.speed, 0)
+                self.assertTrue(source.closed)
 
 
 if __name__ == "__main__":

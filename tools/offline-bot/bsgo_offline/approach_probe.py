@@ -37,7 +37,9 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                        scope="native", brake_at=900., launch_clearance=250.,
                        max_thrust_seconds=None,
                        baseline_seconds=4., stop_seconds=35.,
-                       decision_interval=2., cancel_file=None, sample_interval=.4):
+                       decision_interval=2., cancel_file=None, sample_interval=.4,
+                       reduced_transition_at=None, wheel_point=None,
+                       flight_point_assessed=False):
     """Injectable supervised probe with an independent PageDown watchdog."""
     if (clear_corridor_assessed, aligned_heading_assessed,
             safe_stopped_scene_assessed) != (True, True, True):
@@ -58,6 +60,15 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         ("sample_interval", sample_interval, .01, 10)):
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(name)
+    two_regime = reduced_transition_at is not None
+    if two_regime:
+        if (reduced_transition_at != 1300 or brake_at != 800
+                or sample_interval != 5 or max_thrust_seconds is not None
+                or flight_point_assessed is not True or wheel_point is None
+                or len(wheel_point) != 2 or any(type(v) is not int for v in wheel_point)
+                or not 0 <= wheel_point[0] < frame_size[0]
+                or not 0 <= wheel_point[1] < frame_size[1]):
+            raise ValueError("two_regime_requires_1300_to_800_uncapped_assessed_wheel_point")
     maximum_image_age = max(2., sample_interval + 2.)
     policy = ApproachPolicy(brake_at=brake_at, launch_clearance=launch_clearance,
                             max_frame_age=maximum_image_age,
@@ -73,6 +84,11 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             "sample_interval": sample_interval, "maximum_image_age": maximum_image_age,
             "baseline_seconds": baseline_seconds, "stop_seconds": stop_seconds,
             "gun_optimal_range": 760, "gun_max_range": 800,
+            "two_regime": two_regime, "reduced_transition_at": reduced_transition_at,
+            "wheel_point": wheel_point if two_regime else None,
+            "flight_point_assessed": flight_point_assessed if two_regime else None,
+            "reduced_speed_target": 5. if two_regime else None,
+            "final_range_acceptance": [700, 800] if two_regime else None,
             "cancel_file": str(cancel_path) if cancel_path else None,
             "mission_started": False}, frame_capacity=32, max_frames=frame_budget)
     store = SnapshotStore()
@@ -90,6 +106,12 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     acceleration_at = brake_at_time = None
     brake_reason = blocker = error = None
     acceleration_records = brake_records = ()
+    transition_records = wheel_records = ()
+    transition_requested_at = wheel_requested_at = None
+    transition_speed = None
+    reduced_speed_sequences = []
+    deceleration_observed = False
+    post_wheel_full_samples = 0
     stop_attempts = 0
     stop_failure = None
     watchdog_rejection = None
@@ -102,6 +124,10 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         "braking_observations": braking_observations,
         "brake_start_observation": None, "final_stop_distance": None,
         "observed_braking_distance": None,
+        "transition_requests": [], "wheel_requests": [],
+        "transition_observation": None, "deceleration_observed": False,
+        "reduced_speed_sequences": reduced_speed_sequences,
+        "two_regime": two_regime, "reduced_speed_target": 5. if two_regime else None,
         "cancel_requested": False,
         "unverified": ["combat_detection", "exclusive_input_ownership",
                        "scan_result", "resources", "mining", "inventory"]}
@@ -197,20 +223,71 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             "context": plain(snapshot.context), **hull}
 
     def input_guard(record):
-        if record.key != "PageUp" or record.kind != "key_down" or acceleration_at is None:
-            return False
         if canceled():
             return False
         now = time.monotonic()
         snapshot = store.latest()
-        if (brake_at_time is not None or stop_failure is not None or snapshot is None
-                or not 0 <= now - acceleration_at < 1):
+        if brake_at_time is not None or stop_failure is not None or snapshot is None:
             return False
         try:
             row, _ = valid_target(snapshot, now)
-            return row.speed == 0 and row.distance >= brake_at + launch_clearance
+            if record.key == "PageUp" and record.kind == "key_down":
+                return (acceleration_at is not None and 0 <= now - acceleration_at < 1
+                        and row.speed == 0 and row.distance >= brake_at + launch_clearance
+                        and (not two_regime or row.distance >= 1550))
+            if not two_regime:
+                return False
+            if record.key == "PageDown" and record.kind == "key_down":
+                return (transition_requested_at is not None
+                        and (not transition_records or record.sequence == transition_records[0].sequence)
+                        and 0 <= now - transition_requested_at < 2
+                        and 800 < row.distance <= reduced_transition_at and row.speed > 5)
+            if record.kind == "mouse_wheel":
+                if (wheel_requested_at is None or record.wheel_steps != 1
+                        or (wheel_records and record.sequence != wheel_records[0].sequence)
+                        or not 0 <= now - wheel_requested_at < 2
+                        or not 800 < row.distance <= reduced_transition_at):
+                    return False
+                deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
+                return (len(transition_records) == 2
+                    and all(deliveries.get(r.sequence) is not None
+                            and deliveries[r.sequence].outcome == "injected"
+                            for r in transition_records)
+                    and deliveries[transition_records[0].sequence].at
+                        <= deliveries[transition_records[1].sequence].at)
+            return False
         except PolicyError:
             return False
+
+    def request_reduced_transition(row, snapshot):
+        nonlocal transition_requested_at, wheel_requested_at
+        nonlocal transition_records, wheel_records, transition_speed
+        with stop_lock:
+            if (not two_regime or transition_requested_at is not None
+                    or brake_at_time is not None or canceled()):
+                return
+            if not 800 < row.distance <= reduced_transition_at or row.speed <= 5:
+                return
+            transition_requested_at = time.monotonic()
+            transition_speed = row.speed
+            result["transition_observation"] = {
+                "sequence": snapshot.sequence, "acquired_at": row.acquired_at,
+                "distance": row.distance, "speed": row.speed}
+            try:
+                transition_records = backend.press_key("PageDown",
+                    reason="supervised_reduce_from_full_thrust")
+                result["transition_requests"] = plain(transition_records)
+                wheel_requested_at = time.monotonic()
+                wheel_records = (backend.wheel_mouse(*wheel_point, steps=1,
+                    reason="supervised_one_notch_after_idle"),)
+                result["wheel_requests"] = plain(wheel_records)
+                diagnostic.submit({"event": "approach_reduced_transition_requested",
+                    "observation_sequence": snapshot.sequence,
+                    "transition_sequences": [r.sequence for r in transition_records],
+                    "wheel_sequence": wheel_records[0].sequence})
+            except Exception:
+                # Caller requests the reserved PageDown, which preempts queued wheel input.
+                raise
 
     def watchdog_run():
         nonlocal watchdog_rejection
@@ -234,6 +311,13 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 continue
             if row.distance <= brake_at:
                 stop_ship("threshold_watchdog")
+            elif (two_regime and wheel_requested_at is not None
+                    and now - wheel_requested_at >= 2):
+                deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
+                if (not wheel_records or wheel_records[0].sequence not in deliveries
+                        or deliveries[wheel_records[0].sequence].outcome != "injected"):
+                    watchdog_rejection = "Reduced-throttle wheel delivery missing or rejected"
+                    stop_ship("transition_delivery_watchdog")
             elif max_thrust_seconds is not None and now >= acceleration_at + max_thrust_seconds:
                 stop_ship("thrust_limit")
 
@@ -285,6 +369,8 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                             if canceled():
                                 blocker = "cancel_requested_before_input"
                                 break
+                            if two_regime and row.distance < 1550:
+                                raise PolicyError("Two-regime full-speed launch requires at least 1550 m")
                             action = policy.decide(snapshot, now)
                             if action != "accelerate":
                                 raise PolicyError("Initial policy did not authorize acceleration")
@@ -319,16 +405,54 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                 if d.outcome == "injected" and d.kind == "key_up"
                                 and acceleration_records
                                 and d.request_sequence == acceleration_records[-1].sequence]
-                            if acceleration_ups and row.acquired_at > acceleration_ups[-1].at:
+                            if (transition_requested_at is None and acceleration_ups
+                                    and row.acquired_at > acceleration_ups[-1].at):
                                 post_delivery_zero_samples = (post_delivery_zero_samples + 1
                                     if row.speed == 0 else 0)
                                 if post_delivery_zero_samples >= 2:
                                     raise PolicyError("Acceleration not observed in two fresh images")
+                            if two_regime and transition_requested_at is not None:
+                                deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
+                                linked = [deliveries.get(r.sequence)
+                                          for r in (*transition_records, *wheel_records)]
+                                if any(d is not None and d.outcome != "injected" for d in linked):
+                                    raise PolicyError("Reduced-throttle transition input not delivered")
+                                wheel_up = linked[-1] if len(linked) == 3 else None
+                                if wheel_up is not None and row.acquired_at > wheel_up.at:
+                                    if (result.get("observed_reduced_speed") is not None
+                                            and not 4.7 <= row.speed <= 5.3):
+                                        raise PolicyError("Observed reduced-speed regime changed")
+                                    post_wheel_full_samples = (post_wheel_full_samples + 1
+                                        if row.speed >= 32.9 else 0)
+                                    if post_wheel_full_samples >= 2:
+                                        raise PolicyError("Full speed persisted after wheel delivery")
+                                    if row.speed <= transition_speed - .5:
+                                        deceleration_observed = True
+                                        result["deceleration_observed"] = True
+                                    if row.speed >= 32.9 and deceleration_observed:
+                                        raise PolicyError("Full speed returned after reduced-throttle transition")
+                                    if row.speed == 0:
+                                        reduced_speed_sequences.clear()
+                                        zeros = [r for r in motion
+                                            if r["acquired_at"] > wheel_up.at and r["speed"] == 0]
+                                        if len(zeros) >= 2:
+                                            raise PolicyError("Reduced throttle did not sustain motion")
+                                    elif 4.7 <= row.speed <= 5.3:
+                                        if (len(motion) >= 2
+                                                and row.distance >= motion[-2]["distance"] - 3):
+                                            raise PolicyError("Reduced-speed target is not closing")
+                                        reduced_speed_sequences.append(snapshot.sequence)
+                                    else:
+                                        reduced_speed_sequences.clear()
+                                    if len(reduced_speed_sequences) >= 3:
+                                        result["observed_reduced_speed"] = row.speed
                             if row.distance <= brake_at:
                                 action = policy.decide(snapshot, now)
                                 if action != "brake":
                                     raise PolicyError("Policy did not request threshold brake")
                                 stop_ship("threshold")
+                            elif two_regime and transition_requested_at is None and row.distance <= reduced_transition_at:
+                                request_reduced_transition(row, snapshot)
                             elif policy.last and (sample_interval >= decision_interval or
                                     row.acquired_at - policy.last.acquired_at >= decision_interval):
                                 action = policy.decide(snapshot, now)
@@ -351,11 +475,10 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                                 "observation_sequence": snapshot.sequence,
                                 "acquisition_sequence": snapshot.acquisition_sequence,
                                 "reason": str(exc), "at": now})
-                        requests = {r.sequence: r for r in backend.records()}
                         ups = [d for d in dispatcher.deliveries()
                             if d.outcome == "injected" and d.kind == "key_up"
-                            and d.request_sequence in requests
-                            and requests[d.request_sequence].key == "PageDown"]
+                            and brake_records
+                            and d.request_sequence == brake_records[-1].sequence]
                         if (ups and _speed_zero(snapshot, now=now, context=context,
                                 window_id=expected_window_id, frame_size=frame_size)
                                 and snapshot.acquired_at > ups[-1].at
@@ -398,6 +521,11 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 blocker = "motion_not_freshly_observed"
             elif not initial or not motion or min(r["distance"] for r in motion) >= initial["distance"] - 5:
                 blocker = "distance_closure_not_observed"
+            elif two_regime and (not deceleration_observed or len(reduced_speed_sequences) < 3):
+                blocker = "reduced_speed_regime_not_freshly_observed"
+            elif two_regime and (result["final_stop_distance"] is None
+                    or not 700 <= result["final_stop_distance"] <= 800):
+                blocker = "final_range_outside_reduced_speed_acceptance_band"
         result.update(state="blocked" if blocker else "proved",
                       reason=blocker or "approach_and_stop_image_observed")
     except Exception as exc:
@@ -462,13 +590,20 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
     if dispatcher and acceleration_records and brake_records:
         try:
             deliveries = {d.request_sequence: d for d in dispatcher.deliveries()}
-            linked = [deliveries.get(r.sequence) for r in (*acceleration_records, *brake_records)]
-            if len(linked) != 4 or any(d is None or d.outcome != "injected" for d in linked):
+            requested = (*acceleration_records, *transition_records,
+                         *wheel_records, *brake_records)
+            linked = [deliveries.get(r.sequence) for r in requested]
+            expected_count = 7 if two_regime else 4
+            if (len(linked) != expected_count
+                    or any(d is None or d.outcome != "injected" for d in linked)):
                 result.update(state="blocked", reason="control_input_not_delivered")
-            elif not (linked[0].at <= linked[1].at <= linked[2].at <= linked[3].at):
+            elif any(left.at > right.at for left, right in zip(linked, linked[1:])):
                 result.update(state="blocked", reason="control_delivery_order_invalid")
             else:
-                result["actual_brake_delivered_at"] = linked[2].at
+                result["actual_brake_delivered_at"] = linked[-2].at
+                if two_regime:
+                    result["actual_transition_idle_delivered_at"] = linked[3].at
+                    result["actual_wheel_delivered_at"] = linked[4].at
                 post_motion = [r for r in motion if r["acquired_at"] > linked[1].at
                     and r["speed"] > 0 and initial
                     and r["distance"] < initial["distance"] - 5]
@@ -508,6 +643,11 @@ def main():
                         help="Optional bounded diagnostic trial only; normal transit has no elapsed-time cap")
     parser.add_argument("--brake-at", type=float, default=900.,
                         help="Distance brake threshold, 600 to 1400 metres")
+    parser.add_argument("--reduced-transition-at", type=float,
+                        help="Experimental full-speed to one-notch transition at 1300 m; use --brake-at 800")
+    parser.add_argument("--wheel-x", type=int)
+    parser.add_argument("--wheel-y", type=int)
+    parser.add_argument("--flight-point-assessed", action="store_true")
     parser.add_argument("--launch-clearance", type=float, default=250.,
                         help="Supervised calibration only: minimum launch distance above brake threshold, 75 to 250 metres")
     parser.add_argument("--sample-seconds", type=float, default=5.,
@@ -517,6 +657,9 @@ def main():
     args = parser.parse_args()
     if not math.isfinite(args.sample_seconds) or not 5 <= args.sample_seconds <= 10:
         parser.error("--sample-seconds must be between 5 and 10")
+    if args.reduced_transition_at is not None and (args.wheel_x is None or args.wheel_y is None
+            or not args.flight_point_assessed):
+        parser.error("two-regime mode requires --wheel-x, --wheel-y and --flight-point-assessed")
     from .native_capture import NativeCapture, NativeSource, inspect_window
     from .native_input import NativeInputDispatcher
     from .mining_recognition import MiningHudRecognizer
@@ -532,10 +675,12 @@ def main():
         dispatcher_factory=lambda backend, journal: NativeInputDispatcher(backend,
             geometry.hwnd, geometry.pid, expected_size=geometry.client_size,
             expected_origin=geometry.screen_origin, journal=journal,
-            minimum_key_hold_seconds=.05, keyboard_mode="virtual_key"),
+            minimum_key_hold_seconds=.05, minimum_mouse_settle_seconds=.05,
+            keyboard_mode="virtual_key"),
         configuration={"hwnd": args.hwnd, "pid": args.pid, "profile": args.profile,
             "source_size": "native-2560", "minimum_key_hold_ms": 50,
-            "keyboard_mode": "virtual_key"},
+            "keyboard_mode": "virtual_key",
+            "wheel_pointer_settle_ms": 50 if args.reduced_transition_at is not None else None},
         profile=args.profile, expected_window_id=f"{geometry.pid}:{geometry.hwnd}",
         frame_size=geometry.client_size, clear_corridor_assessed=True,
         aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
@@ -543,7 +688,10 @@ def main():
         max_thrust_seconds=args.max_thrust_seconds,
         baseline_seconds=args.sample_seconds * 2 + 2,
         sample_interval=args.sample_seconds, decision_interval=args.sample_seconds,
-        stop_seconds=args.stop_seconds, cancel_file=args.cancel_file)
+        stop_seconds=args.stop_seconds, cancel_file=args.cancel_file,
+        reduced_transition_at=args.reduced_transition_at,
+        wheel_point=(args.wheel_x, args.wheel_y) if args.reduced_transition_at is not None else None,
+        flight_point_assessed=args.flight_point_assessed)
     print(json.dumps(plain(result), indent=2))
     return 0 if result["state"] == "proved" and result["complete_diagnostics"] else 1
 
