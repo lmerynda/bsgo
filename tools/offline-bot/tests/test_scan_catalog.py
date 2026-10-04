@@ -125,7 +125,7 @@ class ScanSweepTests(unittest.TestCase):
             image_reference="frames/selected.png", selected=True)
         self.sweep.record_selection(old.candidate_id, selected, now=10.3)
         self.assertEqual(self.sweep.next_step(10.3, stationary_verified=True).action, "scan")
-        self.sweep.record_scan_attempt(old.candidate_id, delivery_confirmed=True)
+        self.sweep.record_scan_attempt(old.candidate_id, delivery_confirmed=True, now=10.3)
         self.assertEqual(self.catalog.get(old.candidate_id, 10.3).scan_state, "unscanned")
         self.assertEqual(self.sweep.next_step(10.3, stationary_verified=True).reason, "scan_result_unverified")
         self.catalog.observe((replace(selected, acquisition_sequence=3, acquired_at=10.5,
@@ -164,7 +164,7 @@ class ScanSweepTests(unittest.TestCase):
     def test_failed_scan_cannot_repeat_unchanged_candidate(self):
         entry = self.enable_candidate(selected=True)
         self.sweep.next_step(10, stationary_verified=True)
-        self.sweep.record_scan_attempt(entry.candidate_id, delivery_confirmed=False)
+        self.sweep.record_scan_attempt(entry.candidate_id, delivery_confirmed=False, now=10)
         self.assertEqual(self.sweep.next_step(10, stationary_verified=True).action, "blocked")
 
     def test_motion_cancel_and_toggle_off_never_propose_input(self):
@@ -185,8 +185,46 @@ class ScanSweepTests(unittest.TestCase):
             image_observation(box=(400, 200, 460, 260), distance=2000)), 10)
         self.sweep.set_enabled(True)
         self.sweep.next_step(10, stationary_verified=True)
-        self.sweep.record_scan_attempt(first.candidate_id, delivery_confirmed=True)
+        self.sweep.record_scan_attempt(first.candidate_id, delivery_confirmed=True, now=10)
         self.assertEqual(self.sweep.next_step(10, stationary_verified=True).candidate_id, second.candidate_id)
+
+    def test_continuous_sweep_memory_bounded_across_many_views_and_late_ack_rejected(self):
+        for view in range(1000):
+            now = 10. + view
+            entry = self.catalog.observe((image_observation(view_revision=view,
+                acquisition_sequence=view+1, acquired_at=now, selected=True),), now)[0]
+            self.sweep.set_enabled(True)
+            self.sweep.next_step(now, stationary_verified=True)
+            self.sweep.record_scan_attempt(entry.candidate_id, delivery_confirmed=True, now=now)
+            self.assertLessEqual(len(self.sweep.status(now)["attempted"]), 1)
+            self.assertEqual(len(self.catalog._entries), 1)
+        self.catalog.entries(now+2)
+        self.assertEqual(len(self.catalog._entries), 0)
+        self.assertEqual(self.sweep.status(now+2)["attempted"], {})
+        entry = self.catalog.observe((image_observation(view_revision=1000, selected=True,
+            acquired_at=now+3),), now+3)[0]
+        self.sweep.next_step(now+3, stationary_verified=True)
+        self.catalog.reset_view(CONTEXT, 1001)
+        with self.assertRaisesRegex(ValueError, "acknowledgment_candidate_context"):
+            self.sweep.record_scan_attempt(entry.candidate_id, delivery_confirmed=True, now=now+3)
+        self.assertIsNone(self.sweep.status(now+3)["pending"])
+
+    def test_expired_selection_acknowledgment_cannot_reacquire_old_location(self):
+        entry = self.enable_candidate()
+        self.sweep.next_step(10, stationary_verified=True)
+        with self.assertRaisesRegex(ValueError, "context_changed_or_stale"):
+            self.sweep.record_selection(entry.candidate_id, image_observation(
+                acquisition_sequence=2, acquired_at=13., selected=True), now=13.)
+        self.assertIsNone(self.sweep.status(13.)["pending"])
+
+    def test_same_view_catalog_capacity_and_expiry_bound_storage(self):
+        catalog = ScanCatalog(capacity=3)
+        for index in range(20):
+            catalog.observe((image_observation(acquisition_sequence=index+1,
+                acquired_at=10.+index*.01, visual_signature=f"rock-{index}"),), 10.+index*.01)
+            self.assertLessEqual(len(catalog._entries), 3)
+        catalog.entries(13)
+        self.assertEqual(catalog._entries, {})
 
 
 if __name__ == "__main__":

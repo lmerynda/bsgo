@@ -84,10 +84,13 @@ class ScanCatalog:
     window, layout, geometry or input ownership also clears the entire view.
     Catalog state is intentionally ephemeral and is never a respawn cache.
     """
-    def __init__(self, max_age=2.0):
+    def __init__(self, max_age=2.0, capacity=256):
         if not _finite(max_age) or not 0 < max_age <= 2:
             raise ValueError("max_age")
+        if type(capacity) is not int or capacity < 1:
+            raise ValueError("capacity")
         self.max_age = max_age
+        self.capacity = capacity
         self.context = None
         self.view_revision = None
         self._entries = {}
@@ -106,8 +109,9 @@ class ScanCatalog:
     def entries(self, now):
         if not _finite(now):
             raise ValueError("now")
-        return tuple(entry for entry in self._entries.values()
-                     if 0 <= now - entry.observation.acquired_at < self.max_age)
+        self._entries = {key: entry for key, entry in self._entries.items()
+                         if 0 <= now - entry.observation.acquired_at < self.max_age}
+        return tuple(self._entries.values())
 
     def get(self, candidate_id, now):
         return next((entry for entry in self.entries(now)
@@ -120,6 +124,8 @@ class ScanCatalog:
         if any(not isinstance(row, CandidateObservation) for row in observations):
             raise TypeError("candidate_image_observation_required")
         first = observations[0]
+        if len(observations) > self.capacity:
+            raise ValueError("candidate_batch_exceeds_capacity")
         if any((row.context, row.view_revision, row.acquisition_sequence,
                 row.acquired_at, row.image_reference) != (first.context, first.view_revision,
                 first.acquisition_sequence, first.acquired_at, first.image_reference)
@@ -160,5 +166,8 @@ class ScanCatalog:
                 entry = replace(entry, scan_image_reference=row.image_reference)
             self._entries[entry.candidate_id] = entry
             output.append(entry)
+        while len(self._entries) > self.capacity:
+            oldest = min(self._entries, key=lambda key: self._entries[key].observation.acquired_at)
+            del self._entries[oldest]
         self._last_acquisition = first.acquisition_sequence
         return tuple(output)

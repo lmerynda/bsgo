@@ -35,7 +35,20 @@ class ScanSweep:
             raise ValueError("enabled")
         self.enabled = enabled
 
+    def _retire_attempts(self, now):
+        active = {entry.candidate_id for entry in self.catalog.entries(now)}
+        self._attempted = {key: value for key, value in self._attempted.items() if key in active}
+
+    def _acknowledge(self, action, candidate_id, now):
+        self._retire_attempts(now)
+        if self._pending != (action, candidate_id):
+            raise ValueError(action + "_not_pending")
+        if self.catalog.get(candidate_id, now) is None:
+            self._pending = None
+            raise ValueError("acknowledgment_candidate_context_changed_or_stale")
+
     def next_step(self, now, *, stationary_verified, cancelled=False):
+        self._retire_attempts(now)
         if type(stationary_verified) is not bool or type(cancelled) is not bool:
             raise ValueError("explicit_stationary_and_cancel_state_required")
         if cancelled:
@@ -76,8 +89,7 @@ class ScanSweep:
         return SweepStep("scan", "fresh_selected_unscanned_within_scanner_range", entry.candidate_id)
 
     def record_selection(self, candidate_id, evidence: CandidateObservation, *, now):
-        if self._pending != ("select", candidate_id):
-            raise ValueError("selection_not_pending")
+        self._acknowledge("select", candidate_id, now)
         previous = self.catalog.get(candidate_id, now)
         if (previous is None or not isinstance(evidence, CandidateObservation)
                 or not evidence.selected or evidence.context != previous.observation.context
@@ -91,20 +103,24 @@ class ScanSweep:
             raise ValueError("selected_candidate_continuity_lost")
         self._pending = None
 
-    def record_scan_attempt(self, candidate_id, *, delivery_confirmed):
-        if self._pending != ("scan", candidate_id) or type(delivery_confirmed) is not bool:
+    def record_scan_attempt(self, candidate_id, *, delivery_confirmed, now):
+        self._acknowledge("scan", candidate_id, now)
+        if type(delivery_confirmed) is not bool:
             raise ValueError("scan_not_pending_or_delivery_unknown")
         self._attempted[candidate_id] = ("delivered_effect_unverified" if delivery_confirmed
                                          else "scan_delivery_failed")
         self._pending = None
 
-    def record_failure(self, candidate_id, reason):
+    def record_failure(self, candidate_id, reason, *, now):
+        if self._pending:
+            self._acknowledge(self._pending[0], candidate_id, now)
         if not self._pending or self._pending[1] != candidate_id or not isinstance(reason, str) or not reason:
             raise ValueError("pending_action_and_failure_reason_required")
         self._attempted[candidate_id] = reason
         self._pending = None
 
     def status(self, now):
+        self._retire_attempts(now)
         entries = self.catalog.entries(now)
         return {"enabled": self.enabled, "scope": "supplied_image_verified_catalog",
                 "automatic_discovery_supported": False, "native_input_owned": False,
