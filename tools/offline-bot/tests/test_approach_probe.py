@@ -655,6 +655,52 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertTrue(result["final_stop_observed"])
             self.assertEqual(ship.speed, 0)
 
+    def test_two_regime_both_fresh_zero_ranges_must_be_safe_and_continuous(self):
+        for distances, expected_reason in (
+                ((690., 740.), "final_range_outside_reduced_speed_acceptance_band"),
+                ((750., 790.), "stopped_distance_changed")):
+            class ShiftedStopSource(PixelSource):
+                def __init__(self, ship):
+                    super().__init__(ship)
+                    self.stop_count = 0
+
+                def next_sample(self, stop):
+                    sample = super().next_sample(stop)
+                    if sample and self.ship.brake_requested and sample.speed == 0:
+                        self.stop_count += 1
+                        sample.distance = distances[min(self.stop_count - 1, 1)]
+                    return sample
+
+            with self.subTest(distances=distances), scratch_directory() as directory:
+                result, ship, source, _ = self.run_fixture(directory,
+                    distance=1555., brake_at=800., max_thrust_seconds=None,
+                    sample_interval=5., reduced_transition_at=1300.,
+                    source_factory=ShiftedStopSource)
+                self.assertEqual(result["state"], "blocked")
+                self.assertEqual(result["reason"], expected_reason)
+                self.assertTrue(result["final_stop_observed"])
+                self.assertEqual([r["distance"] for r in result["final_stop_range_observations"]],
+                                 list(distances))
+                self.assertEqual(ship.speed, 0)
+
+    def test_two_regime_bad_target_during_cleanup_keeps_speed_stop_and_first_cause(self):
+        class LostTargetDuringStop(PixelSource):
+            def next_sample(self, stop):
+                sample = super().next_sample(stop)
+                if sample and self.ship.brake_requested and sample.speed == 0:
+                    sample.selected = False
+                return sample
+        with scratch_directory() as directory:
+            result, ship, source, _ = self.run_fixture(directory,
+                distance=1555., brake_at=800., max_thrust_seconds=None,
+                sample_interval=5., reduced_transition_at=1300.,
+                source_factory=LostTargetDuringStop)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"], "Invalid HUD observation")
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(result["final_stop_range_observations"], [])
+            self.assertEqual(ship.speed, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

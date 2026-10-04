@@ -129,6 +129,7 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
         "transition_observation": None, "deceleration_observed": False,
         "reduced_speed_sequences": reduced_speed_sequences,
         "two_regime": two_regime, "reduced_speed_target": 5. if two_regime else None,
+        "final_stop_range_observations": [],
         "cancel_requested": False,
         "unverified": ["combat_detection", "exclusive_input_ownership",
                        "scan_result", "resources", "mining", "inventory"]}
@@ -517,6 +518,12 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             blocker = "cancel_requested"
         if blocker is None and watchdog_rejection:
             blocker = watchdog_rejection
+        if two_regime and len(stop_images) >= 2:
+            stop_set = set(stop_images[-2:])
+            result["final_stop_range_observations"] = [
+                {"sequence": r["sequence"], "distance": r["distance"],
+                 "speed": r["speed"], "acquired_at": r["acquired_at"]}
+                for r in braking_observations if r["sequence"] in stop_set and r["speed"] == 0]
         if not blocker:
             if brake_reason not in ("threshold", "threshold_watchdog"):
                 blocker = "thrust_limit_before_brake_threshold"
@@ -528,9 +535,13 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
                 blocker = "distance_closure_not_observed"
             elif two_regime and (not deceleration_observed or len(reduced_speed_sequences) < 3):
                 blocker = "reduced_speed_regime_not_freshly_observed"
-            elif two_regime and (result["final_stop_distance"] is None
-                    or not 700 <= result["final_stop_distance"] <= 800):
-                blocker = "final_range_outside_reduced_speed_acceptance_band"
+            elif two_regime:
+                stops = result["final_stop_range_observations"]
+                if (len(stops) != 2
+                        or any(not 700 <= r["distance"] <= 800 for r in stops)):
+                    blocker = "final_range_outside_reduced_speed_acceptance_band"
+                elif abs(stops[1]["distance"] - stops[0]["distance"]) > 5:
+                    blocker = "stopped_distance_changed"
         result.update(state="blocked" if blocker else "proved",
                       reason=blocker or "approach_and_stop_image_observed")
     except Exception as exc:
