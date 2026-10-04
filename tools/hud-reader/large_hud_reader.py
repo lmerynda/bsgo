@@ -39,6 +39,11 @@ class LargeHudReader:
         self.hull_bank = {digit: [(variant['top'],
             np.array([[c == '1' for c in row] for row in variant['rows']],dtype=bool))
             for variant in variants] for digit, variants in self.data['hull_digits'].items()}
+        self.hp_complete_bank = {digit:list(variants) for digit,variants in self.hull_bank.items()}
+        for digit,variants in self.data['target_hp_complete_digits'].items():
+            self.hp_complete_bank.setdefault(digit,[]).extend((variant['top'],
+                np.array([[c == '1' for c in row] for row in variant['rows']],dtype=bool))
+                for variant in variants)
 
     def number(self, glyphs, field='hp'):
         text, confidence = '', 1.
@@ -91,6 +96,11 @@ class LargeHudReader:
         return [[left,right,top,glyph.shape[0]] for left,right,top,glyph in glyphs] == \
                self.data['hp_three_digit_layout']['glyph_bounds']
 
+    def complete_hp_layout(self, glyphs):
+        bounds = [[left,right,top,glyph.shape[0]] for left,right,top,glyph in glyphs]
+        return next((layout for layout in self.data['hp_complete_layouts']
+                     if bounds == layout['glyph_bounds']),None)
+
     def maximum_hp(self, image):
         gs = pieces(mask(image, self.data['hp_box']))
         if not 6 <= len(gs) <= 9:
@@ -106,20 +116,34 @@ class LargeHudReader:
                                  for _, _, top_, glyph in gs[-4:])
                              and abs((gs[0][0]+gs[-1][1])/2-76) <= .5)
         three_digit_layout = self.three_digit_hp_layout(gs)
-        if (((left, right) != (72, 79) and not narrow_one_layout and not three_digit_layout)
+        complete_layout = self.complete_hp_layout(gs)
+        if (((left, right) != (72, 79) and not narrow_one_layout
+                and not three_digit_layout and complete_layout is None)
                 or top != 3 or slash.shape != (12, 7)
                 or not slash[0, -1] or not slash[-1, 0] or not 11 <= len(ys) <= 18
                 or float(np.abs(xs/6+ys/11-1).max()) > .20):
             return None, 'invalid_target_hp_separator', 0.
+        if complete_layout is not None:
+            return self.complete_number(gs[-4:],field='target_max_hp',bank=self.hp_complete_bank)
         if three_digit_layout:
             return self.complete_number(gs[-4:],field='target_max_hp')
         return self.number(gs[-4:])
 
     def current_hp(self, image, maximum_hp):
-        """Read complete four-digit HP or the measured three-digit layout."""
+        """Read complete target HP with measured centered-ratio layouts."""
         if maximum_hp is None:
             return None, 'maximum_hp_context_unverified', 0.
         gs = pieces(mask(image, self.data['hp_box']))
+        complete_layout = self.complete_hp_layout(gs)
+        if complete_layout is not None:
+            count = complete_layout['current_digit_count']
+            value,reason,confidence = self.complete_number(gs[:-5],digit_count=count,
+                field='current_hp',bank=self.hp_complete_bank,allow_zero=count == 1)
+            if reason:
+                return None,reason,confidence
+            if value > maximum_hp:
+                return None,'current_hp_exceeds_maximum',confidence
+            return value,None,confidence
         if self.three_digit_hp_layout(gs):
             value, reason, confidence = self.complete_number(gs[:3],digit_count=3,
                                                               field='current_hp')
@@ -230,12 +254,13 @@ class LargeHudReader:
             return None, 'speed_out_of_range', 0.
         return value, None, round(confidence, 3)
 
-    def complete_number(self, glyphs, *, digit_count=4, field='hull'):
+    def complete_number(self, glyphs, *, digit_count=4, field='hull', bank=None,
+                        allow_zero=False):
         """Match measured shared HUD font rasters without resizing glyphs."""
         text, confidence = '', 1.
         for _, _, top, glyph in glyphs:
             scores = []
-            for digit, variants in self.hull_bank.items():
+            for digit, variants in (self.hull_bank if bank is None else bank).items():
                 for expected_top, expected in variants:
                     if top == expected_top and glyph.shape == expected.shape:
                         scores.append((float(np.mean(glyph != expected)), digit))
@@ -247,7 +272,7 @@ class LargeHudReader:
             error, digit = by_digit[0]
             text += digit
             confidence = min(confidence, 1-error)
-        if len(text) != digit_count or text.startswith('0'):
+        if len(text) != digit_count or text.startswith('0') and not (allow_zero and text == '0'):
             return None, 'unvalidated_'+field+'_digit_count', 0.
         return int(text), None, round(confidence, 3)
 

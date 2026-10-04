@@ -32,6 +32,37 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_recentered_target_hp_layouts_include_terminal_zero(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for value in (1937,1513,872,499,213,0):
+            im = fixture_image()
+            with Image.open(FIXTURES/f'hp-{value}-3724.png') as crop:
+                im.paste(crop,tuple(data['hp_box'][:2]))
+            fields = HudRecognizer(PROFILE)(native(im)).fields
+            self.assertEqual(fields['target_current_hp'].value,value)
+            self.assertEqual(fields['target_max_hp'].value,3724)
+            self.assertTrue(fields['target_identity'].valid)
+            self.assertFalse(any(MiningHudRecognizer(PROFILE).capabilities.values()))
+
+    def test_recentered_hp_clipped_or_missing_glyph_cannot_become_lower_hp(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for value in (1937,1513,872,499,213,0):
+            layout = next(item for item in data['hp_complete_layouts']
+                          if item['source']['label'] == f'{value}/3724')
+            # The first current glyph, the separator, and final max glyph.
+            for index in (0,layout['current_digit_count'],-1):
+                for damage in ('top_row','whole_glyph'):
+                    im = fixture_image()
+                    with Image.open(FIXTURES/f'hp-{value}-3724.png') as crop:
+                        im.paste(crop,tuple(data['hp_box'][:2]))
+                    left,right,top,height = layout['glyph_bounds'][index]
+                    x,y = data['hp_box'][:2]
+                    bottom = top if damage == 'top_row' else top+height-1
+                    ImageDraw.Draw(im).rectangle((x+left,y+top,x+right-1,y+bottom),fill='black')
+                    fields = HudRecognizer(PROFILE)(native(im)).fields
+                    self.assertFalse(fields['target_current_hp'].valid,(value,index,damage))
+                    self.assertFalse(fields['target_max_hp'].valid,(value,index,damage))
+
     def test_measured_star_below_distance_is_separate_from_complete_glyph(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for damage in (None,'connect_star','remove_bottom_row'):
