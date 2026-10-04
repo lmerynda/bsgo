@@ -32,6 +32,47 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_complete_centered_hp_ratios_follow_measured_font_not_fixed_slash(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for value in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248):
+            im = fixture_image()
+            with Image.open(FIXTURES/f'hp-{value}-3788.png') as crop:
+                im.paste(crop,tuple(data['hp_box'][:2]))
+            fields = HudRecognizer(PROFILE)(native(im)).fields
+            self.assertEqual(fields['target_current_hp'].value,value)
+            self.assertEqual(fields['target_max_hp'].value,3788)
+            self.assertTrue(fields['target_identity'].valid)
+
+    def test_missing_or_clipped_centered_ratio_glyphs_remain_unknown(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for value in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248):
+            im = fixture_image()
+            with Image.open(FIXTURES/f'hp-{value}-3788.png') as crop:
+                im.paste(crop,tuple(data['hp_box'][:2]))
+            reader = HudRecognizer(PROFILE)
+            # Segment only saved calibration pixels for damage coordinates.
+            import numpy as np
+            a = np.asarray(im.crop(data['hp_box']))
+            binary = (a.min(2)>=160) & (a.max(2).astype(int)-a.min(2)<65)
+            edges = np.flatnonzero(np.diff(np.r_[False,binary.any(0),False]))
+            glyphs = []
+            for left,right in zip(edges[::2],edges[1::2]):
+                ys,_ = np.where(binary[:,left:right])
+                glyphs.append((int(left),int(right),int(ys.min()),int(ys.max())))
+            for index in range(len(glyphs)):
+                if index == len(glyphs)-5:
+                    continue
+                for damage in ('remove','top','left','right'):
+                    damaged = im.copy()
+                    left,right,top,bottom = glyphs[index]
+                    x,y = data['hp_box'][:2]
+                    if damage == 'top': bottom = top
+                    elif damage == 'left': right = left+1
+                    elif damage == 'right': left = right-1
+                    ImageDraw.Draw(damaged).rectangle((x+left,y+top,x+right-1,y+bottom),fill='black')
+                    fields = reader(native(damaged)).fields
+                    self.assertFalse(fields['target_current_hp'].valid,(value,index,damage))
+
     def test_measured_recentered_target_hp_layouts_include_terminal_zero(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for value in (1937,1513,872,499,213,0):

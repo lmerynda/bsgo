@@ -127,7 +127,7 @@ class LargeHudReader:
             return self.complete_number(gs[-4:],field='target_max_hp',bank=self.hp_complete_bank)
         if three_digit_layout:
             return self.complete_number(gs[-4:],field='target_max_hp')
-        return self.number(gs[-4:])
+        return self.complete_number(gs[-4:],field='target_max_hp',bank=self.hp_complete_bank)
 
     def current_hp(self, image, maximum_hp):
         """Read complete target HP with measured centered-ratio layouts."""
@@ -181,7 +181,8 @@ class LargeHudReader:
                             or (top == 3 and glyph.shape[0] == 12))
                        for _, _, top, glyph in current)):
             return None, 'current_hp_geometry_incomplete', 0.
-        value, reason, confidence = self.number(current)
+        value, reason, confidence = self.complete_number(current,field='current_hp',
+                                                         bank=self.hp_complete_bank)
         if reason:
             return None, 'current_hp_' + reason, confidence
         if value > maximum_hp:
