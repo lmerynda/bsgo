@@ -34,20 +34,24 @@ def native(im, layout=PROFILE):
 class LargeHudTests(unittest.TestCase):
     def test_complete_centered_hp_ratios_follow_measured_font_not_fixed_slash(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
-        for value in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248):
+        pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
+        pairs += [(v,4033) for v in (2641,2301,1871,1329,1000,277)]
+        for value,maximum in pairs:
             im = fixture_image()
-            with Image.open(FIXTURES/f'hp-{value}-3788.png') as crop:
+            with Image.open(FIXTURES/f'hp-{value}-{maximum}.png') as crop:
                 im.paste(crop,tuple(data['hp_box'][:2]))
             fields = HudRecognizer(PROFILE)(native(im)).fields
             self.assertEqual(fields['target_current_hp'].value,value)
-            self.assertEqual(fields['target_max_hp'].value,3788)
+            self.assertEqual(fields['target_max_hp'].value,maximum)
             self.assertTrue(fields['target_identity'].valid)
 
     def test_missing_or_clipped_centered_ratio_glyphs_remain_unknown(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
-        for value in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248):
+        pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
+        pairs += [(v,4033) for v in (2641,2301,1871,1329,1000,277)]
+        for value,maximum in pairs:
             im = fixture_image()
-            with Image.open(FIXTURES/f'hp-{value}-3788.png') as crop:
+            with Image.open(FIXTURES/f'hp-{value}-{maximum}.png') as crop:
                 im.paste(crop,tuple(data['hp_box'][:2]))
             reader = HudRecognizer(PROFILE)
             # Segment only saved calibration pixels for damage coordinates.
