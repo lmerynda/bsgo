@@ -14,7 +14,8 @@ from .events import EventDetector
 
 
 HUD_FIELDS = ("distance", "speed", "asteroid_selected", "target_identity",
-              "target_portrait", "target_max_hp", "target_current_hp")
+              "target_portrait", "target_max_hp", "target_current_hp",
+              "hull_current", "hull_max")
 
 
 @dataclass(frozen=True)
@@ -226,9 +227,9 @@ class HudRecognizer:
         size_ok = (image.size == (2560, 1440) and
                    source_size == (self.source_frame_size or (2560, 1440)))
         for name in HUD_FIELDS:
-            if name == "target_current_hp" and self.profile != "largehud-20261003":
+            if name in ("target_current_hp", "hull_current", "hull_max") and self.profile != "largehud-20261003":
                 fields[name] = FieldValue(None, sample.acquired_at, False,
-                    "mining_recognizer_not_validated:target_current_hp")
+                    "mining_recognizer_not_validated:" + name)
                 continue
             value = raw.get(name)
             valid = size_ok and value is not None

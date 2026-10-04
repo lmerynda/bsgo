@@ -36,6 +36,9 @@ class LargeHudReader:
         self.title = np.array(self.data['asteroid_title'], dtype=bool)
         self.bank = {k: [np.array(a, dtype=bool) for a in v]
                      for k, v in self.data['digits'].items()}
+        self.hull_bank = {digit: [(variant['top'],
+            np.array([[c == '1' for c in row] for row in variant['rows']],dtype=bool))
+            for variant in variants] for digit, variants in self.data['hull_digits'].items()}
 
     def number(self, glyphs, field='hp'):
         text, confidence = '', 1.
@@ -206,6 +209,57 @@ class LargeHudReader:
             return None, 'speed_out_of_range', 0.
         return value, None, round(confidence, 3)
 
+    def hull_number(self, glyphs):
+        """Match complete native hull rasters without resizing partial glyphs."""
+        text, confidence = '', 1.
+        for _, _, top, glyph in glyphs:
+            scores = []
+            for digit, variants in self.hull_bank.items():
+                for expected_top, expected in variants:
+                    if top == expected_top and glyph.shape == expected.shape:
+                        scores.append((float(np.mean(glyph != expected)), digit))
+            by_digit = sorted((min(error for error, d in scores if d == digit), digit)
+                              for digit in {d for _, d in scores})
+            if (not by_digit or by_digit[0][0] > .02
+                    or len(by_digit) > 1 and by_digit[1][0]-by_digit[0][0] < .035):
+                return None, 'incomplete_or_ambiguous_hull_glyph', 0.
+            error, digit = by_digit[0]
+            text += digit
+            confidence = min(confidence, 1-error)
+        if len(text) != 4 or text.startswith('0'):
+            return None, 'unvalidated_hull_digit_count', 0.
+        return int(text), None, round(confidence, 3)
+
+    def hull(self, image):
+        """Read the measured player hull ratio independently of target state."""
+        a = mask(image, self.data['hull_box'])
+        gs = pieces(a)
+        rejected = (None, None, 'hull_ratio_geometry_incomplete', 0., 0.)
+        if (len(gs) != 9 or a[:2].any() or a[-2:].any()
+                or a[:, :2].any() or a[:, -2:].any()
+                or abs((gs[0][0]+gs[-1][1])/2-75.5) > .5):
+            return rejected
+        current, separator, maximum = gs[:4], gs[4], gs[-4:]
+        left, right, top, slash = separator
+        ys, xs = np.where(slash)
+        if ((left, right) not in ((72, 79), (68, 75)) or top != 3
+                or slash.shape != (12, 7) or not slash[0, -1] or not slash[-1, 0]
+                or not 11 <= len(ys) <= 18
+                or float(np.abs(xs/6+ys/11-1).max()) > .20
+                or not 6 <= left-current[-1][1] <= 8
+                or not 6 <= maximum[0][0]-right <= 8
+                or any(not 3 <= b[0]-a_[1] <= 6
+                       for group in (current, maximum)
+                       for a_, b in zip(group, group[1:]))):
+            return rejected
+        value, reason, confidence = self.hull_number(current)
+        limit, limit_reason, limit_confidence = self.hull_number(maximum)
+        if reason or limit_reason:
+            return None, None, reason or limit_reason, 0., 0.
+        if value > limit:
+            return None, None, 'hull_current_exceeds_maximum', 0., 0.
+        return value, limit, None, confidence, limit_confidence
+
     def read(self, image, captured_at=None):
         result = {'calibration_profile': PROFILE, 'calibrated_size': [2560,1440],
                   'distance': None, 'speed': None, 'valid': False, 'reasons': [],
@@ -220,17 +274,22 @@ class LargeHudReader:
         hp, he, hc = self.maximum_hp(image) if asteroid else (None, None, 0.)
         current_hp, current_reason, current_confidence = (
             self.current_hp(image, hp) if asteroid else (None, None, 0.))
+        hull_current, hull_max, hull_reason, hull_confidence, hull_max_confidence = self.hull(image)
         portrait = np.asarray(image.crop(self.data['portrait_box']).convert('L').resize((12,12)))//32
-        reasons = [e for e in (de, se, he, current_reason,
+        reasons = [e for e in (de, se, he, current_reason, hull_reason,
                               None if asteroid else 'asteroid_title_not_verified') if e]
         result.update(distance=distance, speed=speed, distance_confidence=dc, speed_confidence=sc,
                       asteroid_selected=asteroid, target_max_hp=hp, target_hp_confidence=hc,
                       target_current_hp=current_hp,
                       target_current_hp_confidence=current_confidence,
+                      hull_current=hull_current, hull_max=hull_max,
+                      hull_current_confidence=hull_confidence,
+                      hull_max_confidence=hull_max_confidence,
                       target_identity=f'asteroid:hp:{hp}' if hp is not None else None,
                       target_portrait=portrait.flatten().tolist() if asteroid else None,
                       reasons=reasons, ocr_uncertainty={name: {'reason': reason}
                           for name, reason in [('distance',de), ('speed',se),
-                              ('target_max_hp',he), ('target_current_hp',current_reason)] if reason},
+                              ('target_max_hp',he), ('target_current_hp',current_reason),
+                              ('hull_current',hull_reason), ('hull_max',hull_reason)] if reason},
                       valid=not reasons, captured_at=time.time() if captured_at is None else captured_at)
         return result

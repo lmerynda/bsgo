@@ -19,7 +19,8 @@ def fixture_image():
     data = json.loads((ROOT/'largehud-calibration.json').read_text())
     im = Image.new('RGB', (2560,1440))
     for name, field in [('distance','distance_box'), ('hp','hp_box'),
-                        ('title','title_box'), ('speed-0p0','speed_box')]:
+                        ('title','title_box'), ('speed-0p0','speed_box'),
+                        ('own-hp','hull_box')]:
         with Image.open(FIXTURES/(name+'.png')) as crop:
             im.paste(crop, tuple(data[field][:2]))
     return im
@@ -31,6 +32,51 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_complete_measured_hull_rasters_and_fresh_mining_adapter_fields(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for value in (5005,3295,1638,1742,2127):
+            im = fixture_image()
+            with Image.open(FIXTURES/f'hull-{value}-5005.png') as crop:
+                im.paste(crop,tuple(data['hull_box'][:2]))
+            sample = native(im)
+            fields = MiningHudRecognizer(PROFILE)(sample).fields
+            for name, expected in [('hull_current',value),('hull_max',5005)]:
+                self.assertTrue(fields[name].valid)
+                self.assertEqual(fields[name].value,expected)
+                self.assertEqual(fields[name].observed_at,sample.acquired_at)
+
+    def test_own_hull_remains_readable_without_an_asteroid_selected(self):
+        im = fixture_image()
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        ImageDraw.Draw(im).rectangle(tuple(data['title_box']),fill='black')
+        fields = MiningHudRecognizer(PROFILE)(native(im)).fields
+        self.assertIs(fields['asteroid_selected'].value,False)
+        self.assertEqual(fields['hull_current'].value,5005)
+        self.assertEqual(fields['hull_max'].value,5005)
+
+    def test_hull_partial_missing_shifted_and_wrong_profile_remain_unknown(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        # Complete1638/5005 includes a measured tall6 and narrow1.
+        for box in [(134,92,137,92),(134,92,137,102),
+                    (143,91,154,91),(272,92,272,102),(196,91,202,102)]:
+            im = fixture_image()
+            with Image.open(FIXTURES/'hull-1638-5005.png') as crop:
+                im.paste(crop,tuple(data['hull_box'][:2]))
+            ImageDraw.Draw(im).rectangle(box,fill='black')
+            fields = MiningHudRecognizer(PROFILE)(native(im)).fields
+            self.assertFalse(fields['hull_current'].valid,box)
+            self.assertFalse(fields['hull_max'].valid,box)
+            self.assertIsNone(fields['hull_current'].value)
+        im = fixture_image()
+        old = MiningHudRecognizer('restart-20261001')(native(im,'restart-20261001'))
+        for name in ('hull_current','hull_max'):
+            self.assertFalse(old.fields[name].valid)
+            self.assertEqual(old.fields[name].reason,'mining_recognizer_not_validated:'+name)
+        bad_size = MiningHudRecognizer(PROFILE)(native(Image.new('RGB',(1920,1080))))
+        self.assertFalse(bad_size.fields['hull_current'].valid)
+        wrong = MiningHudRecognizer(PROFILE)(native(im,'restart-20261001'))
+        self.assertFalse(wrong.fields['hull_current'].valid)
+
     def test_measured_star_beyond_complete_speed_font_extent_is_excluded(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()
