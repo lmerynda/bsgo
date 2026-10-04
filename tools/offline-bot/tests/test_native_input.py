@@ -11,6 +11,7 @@ from bsgo_offline.input import RecordingInputBackend
 from bsgo_offline.native_input import (
     INPUT, KEYBDINPUT, MOUSEINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
     KEYEVENTF_SCANCODE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_VIRTUALDESK,
+    MOUSEEVENTF_WHEEL,
     MAX_INPUT_SEQUENCE, NativeDispatchError, NativeInputDispatcher, ULONG_PTR,
     WindowStatus, input_tag,
 )
@@ -72,6 +73,40 @@ class FakeNativeApi:
 
 
 class NativeInputTests(unittest.TestCase):
+    def test_wheel_one_notch_has_signed_data_and_pointer_settle(self):
+        for steps, encoded in ((1, 120), (-1, ctypes.c_uint32(-120).value)):
+            with self.subTest(steps=steps):
+                backend, api, dispatcher = self.setup_dispatcher(
+                    minimum_mouse_settle_seconds=.05)
+                record = backend.wheel_mouse(120, 160, steps=steps)
+                delivery = self.deliver(backend, dispatcher)
+                self.assertEqual((delivery.kind, delivery.outcome,
+                                  delivery.inserted_count), ("mouse_wheel", "injected", 2))
+                self.assertEqual([len(batch) for batch in api.sent], [1, 1])
+                self.assertGreaterEqual(api.sent_at[1] - api.sent_at[0], .045)
+                self.assertEqual(api.sent[1][0].mi.dwFlags, MOUSEEVENTF_WHEEL)
+                self.assertEqual(api.sent[1][0].mi.mouseData, encoded)
+                self.assertEqual(api.sent[1][0].mi.dwExtraInfo, input_tag(record.sequence))
+                self.assertEqual(api.point_calls, [(140, 200), (140, 200), (140, 200)])
+
+    def test_wheel_cancel_or_focus_loss_during_settle_never_sends_notch(self):
+        for change in ("cancel", "focus"):
+            with self.subTest(change=change):
+                backend, api, dispatcher = self.setup_dispatcher(
+                    minimum_mouse_settle_seconds=.01)
+                original = api.send
+                def after_move(events):
+                    count = original(events)
+                    if change == "cancel":
+                        backend.cancel(reason="test")
+                    else:
+                        api.status = replace(api.status, foreground=999)
+                    return count
+                api.send = after_move
+                backend.wheel_mouse(120, 160, steps=1)
+                self.assertIn(self.deliver(backend, dispatcher).outcome, ("partial", "failed"))
+                self.assertEqual([len(batch) for batch in api.sent], [1])
+
     def test_pointer_settles_before_button_down(self):
         backend, api, dispatcher = self.setup_dispatcher(minimum_mouse_settle_seconds=.05,
                                                         minimum_mouse_hold_seconds=.05)

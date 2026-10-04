@@ -46,6 +46,7 @@ class ActionRecord:
     button: str | None = None
     x: int | None = None
     y: int | None = None
+    wheel_steps: int | None = None
     reason: str = ""
     metadata: tuple[tuple[str, Scalar], ...] = ()
     evidence: str = "recorded_request"
@@ -441,6 +442,16 @@ class RecordingInputBackend:
             if button not in _BUTTONS:
                 raise InputRejected(f"unsupported mouse button: {button!r}")
             return [{"kind": "mouse_click", "button": button, "x": x, "y": y}], set(self._held)
+        return self._command(build, **context)[0]
+
+    def wheel_mouse(self, x: int, y: int, *, steps: int, **context) -> ActionRecord:
+        """Request exactly one signed wheel notch at a pinned frame point."""
+        def build():
+            self._point(x, y)
+            if type(steps) is not int or steps not in (-1, 1):
+                raise InputRejected("wheel steps must be exactly -1 or +1")
+            return [{"kind": "mouse_wheel", "x": x, "y": y,
+                     "wheel_steps": steps}], set(self._held)
         return self._command(build, **context)[0]
 
     def release_all(self, *, reason: str = "release all") -> tuple[ActionRecord, ...]:

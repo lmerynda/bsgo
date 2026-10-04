@@ -31,6 +31,7 @@ ULONG_PTR, HANDLE = ctypes.c_size_t, ctypes.c_void_p
 MAX_INPUT_SEQUENCE = 0xFFFFFF
 KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE = 1, 2, 8
 MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_VIRTUALDESK = 1, 0x8000, 0x4000
+MOUSEEVENTF_WHEEL, WHEEL_DELTA = 0x0800, 120
 _BUTTON_FLAGS = {"left": (2, 4), "right": (8, 16), "middle": (32, 64)}
 _VK = {key: ord(key) for key in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"}
 _VK.update({"Space": 0x20, "Enter": 0x0D, "Escape": 0x1B, "Tab": 9,
@@ -231,9 +232,9 @@ def _keyboard(encoding: _KeyEncoding, up: bool, tag: int) -> INPUT:
     return event
 
 
-def _mouse(flags: int, tag: int, x: int = 0, y: int = 0) -> INPUT:
+def _mouse(flags: int, tag: int, x: int = 0, y: int = 0, data: int = 0) -> INPUT:
     event = INPUT(type=0)
-    event.mi = MOUSEINPUT(x, y, 0, flags, 0, tag)
+    event.mi = MOUSEINPUT(x, y, data, flags, 0, tag)
     return event
 
 
@@ -470,6 +471,26 @@ class NativeInputDispatcher:
                 self._logging_gaps += 1
         return moved + inserted + released
 
+    def _send_wheel_with_settle(self, events, record):
+        moved = self._api.send(events[:1])
+        if type(moved) is not int or not 0 <= moved <= 1:
+            raise NativeDispatchError("invalid wheel pointer-move insertion count")
+        if moved != 1:
+            return moved
+        deadline = time.monotonic() + self.minimum_mouse_settle_seconds
+        while (remaining := deadline - time.monotonic()) > 0:
+            if self.backend.canceled or self._stop_event.wait(min(remaining, .01)):
+                return moved
+        point = (self.expected_origin[0] + record.x,
+                 self.expected_origin[1] + record.y)
+        self._guard(point)
+        if self.backend.canceled or self._stop_event.is_set() or not self.backend.delivery_allowed(record):
+            return moved
+        inserted = self._api.send(events[1:])
+        if type(inserted) is not int or not 0 <= inserted <= 1:
+            raise NativeDispatchError("invalid wheel insertion count")
+        return moved + inserted
+
     def _dispatch_in_context(self, record: ActionRecord) -> DeliveryRecord:
         with self._lock, self._api.dpi_context():
             cleanup = dict(record.metadata).get("cleanup") is True
@@ -526,7 +547,7 @@ class NativeInputDispatcher:
                     else:
                         encoding = self._keys[record.key]
                     events = (_keyboard(encoding, record.kind == "key_up", tag),)
-                elif record.kind in ("mouse_move", "mouse_click"):
+                elif record.kind in ("mouse_move", "mouse_click", "mouse_wheel"):
                     if (type(record.x) is not int or type(record.y) is not int
                             or not 0 <= record.x < self.expected_size[0]
                             or not 0 <= record.y < self.expected_size[1]):
@@ -547,11 +568,16 @@ class NativeInputDispatcher:
                         down, up = _BUTTON_FLAGS[button]
                         # Optional settle/hold phases split this ordered batch.
                         events += (_mouse(down, tag), _mouse(up, tag))
+                    elif record.kind == "mouse_wheel":
+                        if type(record.wheel_steps) is not int or record.wheel_steps not in (-1, 1):
+                            raise NativeDispatchError("wheel steps must be exactly one notch")
+                        events += (_mouse(MOUSEEVENTF_WHEEL, tag,
+                                          data=record.wheel_steps * WHEEL_DELTA),)
                 else:
                     raise NativeDispatchError("unsupported action kind")
                 # Recheck geometry/focus after encoding, then cancellation.
                 if not release_only:
-                    self._guard(point if record.kind in ("mouse_move", "mouse_click") else None)
+                    self._guard(point if record.kind in ("mouse_move", "mouse_click", "mouse_wheel") else None)
                 if self.backend.canceled and not cleanup and not injected_release:
                     return self._delivery(record, "skipped_canceled", len(events), 0)
                 if not self.backend.delivery_allowed(record) and not injected_release:
@@ -559,9 +585,10 @@ class NativeInputDispatcher:
                 phased_mouse = button is not None and (self.minimum_mouse_hold_seconds > 0
                                                        or self.minimum_mouse_settle_seconds > 0)
                 try:
-                    inserted = (self._send_mouse_with_hold(events, button, record)
-                                if phased_mouse
-                                else self._api.send(events))
+                    inserted = (self._send_wheel_with_settle(events, record)
+                                if record.kind == "mouse_wheel"
+                                else self._send_mouse_with_hold(events, button, record)
+                                if phased_mouse else self._api.send(events))
                 except Exception:
                     # A native exception provides no insertion count. Release
                     # any offered downs conservatively and retain uncertainty.

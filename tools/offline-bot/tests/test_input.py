@@ -15,6 +15,19 @@ class RecordingInputTests(unittest.TestCase):
     def backend(self, **kwargs):
         return RecordingInputBackend(session_id="test", layout_id="hud-v1", **kwargs)
 
+    def test_one_notch_wheel_record_is_bounded_and_cancellation_discards_it(self):
+        backend = self.backend()
+        record = backend.wheel_mouse(120, 160, steps=-1)
+        self.assertEqual((record.kind, record.x, record.y, record.wheel_steps),
+                         ("mouse_wheel", 120, 160, -1))
+        self.assertEqual(record.evidence, "recorded_request")
+        backend.cancel(reason="stop")
+        self.assertEqual(backend.drain(), ())
+        self.assertIn(record.sequence, backend.discarded_sequences)
+        for steps in (0, 2, -2, True, 1.0, None):
+            with self.subTest(steps=steps), self.assertRaises(InputRejected):
+                self.backend().wheel_mouse(120, 160, steps=steps)
+
     def test_sequence_click_coordinates_and_request_evidence(self):
         backend = self.backend(clock=lambda: 12.5)
         backend.press_key("PageUp", reason="accelerate")
