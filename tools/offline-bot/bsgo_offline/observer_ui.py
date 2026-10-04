@@ -14,6 +14,8 @@ import time
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
+from .observation_api import OBSERVATION_SCHEMA, observation_snapshot
+
 
 RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 IMAGE_NAME = re.compile(r"observation-[0-9]{8}\.png\Z")
@@ -401,6 +403,29 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             raise ValueError("invalid_startup_snapshot")
         return state
 
+    def observation_status():
+        started = time.monotonic()
+        sources, errors = {}, {}
+        actions_at = None
+        # Read providers independently. Do not hold the mutation lock across
+        # observation callbacks: a slow read must not block emergency Pause.
+        for name, provider in (("startup", startup_status),
+                               ("mode", controller.snapshot),
+                               ("actions", actions.actions_snapshot)):
+            try:
+                if name == "actions":
+                    actions_at = time.monotonic()
+                state = provider()
+                if not isinstance(state, dict):
+                    raise ValueError("invalid_status_snapshot")
+                sources[name] = state
+            except Exception as exc:
+                errors[name] = {"error": f"{name}_status_unavailable", "cause": type(exc).__name__}
+        payload = observation_snapshot(sources.get("startup"), sources.get("mode"),
+            sources.get("actions"), collected_at=time.monotonic(), started_at=started,
+            actions_collected_at=actions_at, source_errors=errors)
+        return (503 if errors else 200), payload
+
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code, body: bytes, mime: str):
             self.send_response(code)
@@ -430,6 +455,16 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             query = parse_qs(request.query)
             if request.path == "/":
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
+                return
+            if request.path in ("/api/observation", "/api/observation/schema"):
+                if query:
+                    self._json(400, {"error": "live_observation_does_not_accept_query_parameters"})
+                    return
+                if request.path.endswith("/schema"):
+                    self._json(200, OBSERVATION_SCHEMA)
+                else:
+                    code, payload = observation_status()
+                    self._json(code, payload)
                 return
             if request.path == "/api/runs":
                 self._json(200, {"runs": index.runs(), "runs_root": str(index.root)})

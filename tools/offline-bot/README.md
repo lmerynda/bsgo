@@ -494,10 +494,10 @@ paused**. If the game is missing, duplicated, or in an unsupported layout, the
 connection card explains the issue and offers **Retry game connection**.
 Opening the dashboard or retrying never focuses the game or sends an input.
 
-Choose **Enable Manual actions** only when ready. That button acknowledges the
+Choose **Enable actions** only when ready. That button acknowledges the
 exact existing mining pause for this dashboard session; it neither removes the
 pause marker nor starts a scan or approach. A later pause-marker change blocks
-actions again. **Pause Manual actions** stops the selected-target scan toggle
+actions again. **Pause actions** stops the selected-target scan toggle
 and cancels an owned routine while preserving cleanup evidence. The optional
 return-to-game setting affects only an explicit routine Start/Cancel and stays
 off by default. Overall control remains Manual: each individual action still
@@ -511,11 +511,13 @@ $env:PYTHONPATH = 'tools/offline-bot'
 & 'tools/model-runtimes/fastvlm-venv/Scripts/python.exe' -m bsgo_offline.observer_ui --runs-root logs/mining/live-20261003 --port 8765
 ```
 
-Open `http://127.0.0.1:8765/`. The page refreshes every second, follows the
-newest real run by default, and lets you pin a prior or explicitly synthetic run. It shows the recorded
-execution phase, wait and next step, latest fresh HUD values, input request,
-delivery and observed effect, plus saved failure evidence. Images are hidden
-until **Show images** is selected because a game frame may include private chat.
+Open `http://127.0.0.1:8765/`. The cockpit refreshes current controller data every
+second; its instrument panel stays UNKNOWN without an attached live controller.
+The collapsed **History** drawer follows the newest real recorded package and
+lets you pin a prior or explicitly synthetic run. It shows recorded execution
+phase, wait and next step, readings, input request, delivery and observed effect,
+plus saved failure evidence. Images are hidden until **Show retained images**
+is selected because a game frame may include private chat.
 The page distinguishes a live run from a finalized, blocked, or stale package; missing
 execution evidence is labeled **UNKNOWN**. The server binds only to loopback,
 and accepts image paths only from the selected
@@ -529,16 +531,16 @@ input. The top control-mode display is independent of the selected run. It shows
 controller-acknowledged actual mode, app input and decision availability,
 requested/pending mode, and the handover blocker. With this standalone observer
 there is no attached game controller: an Autopilot request is rejected with
-`controller_not_attached`, while actual mode stays Manual and app input stays
+`autopilot_controller_not_attached`, while actual mode stays Manual and app input stays
 disabled. A native Manual-assist session can attach an action controller; only
 its explicit, readiness-checked Start requests can launch a bounded routine.
-The Manual/Autopilot switch never launches a probe, and selecting a historical
+The mode indicator never launches a probe, and selecting a historical
 run never changes which live target a Manual action addresses.
 
 Manual actions expose a nearby-unscanned scan toggle, an auto-scan toggle for
 the human-selected target, a one-shot selected-target scan, and a one-shot
 approach of the current target.
-Each card shows its own readiness reason and runtime progress. Nearby discovery
+The contextual action tray shows readiness and runtime progress. Nearby discovery
 requires a verified target provider and remains unavailable without one; an
 input delivery by either selected-target scan is not a verified resource
 classification. The auto-scan toggle requires a fresh stopped-scene assessment
@@ -594,3 +596,71 @@ reasons, and saved failure images. Stop this reader with Ctrl+C or its separate
 default; later routine frames are budget-skipped and diagnostic completeness
 reflects that limit, while failed-recognition images remain retained. This
 cancel marker is separate from the mining pause marker.
+
+### Observation API for local LLM agents
+
+`GET /api/observation` returns a versioned JSON snapshot of the same current
+controller data used by the cockpit. It is read-only: polling never enables
+actions, focuses the game, scans, moves the ship or asserts a safety check.
+Use the **normal launcher's URL**, which may use a different port from the
+standalone observer. From the project root:
+
+```powershell
+$dashboard = Get-Content 'logs/mining/dashboard-launcher/listener.json' -Raw | ConvertFrom-Json
+$state = Invoke-RestMethod ($dashboard.url + 'api/observation')
+$state | ConvertTo-Json -Depth 30
+```
+
+`GET /api/observation/schema` exposes its JSON Schema. Version 1 identifies
+itself as `schema_version: "bsgo-observation-v1"`; consumers should check this
+before interpreting the response. Both endpoints use the dashboard's existing
+loopback-only listener and request guards. A local LLM tool or client running
+on this computer can call them; a remote model needs such a local tool to reach
+the listener. Poll about once per second while observing.
+
+| Response member | Meaning |
+| --- | --- |
+| `connection` | Attachment phase, failure cause, session identity and Retry availability. |
+| `control` | Acknowledged actual/requested mode, pending handover, action enable/pause and input ownership. A waiting auto-scan may be ON while input remains human-owned. |
+| `observation` | Current image sequence, age, health, usable lifetime, field issues and readings with units/rejection reasons. |
+| `state_machine` | Active routine, phase, processing, wait, expected next step and blockers. With no active routine this reports idle/paused/connection state. |
+| `routines` | Availability, active state, machine readiness, blockers and required per-routine scene assessments. |
+| `evidence` | Last input intent, stream delivery and image-confirmed effect, separately. Delivery does not prove a game effect or reward. |
+
+Treat `observation.fields.<name>.value` as usable only when `usable` is true.
+Missing, rejected, nonfinite, semantically invalid, wrong-image or stale readings
+are JSON `null`, with an explicit reason. Zero speed is a valid zero; missing
+speed is not zero. Unknown current target HP does not erase a usable maximum.
+Distance is the actual scalar reading, including values above 3000 m; this API
+does not interpret radar or infer a clear flight corridor. `recognition_valid`
+and `reader_reason` preserve the reader's result separately from API usability.
+
+Images become stale at two seconds. `valid_for_seconds` is the remaining usable
+lifetime **at response generation**, not permission to cache a value indefinitely.
+Clients should deduct time since receipt and their transport latency, then poll
+again. Monotonic timestamps belong to the server process; they are not Unix time
+and cannot be compared with another computer's clock. `collection` records the
+collection interval and declares `atomic: false`: the providers publish
+independently. Re-read before acting if mode, connection or ownership is changing.
+
+`machine_ready` describes machine prerequisites only. It is never a Start
+authorization: scene assessments remain explicit, and
+`assessments_verified_by_api` is always false. An available assessment context
+includes its original expiry and source sequence, but no action token. Polling
+cannot renew an already checked assessment. Browser tab selection and checkbox
+values are local to that browser; they are not controller state and are not
+reported by this endpoint. The active controller routine and every routine's
+readiness are available instead.
+
+An unattached or disconnected controller returns `status: "unavailable"` with
+null live values; it never substitutes a historical package. Provider exceptions
+return HTTP **503** with the same response shape, explicit `source_errors` and
+any independently available control/connection data. Read the error body rather
+than retaining a previous successful snapshot. Historical diagnostics remain
+at `GET /api/runs` and `GET /api/status?run=<name>`; that detail response links
+retained images and failure sidecars through the existing image/sidecar APIs.
+The live endpoint accepts no query parameters and no mutation requests.
+
+After updating this server code, restart the normal dashboard to load the new
+routes. A page reload alone only updates its HTML. Restart begins with Manual
+actions paused, as usual.
