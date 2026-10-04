@@ -365,7 +365,11 @@ context remain stable. A declared unvalidated current-HP digit count after
 proof is kept as unknown rather than treated as a health value; rejected frames
 and sidecars remain in the package. Two fresh absent-selection images record
 target disappearance, followed by two more read-only frames that may show a
-reward popup. Disappearance does not prove destruction or reward. A stale
+reward popup. A newly validated numeric HP from 1 to 999 is accepted only
+after the delivered G command and two distinct image-proven declines; the
+pre-G baseline still requires four digits. This later value remains subject to
+the same target, range, portrait, context and stopped-speed guards.
+Disappearance does not prove destruction or reward. A stale
 image stream, changed context, bad unrelated HP reading or cancel marker ends
 the run as blocked; any earlier scoped firing proof remains visible separately.
 The `after` list in the report retains the most recent 256 observations and

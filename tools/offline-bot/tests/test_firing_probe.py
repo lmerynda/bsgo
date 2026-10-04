@@ -21,7 +21,9 @@ class Source:
                  unknown_after=None, invalid_after_step=None,
                  cancel_after_delivery=None, unknown_baseline=False,
                  valid_none_baseline=False, post_gone_speed=0.,
-                 hp_reader_fault_after=None, motion_after=None):
+                 hp_reader_fault_after=None, hp_reader_fault_until=None,
+                 motion_after=None, initial_hp=4500,
+                 low_hp_after=None):
         self.sequence = 0
         self.closed = False
         self.effect = effect
@@ -37,7 +39,9 @@ class Source:
         self.valid_none_baseline = valid_none_baseline
         self.post_gone_speed = post_gone_speed
         self.hp_reader_fault_after = hp_reader_fault_after
+        self.hp_reader_fault_until = hp_reader_fault_until
         self.motion_after = motion_after
+        self.initial_hp, self.low_hp_after = initial_hp, low_hp_after
         self.delivery_sequence = None
 
     def next_sample(self, stop):
@@ -54,13 +58,15 @@ class Source:
         step = self.sequence - self.delivery_sequence if after else 0
         if self.cancel_after_delivery == step:
             self.cancel_path.touch()
-        hp = 4500
+        hp = self.initial_hp
         if self.baseline_damage and self.sequence >= 3:
             hp = 4490
         if (self.unknown_baseline or self.valid_none_baseline) and self.sequence == 1:
             hp = None
         if after and self.effect and step > self.effect_delay:
             hp = 4500 - 10 * (step - self.effect_delay)
+        if after and self.low_hp_after is not None and step >= self.low_hp_after:
+            hp = 351
         values = {"speed": 0., "asteroid_selected": True, "distance": 677.,
             "target_identity": "asteroid:hp:4500", "target_portrait": tuple([1] * 144),
             "target_max_hp": 4500, "target_current_hp": hp}
@@ -72,7 +78,10 @@ class Source:
             values["target_current_hp"] = None
         if after and self.change_target:
             values["target_max_hp"] = 4600
-        if after and self.hp_reader_fault_after is not None and step >= self.hp_reader_fault_after:
+        hp_reader_fault = (after and self.hp_reader_fault_after is not None
+            and step >= self.hp_reader_fault_after
+            and (self.hp_reader_fault_until is None or step < self.hp_reader_fault_until))
+        if hp_reader_fault:
             values.update(target_identity=None, target_max_hp=None,
                           target_current_hp=None)
         if after and self.motion_after is not None and step >= self.motion_after:
@@ -88,8 +97,7 @@ class Source:
                              and step >= self.unknown_after)
                             or (self.unknown_baseline and self.sequence == 1))
         sample.valid_none_hp = self.valid_none_baseline and self.sequence == 1
-        sample.hp_reader_fault = (after and self.hp_reader_fault_after is not None
-                                  and step >= self.hp_reader_fault_after
+        sample.hp_reader_fault = (hp_reader_fault
                                   and not (self.gone_after is not None and step >= self.gone_after))
         return sample
 
@@ -325,6 +333,36 @@ class FiringProbeTests(unittest.TestCase):
             self.assertGreater(len(list((directory / "run" / "failed-recognition").glob("*.json"))), 0)
             self.assertTrue(result["complete_diagnostics"])
 
+    def test_valid_three_digit_hp_after_proof_continues_to_absence_and_follow_up(self):
+        with scratch_directory() as directory:
+            source = Source(low_hp_after=5, gone_after=8)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "recorded", result)
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertTrue(any(row.get("target_current_hp") == 351
+                                for row in result["after"]))
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+            self.assertTrue(result["complete_diagnostics"])
+
+    def test_valid_three_digit_hp_after_prior_ocr_fault_keeps_first_blocker(self):
+        with scratch_directory() as directory:
+            source = Source(hp_reader_fault_after=3, hp_reader_fault_until=5,
+                            low_hp_after=5, gone_after=8)
+            result, dispatchers = self.run_probe(directory, source,
+                observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["reason"],
+                             "RuntimeError: invalid_or_stale_target_identity")
+            self.assertTrue(result["firing_effect_verified"])
+            self.assertTrue(result["target_disappearance_observed"])
+            self.assertTrue(any(row.get("target_current_hp") == 351
+                                for row in result["after"]))
+            self.assertEqual(len(result["post_disappearance_images"]), 2)
+            self.assertEqual(len(dispatchers[0].deliveries()), 2)
+
     def test_continuous_mode_rejects_unknown_current_hp_before_G(self):
         with scratch_directory() as directory:
             result, dispatchers = self.run_probe(directory,
@@ -338,6 +376,15 @@ class FiringProbeTests(unittest.TestCase):
         with scratch_directory() as directory:
             result, dispatchers = self.run_probe(directory,
                 Source(valid_none_baseline=True), observe_until_target_gone=True)
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("four_digit_hp_required", result["reason"])
+            self.assertEqual(result["requests"], [])
+            self.assertEqual(dispatchers, [])
+
+    def test_valid_three_digit_hp_baseline_cannot_authorize_G(self):
+        with scratch_directory() as directory:
+            result, dispatchers = self.run_probe(directory,
+                Source(initial_hp=351), observe_until_target_gone=True)
             self.assertEqual(result["state"], "blocked")
             self.assertIn("four_digit_hp_required", result["reason"])
             self.assertEqual(result["requests"], [])

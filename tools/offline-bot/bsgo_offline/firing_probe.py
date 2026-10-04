@@ -29,7 +29,7 @@ HP_CURRENT_OCR_REASONS = {"unvalidated_current_hp_digit_count",
 
 def _read(snapshot, now, window_id, frame_size, context, initial,
           min_distance, max_distance, max_distance_change,
-          allow_unknown_current_hp=False):
+          allow_unknown_current_hp=False, allow_subthousand_current_hp=False):
     if (snapshot.window_id != window_id or snapshot.frame_size != tuple(frame_size)
             or context is not None and snapshot.context != context):
         raise RuntimeError("capture_context_changed")
@@ -62,7 +62,8 @@ def _read(snapshot, now, window_id, frame_size, context, initial,
                 and "target_current_hp_reason" not in values)
             or (values["target_current_hp"] is not None
                 and (type(values["target_current_hp"]) not in (int, float)
-                     or not 1000 <= values["target_current_hp"] <= values["target_max_hp"]))
+                     or not (1 if allow_subthousand_current_hp else 1000)
+                         <= values["target_current_hp"] <= values["target_max_hp"]))
             or not math.isfinite(values["target_max_hp"])
             or not isinstance(values["target_portrait"], (tuple, list))
             or len(values["target_portrait"]) != 144):
@@ -340,7 +341,9 @@ def run_firing_probe(output, *, source_factory, recognizer_factory,
                     context, initial, min_distance, max_distance, max_distance_change,
                     allow_unknown_current_hp=(observe_until_target_gone
                                               and result["firing_effect_verified"]
-                                              and result["first_blocker"] is None))
+                                              and result["first_blocker"] is None),
+                    allow_subthousand_current_hp=(observe_until_target_gone
+                                                  and result["firing_effect_verified"]))
             except RuntimeError as read_error:
                 if not (observe_until_target_gone and requests):
                     raise
