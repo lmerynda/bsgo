@@ -45,6 +45,8 @@ class LargeHudReader:
                 np.array([[c == '1' for c in row] for row in variant['rows']],dtype=bool))
                 for variant in variants)
 
+        self.hp_font_slots = self.build_hp_font_slots()
+
     def number(self, glyphs, field='hp'):
         text, confidence = '', 1.
         for _, _, top, g in glyphs:
@@ -101,6 +103,61 @@ class LargeHudReader:
         return next((layout for layout in self.data['hp_complete_layouts']
                      if bounds == layout['glyph_bounds']),None)
 
+    @staticmethod
+    def hp_font_slot_key(text, index):
+        """Select measured font phase by wide/narrow character counts."""
+        return (len(text)-1, text.count('1'), index,
+                text[:index].count('1'), text[:index].count('/'), text[index])
+
+    def build_hp_font_slots(self, excluded_labels=()):
+        """Compose only complete measured glyphs; never learn from live OCR."""
+        rasters = [np.array([[c == '1' for c in row] for row in rows], dtype=bool)
+                   for rows in self.data['hp_font_slot_rasters']]
+        slots = {}
+        for sample in self.data['hp_font_slot_samples']:
+            text = sample['label']
+            if text in excluded_labels:
+                continue
+            for index, (left, right, top, raster) in enumerate(sample['glyphs']):
+                glyph = rasters[raster]
+                key = self.hp_font_slot_key(text, index)
+                variants = slots.setdefault(key, [])
+                if not any((left, right, top) == variant[:3]
+                           and np.array_equal(glyph, variant[3]) for variant in variants):
+                    variants.append((left, right, top, glyph))
+        return slots
+
+    def hp_font_slot_context(self, glyphs):
+        """Return a candidate only when every font slot is already measured."""
+        count = len(glyphs)-5
+        if not 1 <= count <= 4:
+            return None
+        current, reason, _ = self.complete_number(glyphs[:-5], digit_count=count,
+            field='current_hp', bank=self.hp_complete_bank, allow_zero=count == 1)
+        maximum, maximum_reason, _ = self.complete_number(glyphs[-4:],
+            field='target_max_hp', bank=self.hp_complete_bank)
+        if reason or maximum_reason or current > maximum:
+            return None
+        text = f'{current}/{maximum}'
+        if any(self.hp_font_slot_key(text, index) not in self.hp_font_slots
+               for index in range(len(glyphs))):
+            return None
+        return text
+
+    def compositional_hp_layout(self, glyphs):
+        """Require every complete measured slot in this whole ratio's phase."""
+        text = self.hp_font_slot_context(glyphs)
+        if text is None:
+            return None
+        for index, (left, right, top, glyph) in enumerate(glyphs):
+            variants = self.hp_font_slots[self.hp_font_slot_key(text, index)]
+            if not any((left, right, top) == variant[:3]
+                       and glyph.shape == variant[3].shape
+                       and float(np.mean(glyph != variant[3])) <= .02
+                       for variant in variants):
+                return None
+        return {'current_digit_count': len(glyphs)-5}
+
     def maximum_hp(self, image):
         gs = pieces(mask(image, self.data['hp_box']))
         if not 6 <= len(gs) <= 9:
@@ -116,7 +173,12 @@ class LargeHudReader:
                                  for _, _, top_, glyph in gs[-4:])
                              and abs((gs[0][0]+gs[-1][1])/2-76) <= .5)
         three_digit_layout = self.three_digit_hp_layout(gs)
-        complete_layout = self.complete_hp_layout(gs)
+        composed_layout = self.compositional_hp_layout(gs)
+        # A decoded, fully measured context cannot use a looser anchor or
+        # legacy route to admit geometry that contradicts its complete slots.
+        if composed_layout is None and self.hp_font_slot_context(gs) is not None:
+            return None, 'target_hp_slot_geometry_incomplete', 0.
+        complete_layout = self.complete_hp_layout(gs) or composed_layout
         if (((left, right) != (72, 79) and not narrow_one_layout
                 and not three_digit_layout and complete_layout is None)
                 or top != 3 or slash.shape != (12, 7)
@@ -134,7 +196,12 @@ class LargeHudReader:
         if maximum_hp is None:
             return None, 'maximum_hp_context_unverified', 0.
         gs = pieces(mask(image, self.data['hp_box']))
-        complete_layout = self.complete_hp_layout(gs)
+        composed_layout = self.compositional_hp_layout(gs)
+        # A decoded, fully measured context cannot use a looser anchor or
+        # legacy route to admit geometry that contradicts its complete slots.
+        if composed_layout is None and self.hp_font_slot_context(gs) is not None:
+            return None, 'target_hp_slot_geometry_incomplete', 0.
+        complete_layout = self.complete_hp_layout(gs) or composed_layout
         if complete_layout is not None:
             count = complete_layout['current_digit_count']
             value,reason,confidence = self.complete_number(gs[:-5],digit_count=count,

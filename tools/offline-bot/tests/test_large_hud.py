@@ -32,6 +32,155 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_hp_slot_sources_match_native_crop_pixels(self):
+        import hashlib
+        import numpy as np
+        reader = HudRecognizer(PROFILE)._reader._large
+        data = reader.data
+        for sample in data['hp_font_slot_samples']:
+            path = FIXTURES / sample['source']['file']
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),
+                             sample['source']['crop_sha256'])
+            with Image.open(path) as crop:
+                self.assertEqual(crop.size, (151,18))
+                rgb = np.asarray(crop.convert('RGB'))
+            binary = (rgb.min(2)>=160) & (rgb.max(2).astype(int)-rgb.min(2)<65)
+            measured = np.zeros_like(binary)
+            for left,right,top,raster in sample['glyphs']:
+                glyph = np.array([[c == '1' for c in row]
+                    for row in data['hp_font_slot_rasters'][raster]])
+                measured[top:top+len(glyph),left:right] = glyph
+            self.assertTrue(np.array_equal(binary, measured),sample['label'])
+
+    def test_hp_slots_compose_values_without_their_own_calibration(self):
+        # 1000/4033 is a recentered ratio formerly requiring its exact anchor.
+        # Every label's anchor and all its contributed slots are excluded.
+        held_out = ('1000/4033','2054/3788','2244/3788','2560/4046',
+                    '2684/3097','3060/3788','3284/4033','3335/3788','3408/4046')
+        reader = HudRecognizer(PROFILE)._reader._large
+        data = reader.data
+        anchors = list(data['hp_complete_layouts'])
+        im = fixture_image()
+        for label in held_out:
+            data['hp_complete_layouts'] = [a for a in anchors if a['source']['label'] != label]
+            reader.hp_font_slots = reader.build_hp_font_slots(excluded_labels=(label,))
+            source = next(s for s in data['hp_font_slot_samples'] if s['label'] == label)
+            with Image.open(FIXTURES/source['source']['file']) as crop:
+                im.paste(crop,tuple(data['hp_box'][:2]))
+            import numpy as np
+            rgb = np.asarray(im.crop(data['hp_box']))
+            binary = (rgb.min(2)>=160) & (rgb.max(2).astype(int)-rgb.min(2)<65)
+            glyphs = self.hp_glyphs(binary)
+            self.assertIsNotNone(reader.compositional_hp_layout(glyphs),label)
+            maximum,reason,_ = reader.maximum_hp(im)
+            current,current_reason,_ = reader.current_hp(im,maximum)
+            self.assertEqual((current,maximum),tuple(map(int,label.split('/'))))
+            self.assertIsNone(reason)
+            self.assertIsNone(current_reason)
+
+    @staticmethod
+    def hp_glyphs(binary):
+        import numpy as np
+        edges = np.flatnonzero(np.diff(np.r_[False,binary.any(0),False]))
+        glyphs = []
+        for left,right in zip(edges[::2],edges[1::2]):
+            ys,_ = np.where(binary[:,left:right])
+            glyphs.append((int(left),int(right),int(ys.min()),
+                           binary[ys.min():ys.max()+1,left:right]))
+        return glyphs
+
+    def test_hp_slots_reject_every_source_glyph_damage_and_position_shift(self):
+        import numpy as np
+        reader = HudRecognizer(PROFILE)._reader._large
+        data = reader.data
+        im = fixture_image()
+        cases = 0
+        for sample in data['hp_font_slot_samples']:
+            with Image.open(FIXTURES/sample['source']['file']) as crop:
+                rgb = np.asarray(crop.convert('RGB'))
+            binary = (rgb.min(2)>=160) & (rgb.max(2).astype(int)-rgb.min(2)<65)
+            glyphs = self.hp_glyphs(binary)
+            damages = []
+            for index,(left,right,top,glyph) in enumerate(glyphs):
+                bottom = top+len(glyph)
+                for damage in ('remove','top','bottom','left','right'):
+                    bad = binary.copy()
+                    if damage == 'remove': bad[top:bottom,left:right] = False
+                    elif damage == 'top': bad[top,left:right] = False
+                    elif damage == 'bottom': bad[bottom-1,left:right] = False
+                    elif damage == 'left': bad[top:bottom,left] = False
+                    else: bad[top:bottom,right-1] = False
+                    damages.append((index,damage,bad))
+            cut = glyphs[-5][0]
+            for shift in (-1,1):
+                bad = binary.copy()
+                bad[:,:cut] = False
+                if shift > 0: bad[:,shift:cut+shift] = binary[:,:cut]
+                else: bad[:,:cut+shift] = binary[:,-shift:cut]
+                damages.append(('current_shift',shift,bad))
+            for index,damage,bad in damages:
+                cases += 1
+                context = (sample['label'],index,damage)
+                self.assertIsNone(reader.compositional_hp_layout(self.hp_glyphs(bad)),context)
+                im.paste(Image.fromarray((bad*255).astype('uint8')).convert('RGB'),
+                         tuple(data['hp_box'][:2]))
+                maximum,_,_ = reader.maximum_hp(im)
+                current,_,_ = reader.current_hp(im,maximum)
+                self.assertIsNone(current,context)
+        self.assertEqual(cases,2458)
+
+    def test_measured_slot_contradictions_cannot_use_legacy_or_exact_anchor(self):
+        import numpy as np
+        reader = HudRecognizer(PROFILE)._reader._large
+        im = fixture_image()
+        # Existing loose fallback formerly accepted these three damaged labels.
+        cases = (('hp-2446-4102.png','clip_max_two'),
+                 ('hp-2446-4102.png','shift_current'),
+                 ('hp-4166-4166.png','shift_current'),
+                 ('hp-248-3788.png','clip_current_two'))
+        for name,damage in cases:
+            with Image.open(FIXTURES/name) as crop:
+                rgb = np.asarray(crop.convert('RGB'))
+            binary = (rgb.min(2)>=160) & (rgb.max(2).astype(int)-rgb.min(2)<65)
+            gs = self.hp_glyphs(binary)
+            if damage == 'shift_current':
+                cut = gs[-5][0]
+                bad = binary.copy(); bad[:,:cut] = False
+                bad[:,:cut-1] = binary[:,1:cut]
+            else:
+                index = -1 if damage == 'clip_max_two' else 0
+                left,right,top,glyph = gs[index]
+                bad = binary.copy(); bad[top:top+len(glyph),left] = False
+            damaged = self.hp_glyphs(bad)
+            # Even an exact-geometry record cannot override contradictory slots.
+            reader.data['hp_complete_layouts'].append({
+                'glyph_bounds': [[l,r,t,len(g)] for l,r,t,g in damaged],
+                'current_digit_count':len(damaged)-5})
+            self.assertIsNotNone(reader.complete_hp_layout(damaged))
+            self.assertIsNone(reader.compositional_hp_layout(damaged))
+            im.paste(Image.fromarray((bad*255).astype('uint8')).convert('RGB'),
+                     tuple(reader.data['hp_box'][:2]))
+            maximum,reason,_ = reader.maximum_hp(im)
+            current,_,_ = reader.current_hp(im,maximum)
+            self.assertIsNone(maximum,(name,damage))
+            self.assertEqual(reason,'target_hp_slot_geometry_incomplete')
+            self.assertIsNone(current)
+
+    def test_unmeasured_hp_slots_remain_unknown_without_their_exact_anchor(self):
+        reader = HudRecognizer(PROFILE)._reader._large
+        label = '26/4046'
+        reader.data['hp_complete_layouts'] = [a for a in reader.data['hp_complete_layouts']
+            if a['source']['label'] != label]
+        reader.hp_font_slots = reader.build_hp_font_slots(excluded_labels=(label,))
+        im = fixture_image()
+        with Image.open(FIXTURES/'hp-26-4046.png') as crop:
+            im.paste(crop,tuple(reader.data['hp_box'][:2]))
+        maximum,_,_ = reader.maximum_hp(im)
+        current,_,_ = reader.current_hp(im,maximum)
+        self.assertIsNone(maximum)
+        self.assertIsNone(current)
+
+
     def test_complete_centered_hp_ratios_follow_measured_font_not_fixed_slash(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         pairs = [(v,3788) for v in (3190,1904,1742,1615,1411,1233,1087,816,610,395,248)]
