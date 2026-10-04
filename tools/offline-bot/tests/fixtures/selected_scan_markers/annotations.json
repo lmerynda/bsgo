@@ -1,0 +1,179 @@
+{
+  "scope": "selected target marker only; no unselected scene discovery acceptance",
+  "fixtures": [
+    {
+      "file": "scan36-unscanned.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-036/frames/observation-00000001.png",
+      "source_sha256": "8c5db7a2c130cf98ee0f2c9021c51c23e03af3eb580e37127608dd44411118b4",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1294,
+        354,
+        1360,
+        399
+      ],
+      "reviewed_scan_state": "unscanned",
+      "reviewed_resource": null,
+      "annotation_basis": "Supervisor inspected retained marker crops and live post-scan game image; continuous-operation app_stationary_firing_started selects3783 scan036 blue reviewed before appfire013",
+      "post_scan_game_clock": "03:16:43",
+      "privacy": "Only asteroid marker texture; no chat, account names, cargo or full screen.",
+      "marker_fragment": "scan36-unscanned-marker.png",
+      "marker_fragment_box": [
+        1251,
+        317,
+        1357,
+        419
+      ]
+    },
+    {
+      "file": "scan36-scanned.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-036/frames/observation-00000021.png",
+      "source_sha256": "f1010ecf86ea140415d166b5dc9e66be541c61a2f7123791ea170626178333a0",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1294,
+        354,
+        1360,
+        399
+      ],
+      "reviewed_scan_state": "scanned",
+      "reviewed_resource": "Water",
+      "annotation_basis": "Supervisor inspected retained marker crops and live post-scan game image; continuous-operation app_stationary_firing_started selects3783 scan036 blue reviewed before appfire013",
+      "post_scan_game_clock": "03:16:43",
+      "privacy": "Only asteroid marker texture; no chat, account names, cargo or full screen.",
+      "marker_fragment": "scan36-scanned-marker.png",
+      "marker_fragment_box": [
+        1289,
+        323,
+        1395,
+        425
+      ]
+    },
+    {
+      "file": "scan37-unscanned.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-037/frames/observation-00000001.png",
+      "source_sha256": "bdc308f66669a6ee16807fdd5a70865d0f1669f4232202a45021d5c6c18c6602",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1867,
+        781,
+        1922,
+        821
+      ],
+      "reviewed_scan_state": "unscanned",
+      "reviewed_resource": null,
+      "annotation_basis": "Supervisor inspected retained marker crops and live post-scan game image; continuous-operation far_trial_candidate_prepared records blueWater3344 fromselect056 scan037",
+      "post_scan_game_clock": "03:22:48",
+      "privacy": "Only asteroid marker texture; no chat, account names, cargo or full screen.",
+      "marker_fragment": "scan37-unscanned-marker.png",
+      "marker_fragment_box": [
+        1838,
+        747,
+        1944,
+        849
+      ]
+    },
+    {
+      "file": "scan37-scanned.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-037/frames/observation-00000021.png",
+      "source_sha256": "794bc6f53b619283dafa58e5218951bad66e3aab189f3165c71d6151334ab12c",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1867,
+        781,
+        1922,
+        821
+      ],
+      "reviewed_scan_state": "scanned",
+      "reviewed_resource": "Water",
+      "annotation_basis": "Supervisor inspected retained marker crops and live post-scan game image; continuous-operation far_trial_candidate_prepared records blueWater3344 fromselect056 scan037",
+      "post_scan_game_clock": "03:22:48",
+      "privacy": "Only asteroid marker texture; no chat, account names, cargo or full screen.",
+      "marker_fragment": "scan37-scanned-marker.png",
+      "marker_fragment_box": [
+        1839,
+        738,
+        1945,
+        840
+      ]
+    },
+    {
+      "file": "scan38-unscanned.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-038/frames/observation-00000001.png",
+      "source_sha256": "27af86b11ac2aad247238114beb1d04270a195a57ac04bbbf7f1348084338eea",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        878,
+        616,
+        934,
+        660
+      ],
+      "reviewed_scan_state": "unscanned",
+      "reviewed_resource": null,
+      "annotation_basis": "Supervisor inspected retained marker crops and live post-scan game image; continuous-operation stationary_scan_then_root_handoff records purpleTitanium3434 fromselect057 scan038",
+      "post_scan_game_clock": "03:27:04",
+      "privacy": "Only asteroid marker texture; no chat, account names, cargo or full screen.",
+      "marker_fragment": "scan38-unscanned-marker.png",
+      "marker_fragment_box": [
+        852,
+        575,
+        958,
+        677
+      ]
+    },
+    {
+      "file": "scan38-scanned.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-038/frames/observation-00000021.png",
+      "source_sha256": "2cd8a7e1415027bd266383944b1e34583cec91de2edb50c424d81acba7bd4936",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        878,
+        616,
+        934,
+        660
+      ],
+      "reviewed_scan_state": "scanned",
+      "reviewed_resource": "Titanium",
+      "annotation_basis": "Supervisor inspected retained marker crops and live post-scan game image; continuous-operation stationary_scan_then_root_handoff records purpleTitanium3434 fromselect057 scan038",
+      "post_scan_game_clock": "03:27:04",
+      "privacy": "Only asteroid marker texture; no chat, account names, cargo or full screen.",
+      "marker_fragment": "scan38-scanned-marker.png",
+      "marker_fragment_box": [
+        861,
+        568,
+        967,
+        670
+      ]
+    }
+  ],
+  "locator_template": {
+    "file": "bsgo_offline/data/selected-asteroid-label.png",
+    "source": "continuous-scan-037/frames/observation-00000021.png",
+    "native_crop_box": [
+      1841,
+      740,
+      1943,
+      756
+    ],
+    "text": "ASTEROID world-marker label; excludes target-panel title",
+    "privacy": "Only102x16 glyphs, no account/chat."
+  }
+}
