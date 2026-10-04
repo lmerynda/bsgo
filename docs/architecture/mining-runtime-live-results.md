@@ -1425,3 +1425,15 @@ worker/source/writer shutdown checks true, no routine owner, app input disabled,
 and actions paused. The persistent launcher remains available for Retry after
 the game is uncovered. The mining pause marker was preserved; no game input,
 image-reading acceptance or mining result was claimed.
+
+A subsequent explicit Retry connected successfully in
+`manual-dashboard-20261004-081046-84f33314`. Fresh native observations continued
+through sequences 42 and 99, with captured-image health true and reader-valid
+speed/range values (0 m/s, initially 315 m and later 1686 m). These readings
+establish live publication, not independent pixel-level OCR accuracy. Some
+target fields still rejected frames with `invalid_target_hp_separator` or
+`asteroid_title_not_verified`. The dashboard shows LIVE observing and preserves
+those field reasons. It remains running in Manual with actions paused, no input
+owner, no delivered routine input, and the original mining pause marker present.
+The in-app browser was left open on this actual session; its local UI proof is
+`logs/offline-bot/observer-ui-qa/easy-launch-live-connected.png`.
