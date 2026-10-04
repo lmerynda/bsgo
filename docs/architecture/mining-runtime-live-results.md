@@ -797,3 +797,29 @@ and preserving any earlier blocker. The integrated suite passed 377 tests.
 The next stationary Tylium candidate, HP3724 at 516 m, was blocked before G
 in fire-005 by an unreadable distance. Its failed images are retained for the
 next focused correction, while the supervised loop continues scanning.
+
+Commit `c18ad48e` tightens the actual-delivery boundary for low-HP observation:
+valid 1–999 HP is readable in continuous mode only from a fresh image acquired
+after confirmed injected G key-up. It may be the first decline; two distinct
+declines are still required for proof. Baseline/input authorization remains
+>=1000. An earlier identity/OCR blocker permanently prevents reconnecting the
+proof chain. Tests cover delayed delivery, one versus two declines, recovery
+after a blocker and pre-G low-HP rejection. All 382 offline tests passed.
+
+Commit `06e92ac9` corrects the measured fire-005 distance failure. A detached
+white star below the complete `516` glyphs had been grouped into the `5` by
+column segmentation. The reader excludes pixels below the measured font only
+when an entirely empty separating row proves disconnection. Connected overlap
+and missing font pixels still reject. Both fire-005 frames replay as valid
+516 m, speed 0.0, HP3724/3724 and hull5005/5005. The distance values, reasons
+and confidence of 623 completed earlier approach frames remain unchanged.
+
+`continuous-approach-007` (`221780a22cae40f586c0c4bc5c0945b1`) then exercised
+the new hull guard on Water HP3154 from 3093 m. Sequence 5 rejected speed as
+`incomplete_speed_glyph`, requested PageDown, and retained the failed native
+image. Subsequent speeds were 22.1, 9.8 and fresh zeros on sequences 8 and 9;
+the result remains blocked with complete diagnostics and a verified stop.
+Fresh supervision at game clock 00:51:45 confirmed 2598 m, speed 0.0 and full
+hull/energy. Hull remained full throughout; this run verifies integration and
+fault cleanup, not a hull-loss-triggered brake. The loop continues with
+stationary candidate work while the exact speed image is investigated.
