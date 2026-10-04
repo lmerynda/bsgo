@@ -723,3 +723,31 @@ the application's acceptance remains blocked by the retained HP reading failure.
 A separate immediate read-only reward capture was started; its late frames
 must not be presented as proving a popup that had already faded. The supervised
 loop continues after this natural stopped boundary.
+
+The measured HP correction now accepts a complete narrow `1` anywhere in the
+maximum-HP token for this centered slash layout. Missing and clipped internal
+digits still reject. All 22 fire-003 images replay correctly (eleven at 4102,
+ten at 3513, one at 2446, each maximum 4102). This is replay evidence of the
+corrected reader, not a rewrite of the blocked live run. Three-digit current HP
+still has no native development evidence in these archives.
+
+Optional continuous firing observation also now preserves images after a
+declared HP-only OCR fault following an injected G key-up. It stores the first
+blocker, permanently breaks the causal HP proof chain and enters strict
+read-only fault observation. Fresh zero speed, range, portrait and capture
+context still guard this observation; it sends no new input and continues to
+absent-selection and trailing frames, or explicit cancellation. The final run
+remains blocked with its first cause preserved, even if disappearance is later
+observed. The finite default probe remains unchanged. This addresses the actual
+fire-003 capture gap without turning a failed read into proof or reward.
+
+Subsequent scans skipped Titanium HP4181 at 767 m and HP3781/current3743 around
+1238 m. The first scan-014 image genuinely shows speed 15.1 at 1233 m, with a
+nearby Jormung contact at 235 m; its stopped-ship guard correctly blocked before
+Z. The image does not establish the cause of that motion. The stopped retry
+later rejected a separate white star beyond the complete 0.0 text's right edge,
+rather than the initially suspected red NPC-label overlap. Tightening the ROI
+to the measured font bound corrected all 19 retry frames without changing any
+of 612 archived approach speed values, confidence scores or rejection reasons.
+Actual font-region overlap still rejects. All 368 offline tests passed after
+these fixes, and the live loop continues with fresh candidates.
