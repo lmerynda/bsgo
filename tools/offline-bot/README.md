@@ -368,6 +368,16 @@ requests, native deliveries, speed/range observations and rejection evidence.
 A successful trial establishes one measured wheel effect and stop for that
 scene; it does not calibrate other throttle levels or enable mining readiness.
 
+After measuring a useful slow setting, add `--brake-at 800` for the explicit
+reduced-speed transit experiment. This mode holds the single notch beyond
+300 m of travel, checks every five seconds, and requests PageDown on the first
+fresh range at or below 800 m. It has no elapsed-flight or total-frame cap.
+Fresh baseline, native delivery dependencies, range closure, hull/target
+guards and cancellation still apply. Proof requires three stable partial-speed
+observations and two fresh same-target stopped readings within 700–800 m.
+The report records the actual final range; this acceptance band is an experiment
+setting, not a validated obstacle clearance or firing policy.
+
 For a single supervised mining-gun feedback experiment on an already scanned
 Water or Tylium asteroid, run:
 

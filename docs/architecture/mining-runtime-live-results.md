@@ -1146,3 +1146,22 @@ clock 03:01:41 confirmed the same Water HP3855, full hull/energy and zero
 speed. This is a deliberately separated cruise/slow-approach experiment,
 not acceptance of an uninterrupted speed transition. The final reduced-speed
 transit remains to be exercised.
+
+Commit `a055cc6d` adds explicit `throttle_probe --brake-at 800` reduced-speed
+transit. Fourteen focused seam tests passed, including continuation beyond
+300 m, an ignored notch without repeat input, late target loss and an excessive
+final overshoot. The opt-in transit removes the calibration travel cap while
+retaining five-second images, no elapsed-flight/frame cap, guarded delivery,
+same-target/full-hull validation, closure checks and cancellation. Final proof
+requires a same-target stopped range within the explicit 700–800 m trial band.
+
+Native `reduced-speed-transit-001` (`4858abb4e1c24cc3b173d100a150608c`)
+proved the final leg from 1054 m with one upward notch and continuous 5.0 m/s.
+The twelve moving images read 1038, 1015, 992, 969, 946, 924, 901, 879,
+857, 835, 813 and 792 m. PageDown at 792 m was followed by fresh zeros on
+observations 15 and 16, with final range 786 m, no first rejection, complete
+diagnostics and all shutdown checks true. Parent supervision at game clock
+03:05:56 confirmed Water HP3855 at 786 m, full hull/energy and speed 0.0.
+Observed slow-speed coast was 6 m. This completes one separated cruise/slow
+approach and lands within the preferred 750–800 m range. It does not yet prove
+the transition from full to reduced throttle while continuously moving.
