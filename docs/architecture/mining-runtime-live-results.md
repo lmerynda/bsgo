@@ -1020,3 +1020,35 @@ the 760 m firing guard and the normal approach launch guard (900 m braking
 threshold plus 250 m clearance). The candidate was deferred while an explicit
 short-approach calibration option was prepared; no manual thrust bypass was
 used. Native stopping distance for this shorter launch remains to be measured.
+
+Commit `2cf2077c` exposes explicit native `--brake-at` and
+`--launch-clearance` settings. Defaults remain 900 m and 250 m; clearance is
+bounded to 75–250 m and recorded in the manifest. Policy authorization and
+actual PageUp delivery use the same distance guard. The short calibration
+example uses an 800 m threshold and 75 m clearance, with five-second samples
+and no elapsed transit cap. Forty-two focused approach/policy tests and all
+401 integration tests passed. The accelerated synthetic source proves control
+guards and cleanup, not the physical overshoot between native five-second
+images; stopping distance still requires a supervised native measurement.
+
+Independent review found that approach hull validation previously ended when
+PageDown was requested. Commit `72afeafb` continues fresh full-hull validation
+on every coast-down observation. Late damage or an unreadable hull preserves
+a blocker and records `approach_braking_hull_rejected`, while independent
+speed-only cleanup can still confirm two fresh zeros. Regression fixtures
+introduce damage or unknown hull only after PageDown and during delayed
+deceleration. Forty-three focused tests and all 402 integration tests passed,
+and a second review found no remaining material false-proof flaw in that fix.
+
+Read-only audit of selection runs 038, 039, 041, 042 and 044 found complete
+diagnostics, successful insertion of all three mouse events, zero speed and
+no OCR failures. Runs 042 and 044 visibly selected PLANETOID at 5062 m after
+the click. Their original `selection_change_not_observed` reason means no
+changed asteroid signature was proved, although the game did change its
+selection. Runs 038 and 039 kept the prior HP4480 asteroid at 536 m after
+clicks near tiny projected rocks; run 041 kept HP3154 at 1358 m after a click
+in a visually empty region. Misses, occlusion or nonselectable objects are
+possible explanations, not established causes. The next useful selection
+experiment uses a fresh isolated asteroid or resource marker clear of large
+silhouettes, HUD and the ship. These outcomes do not indicate a general input
+delivery defect and do not rewrite the original blocked reports.
