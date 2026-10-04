@@ -31,6 +31,25 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_stars_outside_speed_text_do_not_hide_complete_digits(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for fixture in ('speed-0p0-star-near.png', 'speed-0p0-star-far.png'):
+            im = fixture_image()
+            with Image.open(FIXTURES/fixture) as crop:
+                im.paste(crop, tuple(data['speed_box'][:2]))
+            self.assertEqual(HudRecognizer(PROFILE)(native(im)).fields['speed'].value, 0.)
+            # Light intruding into the text region still invalidates its raster.
+            ImageDraw.Draw(im).rectangle((1406,1063,1408,1064),fill='white')
+            self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
+    def test_speed_text_position_is_anchored(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        ImageDraw.Draw(im).rectangle(tuple(data['speed_box']),fill='black')
+        with Image.open(FIXTURES/'speed-0p0.png') as crop:
+            im.paste(crop, (data['speed_box'][0]+8,data['speed_box'][1]))
+        self.assertFalse(HudRecognizer(PROFILE)(native(im)).fields['speed'].valid)
+
     def test_measured_complete_trailing_four_leaves_six_pixel_slash_gap(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         im = fixture_image()

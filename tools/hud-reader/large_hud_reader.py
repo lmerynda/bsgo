@@ -137,16 +137,22 @@ class LargeHudReader:
         return value, None, confidence
 
     def speed(self, image):
-        a = mask(image, self.data['speed_box'])
+        # The wider archival crop includes scenery before the fixed HUD text.
+        # Read the measured text region with a two-pixel left margin; stars in
+        # unused padding must not be mistaken for partial HUD digits.
+        a = mask(image, self.data['speed_text_box'])
         if a[:4].any() or a[25:].any() or a[:, :2].any() or a[:, -2:].any():
             return None, 'clipped_or_shifted_speed', 0.
+        gs = pieces(a)
+        if not gs or gs[0][0] not in (2, 4):
+            return None, 'speed_not_anchored', 0.
         patterns = {'1110111':'0', '0010010':'1', '1011101':'2', '1011011':'3',
                     '0111010':'4', '1101011':'5', '1101111':'6', '1010010':'7',
                     '1111111':'8', '1111011':'9'}
         regions = [(4,0,9,3), (0,4,3,8), (10,4,13,8), (4,9,9,12),
                    (0,13,3,17), (10,13,13,17), (4,18,9,21)]
         digits, dot, previous_end, confidence = [], None, None, 1.
-        for left, right, top, g in pieces(a):
+        for left, right, top, g in gs:
             if g.shape == (3, 3):
                 if (top != 22 or not g.all() or dot is not None or previous_end is None
                         or not 3 <= left-previous_end <= 7):
