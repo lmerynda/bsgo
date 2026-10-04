@@ -81,6 +81,11 @@ class LargeHudReader:
             return None, 'distance_spacing_invalid', 0.
         return self.number(gs, field='distance')
 
+    def three_digit_hp_layout(self, glyphs):
+        """Require the measured recentered three-digit ratio, not a lost digit."""
+        return [[left,right,top,glyph.shape[0]] for left,right,top,glyph in glyphs] == \
+               self.data['hp_three_digit_layout']['glyph_bounds']
+
     def maximum_hp(self, image):
         gs = pieces(mask(image, self.data['hp_box']))
         if not 6 <= len(gs) <= 9:
@@ -95,21 +100,32 @@ class LargeHudReader:
                                          for template in self.bank['1']) <= .02
                                  for _, _, top_, glyph in gs[-4:])
                              and abs((gs[0][0]+gs[-1][1])/2-76) <= .5)
-        if (((left, right) != (72, 79) and not narrow_one_layout)
+        three_digit_layout = self.three_digit_hp_layout(gs)
+        if (((left, right) != (72, 79) and not narrow_one_layout and not three_digit_layout)
                 or top != 3 or slash.shape != (12, 7)
                 or not slash[0, -1] or not slash[-1, 0] or not 11 <= len(ys) <= 18
                 or float(np.abs(xs/6+ys/11-1).max()) > .20):
             return None, 'invalid_target_hp_separator', 0.
+        if three_digit_layout:
+            return self.complete_number(gs[-4:],field='target_max_hp')
         return self.number(gs[-4:])
 
     def current_hp(self, image, maximum_hp):
-        """Read only the measured complete four-digit current side of HP."""
+        """Read complete four-digit HP or the measured three-digit layout."""
         if maximum_hp is None:
             return None, 'maximum_hp_context_unverified', 0.
         gs = pieces(mask(image, self.data['hp_box']))
+        if self.three_digit_hp_layout(gs):
+            value, reason, confidence = self.complete_number(gs[:3],digit_count=3,
+                                                              field='current_hp')
+            if reason:
+                return None, reason, confidence
+            if value > maximum_hp:
+                return None, 'current_hp_exceeds_maximum', confidence
+            return value, None, confidence
         # The development crops cover four-digit current values. A digit-count
-        # transition below 1000 needs its own raster evidence; removing a glyph
-        # from a four-digit value must not silently become a valid lower HP.
+        # transition has its own anchored layout above; removing a glyph from
+        # a four-digit value must not silently become a valid lower HP.
         if len(gs) != 9:
             return None, 'unvalidated_current_hp_digit_count', 0.
         current, separator = gs[:4], gs[-5]
@@ -209,8 +225,8 @@ class LargeHudReader:
             return None, 'speed_out_of_range', 0.
         return value, None, round(confidence, 3)
 
-    def hull_number(self, glyphs):
-        """Match complete native hull rasters without resizing partial glyphs."""
+    def complete_number(self, glyphs, *, digit_count=4, field='hull'):
+        """Match measured shared HUD font rasters without resizing glyphs."""
         text, confidence = '', 1.
         for _, _, top, glyph in glyphs:
             scores = []
@@ -222,12 +238,12 @@ class LargeHudReader:
                               for digit in {d for _, d in scores})
             if (not by_digit or by_digit[0][0] > .02
                     or len(by_digit) > 1 and by_digit[1][0]-by_digit[0][0] < .035):
-                return None, 'incomplete_or_ambiguous_hull_glyph', 0.
+                return None, 'incomplete_or_ambiguous_'+field+'_glyph', 0.
             error, digit = by_digit[0]
             text += digit
             confidence = min(confidence, 1-error)
-        if len(text) != 4 or text.startswith('0'):
-            return None, 'unvalidated_hull_digit_count', 0.
+        if len(text) != digit_count or text.startswith('0'):
+            return None, 'unvalidated_'+field+'_digit_count', 0.
         return int(text), None, round(confidence, 3)
 
     def hull(self, image):
@@ -252,8 +268,8 @@ class LargeHudReader:
                        for group in (current, maximum)
                        for a_, b in zip(group, group[1:]))):
             return rejected
-        value, reason, confidence = self.hull_number(current)
-        limit, limit_reason, limit_confidence = self.hull_number(maximum)
+        value, reason, confidence = self.complete_number(current)
+        limit, limit_reason, limit_confidence = self.complete_number(maximum)
         if reason or limit_reason:
             return None, None, reason or limit_reason, 0., 0.
         if value > limit:

@@ -32,6 +32,31 @@ def native(im, layout=PROFILE):
 
 
 class LargeHudTests(unittest.TestCase):
+    def test_measured_three_digit_hp_ratio_has_complete_anchored_glyphs(self):
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for damage in (None,'clip_three','remove_three','clip_one','remove_separator',
+                       'clip_maximum','shift_current'):
+            im = fixture_image()
+            with Image.open(FIXTURES/'hp-351-4015.png') as crop:
+                im.paste(crop,tuple(data['hp_box'][:2]))
+            boxes = {'clip_three':(949,92,959,92),'remove_three':(949,92,959,102),
+                     'clip_one':(982,92,985,92),'remove_separator':(993,91,999,102),
+                     'clip_maximum':(1060,92,1060,102)}
+            if damage in boxes:
+                ImageDraw.Draw(im).rectangle(boxes[damage],fill='black')
+            elif damage == 'shift_current':
+                current = im.crop((949,92,986,103))
+                ImageDraw.Draw(im).rectangle((949,92,985,102),fill='black')
+                im.paste(current,(950,92))
+            fields = HudRecognizer(PROFILE)(native(im)).fields
+            if damage is None:
+                self.assertEqual(fields['target_current_hp'].value,351)
+                self.assertEqual(fields['target_max_hp'].value,4015)
+                self.assertTrue(fields['target_identity'].valid)
+            else:
+                self.assertFalse(fields['target_current_hp'].valid,damage)
+                self.assertFalse(fields['target_max_hp'].valid,damage)
+
     def test_complete_measured_hull_rasters_and_fresh_mining_adapter_fields(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for value in (5005,3295,1638,1742,2127):

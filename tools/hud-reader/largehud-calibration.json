@@ -8405,5 +8405,69 @@
       ],
       "source_frame_sha256": "19ac6fe15ce9a9e6d1e5f2e49617930e17596f07245cde091d0cac004520e46b"
     }
-  ]
+  ],
+  "hp_three_digit_layout": {
+    "glyph_bounds": [
+      [
+        20,
+        31,
+        4,
+        11
+      ],
+      [
+        37,
+        49,
+        4,
+        11
+      ],
+      [
+        53,
+        57,
+        4,
+        11
+      ],
+      [
+        64,
+        71,
+        3,
+        12
+      ],
+      [
+        77,
+        91,
+        4,
+        11
+      ],
+      [
+        94,
+        107,
+        4,
+        11
+      ],
+      [
+        111,
+        115,
+        4,
+        11
+      ],
+      [
+        120,
+        132,
+        4,
+        11
+      ]
+    ],
+    "source": {
+      "file": "hp-351-4015.png",
+      "label": "351/4015",
+      "box": [
+        929,
+        88,
+        1080,
+        106
+      ],
+      "source_frame_sha256": "ced3795668e10d98c3989ba2ce17fd875efefcb7b4cede85fa855beb08c354f4"
+    },
+    "limitations": "Measured 351/4015 geometry only; other three-digit layouts remain unknown."
+  }
 }
