@@ -494,6 +494,18 @@ paused**. If the game is missing, duplicated, or in an unsupported layout, the
 connection card explains the issue and offers **Retry game connection**.
 Opening the dashboard or retrying never focuses the game or sends an input.
 
+The desktop shortcut **BSGO Mining Control** opens the same launcher with a
+hidden shell and automatically finds or reuses this workspace's dashboard URL.
+You do not need to remember a port or run a terminal command. To install or
+recreate it after moving the project, run this once from the project root:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/offline-bot/install-desktop-shortcut.ps1
+```
+
+The installer uses Windows' actual Desktop location, including a redirected
+OneDrive Desktop, and leaves unrelated shortcuts unchanged.
+
 Choose **Enable actions** only when ready. That button acknowledges the
 exact existing mining pause for this dashboard session; it neither removes the
 pause marker nor starts a scan or approach. A later pause-marker change blocks

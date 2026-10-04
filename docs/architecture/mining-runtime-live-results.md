@@ -1513,3 +1513,15 @@ marker remains present. The actual response is retained locally at
 `logs/offline-bot/observation-api-live-proof.json`; the cockpit tab now points
 to the restarted server. This verifies API publication and honest unavailable
 state, not live OCR accuracy or a new mining result.
+
+The user-facing desktop entry point is now `BSGO Mining Control.lnk` on Windows'
+resolved Desktop (`C:\Users\lmery\OneDrive\Desktop` in this environment).
+`tools/offline-bot/install-desktop-shortcut.ps1` creates or refreshes the owned
+shortcut and preserves unrelated links. It targets the existing hidden
+PowerShell startup script directly, sets the project working directory, and
+uses the existing launcher URL discovery/reuse rather than a bookmarked port.
+PowerShell parsing and saved-link readback verified the target, quoted script
+arguments, working directory and minimized/hidden launch configuration. The
+desktop link was created successfully; no gameplay or routine input was issued
+for this installation. The repository-root `Mining Dashboard.cmd` remains an
+alternative entry point.
