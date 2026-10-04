@@ -694,3 +694,32 @@ diagnostics and joined components with input idle. This completes the measured
 five-second distance-check approach requested by the user, with no elapsed
 flight cutoff. The Water candidate is inside 760 m optimal range and the
 supervised loop continues to firing.
+
+The optional continuous `firing_probe --observe-until-target-gone` now sends G
+once and retains images without an elapsed observation or frame-count cap.
+It records early damage evidence, then two fresh absent-selection images and
+two following fresh zero-speed images. Disappearance cause and reward remain
+unverified. A persistent cancel marker is required. Unknown current-HP digit
+count is tolerated only after proved damage, with other target guards intact;
+a valid field containing `None` cannot authorize baseline or G. Focused firing
+tests passed 20 checks and the integrated offline suite passed 362 tests.
+
+`continuous-fire-003` (`d36022576819446195e54953c1756562`) exercised this mode
+on the Water candidate at 649 m. It delivered one G pair with a 62 ms hold and
+read a post-delivery decline from 4,102 to 3,513. Sequence 22 then rejected the
+HP separator, causing invalid maximum HP and identity; the original result
+correctly remains blocked with complete diagnostics. The retained image shows
+complete 2446/4102 digits with the slash shifted to an unaccepted position, not
+a below-1000 HP transition. This supplies the next measured layout regression.
+
+The mining agent's immediate fresh supervision at game clock 00:18:30 saw the
+natural explosion, absent target and visible `+1332 X WATER`, plus 112 experience.
+Speed was 0.0, hull 5005/5005 and energy 390/800. The parent independently saw
+the absent target and stopped full hull at 00:18:37, with energy recovering to
+586/800. The reward amount comes from the mining agent's live visual observation;
+it was not parsed by the application. No second G was issued. This establishes
+an actual 1,332 Water harvest following the successful uncapped approach, while
+the application's acceptance remains blocked by the retained HP reading failure.
+A separate immediate read-only reward capture was started; its late frames
+must not be presented as proving a popup that had already faded. The supervised
+loop continues after this natural stopped boundary.
