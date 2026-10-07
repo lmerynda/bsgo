@@ -17,14 +17,14 @@ def sample(image, *, layout=PROFILE):
 
 
 class StartupLayoutTests(unittest.TestCase):
-    def test_dynamic_sizes_choose_normalization_without_inferring_hud_scale(self):
+    def test_dynamic_sizes_require_anchor_calibration_without_inferring_hud_scale(self):
         for size in ((1280,720),(1920,1080),(3200,1800),(3840,2160)):
             layout=StartupLayout(size)
-            self.assertEqual(layout.mode,"normalized")
+            self.assertEqual(layout.mode,"auto_calibration")
             self.assertFalse(layout.control_supported)
             self.assertEqual(layout.metadata()["client_size"],size)
         self.assertTrue(StartupLayout((2560,1440)).control_supported)
-        self.assertEqual(StartupLayout((1920,1200)).mode,"unsupported_aspect_ratio")
+        self.assertEqual(StartupLayout((1920,1200)).mode,"auto_calibration")
         for size in ((0,1080),(-1,1440),(True,1440),(2560,), (2560.,1440)):
             with self.assertRaises(ValueError):
                 StartupLayout(size)
@@ -44,28 +44,33 @@ class StartupLayoutTests(unittest.TestCase):
     def test_scaled_observation_preserves_native_identity_and_marks_experimental(self):
         # A generated derivative exercises coordinate transport only; it is not
         # native accuracy evidence for a differently configured game window.
-        image=fixture_image().resize((3840,2160),Image.Resampling.NEAREST)
+        image=fixture_image().resize((5120,2880),Image.Resampling.NEAREST)
         frame=sample(image)
         original=frame.rgb
         reader=StartupHudRecognizer(image.size)
-        result=reader(frame)
+        for index in range(3):
+            fresh=replace(frame,acquisition_sequence=7+index,acquired_at=12.+index*.8)
+            result=reader(fresh)
+            self.assertEqual(result.healthy,index==2)
         self.assertTrue(result.healthy)
-        self.assertEqual(result.frame_size,(3840,2160))
+        self.assertEqual(result.frame_size,(5120,2880))
         self.assertEqual(frame.rgb,original)
         self.assertEqual((frame.acquisition_sequence,frame.session_epoch),(7,3))
         evidence=result.fields["ocr_evidence"].value
-        self.assertEqual(evidence["source_frame_size"],(3840,2160))
+        self.assertEqual(evidence["source_frame_size"],(5120,2880))
         self.assertEqual(evidence["recognition_frame_size"],(2560,1440))
         self.assertEqual(evidence["resampling_validation"],"experimental_unvalidated")
         self.assertFalse(evidence["startup_layout"]["control_supported"])
         for field in result.fields.values():
-            self.assertEqual(field.observed_at,12.)
+            self.assertEqual(field.observed_at,13.6)
+        self.assertEqual(evidence["startup_calibration"]["status"],"registered")
+        self.assertFalse(evidence["startup_calibration"]["input_authorized"])
         self.assertFalse(result.fields["inventory"].valid)
 
-    def test_resize_wrong_profile_and_unsupported_aspect_publish_unknowns(self):
+    def test_resize_wrong_profile_and_missing_anchors_publish_unknowns(self):
         cases=((StartupHudRecognizer((1920,1080)),sample(Image.new("RGB",(1600,900))),"startup_client_dimensions_changed"),
                (StartupHudRecognizer((2560,1440)),sample(fixture_image(),layout="original"),"layout_profile_mismatch"),
-               (StartupHudRecognizer((1920,1200)),sample(Image.new("RGB",(1920,1200))),"unsupported_startup_aspect_ratio"))
+               (StartupHudRecognizer((1920,1200)),sample(Image.new("RGB",(1920,1200))),"selected_panel_anchor_missing_or_ambiguous"))
         for reader,frame,reason in cases:
             with self.subTest(reason=reason):
                 reader.reader=Mock(side_effect=AssertionError("must not read mismatched pixels"))

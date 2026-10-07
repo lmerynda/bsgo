@@ -117,6 +117,12 @@ class EasyLauncher:
         controller=self._current_controller()
         observation=controller.actions_snapshot().get("current_observation") if controller else None
         if game:
+            calibration=observation.get("layout_calibration") if observation else None
+            if calibration:
+                calibration=dict(calibration)
+                if phase != "connected" or not 0 <= observation["age_seconds"] < 2:
+                    calibration.update(status="pending",reason="fresh_calibration_capture_required")
+                game={**game,"startup_layout":{**game["startup_layout"],"calibration":calibration}}
             game={**game,"window_attached":phase=="connected",
                 "observation_healthy":bool(observation and observation["healthy"]
                     and 0 <= observation["age_seconds"] < 2) if observation else None,
@@ -249,9 +255,7 @@ class EasyLauncher:
                     self._reason=("Manual observation connected. Enable actions explicitly when ready."
                         if layout.control_supported else
                         f"Detected {geometry.client_size[0]}x{geometry.client_size[1]} client. "
-                        + ("Experimental scaled observation; actions unavailable until this layout is validated."
-                           if layout.mode=="normalized" else
-                           "Capture connected; HUD aspect ratio unsupported and actions unavailable."))
+                        + "Automatic HUD calibration; actions unavailable until this layout is validated.")
                     if self._closed:
                         cancel.write_text("launcher closed",encoding="utf-8")
             with self._lock:

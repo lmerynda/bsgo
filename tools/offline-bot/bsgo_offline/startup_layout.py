@@ -1,8 +1,8 @@
 """Select observation geometry from a discovered physical game client size.
 
 Dimensions do not identify HUD scale. The enlarged-HUD profile remains explicit;
-only its measured native size admits input. Other 16:9 sizes can be observed via
-experimental normalization, while unsupported aspect ratios publish unknowns.
+only its measured native size admits input. Other sizes require visual region
+registration across fresh captures before experimental observation is published.
 """
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -12,6 +12,7 @@ from PIL import Image
 from .mining_recognition import MiningHudRecognizer, MINING_FIELDS
 from .recognition import HUD_FIELDS, RecognitionResult
 from .state import FieldValue
+from .hud_calibration import HudAnchorCalibrator
 
 
 PROFILE = "largehud-20261003"
@@ -30,9 +31,7 @@ class StartupLayout:
 
     @property
     def mode(self):
-        width, height = self.client_size
-        return ("native" if self.client_size == CALIBRATED_SIZE else
-                "normalized" if width * 9 == height * 16 else "unsupported_aspect_ratio")
+        return "native" if self.client_size == CALIBRATED_SIZE else "auto_calibration"
 
     @property
     def control_supported(self):
@@ -45,8 +44,7 @@ class StartupLayout:
     def metadata(self):
         return {"discovery": "physical_client_rectangle", "client_size": self.client_size,
             "calibrated_size": CALIBRATED_SIZE, "profile": PROFILE, "mode": self.mode,
-            "scale_to_calibration": tuple(target / source for target, source in
-                                          zip(CALIBRATED_SIZE, self.client_size)),
+            "registration_required": not self.control_supported,
             "control_supported": self.control_supported, "control_reason": self.control_reason}
 
 
@@ -58,6 +56,7 @@ class StartupHudRecognizer:
         self.layout = StartupLayout(client_size)
         self.reader = MiningHudRecognizer(profile)
         self.profile = profile
+        self.calibrator = HudAnchorCalibrator(self.reader.hud._reader._large)
 
     def __call__(self, sample):
         if callable(getattr(sample, "to_image", None)):
@@ -67,16 +66,27 @@ class StartupHudRecognizer:
                 image = opened.convert("RGB")
         source_size = image.size
         reason = ("layout_profile_mismatch" if sample.layout != self.profile else
-                  "startup_client_dimensions_changed" if source_size != self.layout.client_size else
-                  "unsupported_startup_aspect_ratio" if self.layout.mode == "unsupported_aspect_ratio" else None)
+                  "startup_client_dimensions_changed" if source_size != self.layout.client_size else None)
+        if reason:
+            self.calibrator.reset(reason)
+        elif not self.layout.control_supported:
+            geometry = getattr(sample, "geometry", None)
+            context = (getattr(sample, "session_epoch", None), sample.layout, source_size, geometry)
+            sequence = getattr(sample, "acquisition_sequence", None)
+            if sequence is None:
+                self.calibrator.reset("capture_identity_required_for_calibration")
+                image = None
+            else:
+                image = self.calibrator.update(image, context=context, sequence=sequence,
+                                               observed_at=sample.acquired_at)
+            if image is None:
+                reason = self.calibrator.reason
         if reason:
             fields = {name: FieldValue(None, sample.acquired_at, False, reason)
                       for name in (*HUD_FIELDS, *MINING_FIELDS)}
             evidence = {"reasons": [reason]}
             healthy = False
         else:
-            if self.layout.mode == "normalized":
-                image = image.resize(CALIBRATED_SIZE, Image.Resampling.BOX)
             # This proxy is private to the reader. Capture/snapshot publication
             # continues to use the original sample, epoch, sequence and bytes.
             normalized = SimpleNamespace(layout=sample.layout, acquired_at=sample.acquired_at,
@@ -87,10 +97,11 @@ class StartupHudRecognizer:
             healthy = result.healthy
             reason = result.reason
         evidence.update(source_frame_size=source_size,
-            recognition_frame_size=CALIBRATED_SIZE if self.layout.mode != "unsupported_aspect_ratio" and not reason else source_size,
+            recognition_frame_size=CALIBRATED_SIZE if image is not None and not reason else source_size,
             startup_layout=self.layout.metadata(),
-            resampling=("box_startup_to_2560x1440" if self.layout.mode == "normalized" and not reason else "none"),
-            resampling_validation=("experimental_unvalidated" if self.layout.mode == "normalized" else
-                                   "native_profile_size" if self.layout.control_supported else "unsupported_layout"))
+            startup_calibration=(self.calibrator.metadata() if not self.layout.control_supported else
+                                 {"status":"existing_profile", "validation":"native_profile_size"}),
+            resampling=("registered_hud_regions" if not self.layout.control_supported and not reason else "none"),
+            resampling_validation=("native_profile_size" if self.layout.control_supported else "experimental_unvalidated"))
         fields["ocr_evidence"] = FieldValue(evidence, sample.acquired_at)
         return RecognitionResult(source_size, fields, healthy, reason)

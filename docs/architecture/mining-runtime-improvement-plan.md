@@ -221,6 +221,13 @@ Dependencies: Task 8 for integration; individual evidence inventory can happen e
 
 Acceptance per field: labeled positive, absent, ambiguous and damaged evidence where available; per-field accepted-correct, accepted-wrong and rejected counts; development/calibration versus independent evaluation groups identified; source-to-event replay checked. Missing independent evidence remains a stated limitation.
 
+October 7 startup extension: nonnative window sizes now automatically register
+the selected asteroid panel, own hull and speed regions across three newer
+captures using existing font guards. This includes independent region movement
+and different aspect ratios. Synthetic geometry transport is offline coverage,
+not new native numeric accuracy evidence; Task 9 and new-size native controls
+remain incomplete until independent labeled game captures support them.
+
 ## Task 10 Perform deferred BSGO acceptance
 
 Dependencies: Tasks 8 and 9, game availability, and current user authorization for live control. Read current piloting skills before choosing the operating location or controls. None of these checks can be marked complete from a synthetic receiver.

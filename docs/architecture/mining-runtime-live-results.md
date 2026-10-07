@@ -1563,3 +1563,51 @@ The full result is local at
 `logs/offline-bot/dynamic-startup-20261007/full-tests.txt`. Restart the dashboard
 server to load this startup behavior; reloading an already running server's page
 updates only its HTML.
+
+## Automatic startup HUD registration, October 7, 2026
+
+This supersedes the dimension-only normalization above. Nonnative client sizes
+now require visual registration rather than assuming that the full frame scales
+with its dimensions. The reader locates the selected asteroid title/panel, own
+hull ratio and speed decimal independently in bounded HUD search regions. It
+tries native font scale, dimension-derived uniform scales and common enlarged
+scales; exactly one model must pass existing numeric font, ratio, margin and
+clipping checks. The explicit enlarged-HUD font profile is still required.
+
+Three distinct captures with increasing sequence and acquisition time must
+agree. Pending calibration publishes unknown HUD/mining fields. Missing,
+ambiguous or damaged regions invalidate registration; changed regions, context,
+session, repeated/reordered observations or a gap over two seconds require new
+agreement. The target panel must contain a selected asteroid. Other HUD themes,
+unsupported glyph scales and layouts outside the bounded search regions stay
+pending rather than learning labels from their own OCR.
+
+Recognition uses private crops placed at the existing calibrated positions;
+native bytes, geometry, epoch, sequence and timestamps remain unchanged. The
+cockpit and startup/observation APIs show progress and registered status through
+`game.startup_layout.calibration`. Its metadata explicitly labels registration
+as geometry-only with no independent numeric validation or input authority.
+Stale observations cannot advertise a fresh registered calibration. Nonnative
+Enable, Start, action capture, dispatcher construction and focus handover remain
+blocked even after successful registration. Runtime window changes still need
+a fresh Retry.
+
+Saved native HUD crops relocated into synthetic 1920x1200 and 1600x900 windows
+exercise independent region movement and aspect ratios. An exact 2x derivative
+exercises scale transport; a lossy 1.5x derivative is rejected without loosening
+font checks. Tests also cover duplicate readable anchors, corrupted numbers,
+freshness, context changes, original provenance and calibration status in the
+cockpit. These generated layouts do not establish native OCR accuracy. No live
+game capture or input was performed. Restart the dashboard server to load the
+new backend behavior.
+
+The collaborative browser became available for this change. A dedicated local
+synthetic status adapter rendered pending calibration, registered observation
+and the select-an-asteroid prompt at 1280x800. Enable and Start stayed disabled
+in all three states. Screenshots are local under
+`logs/offline-bot/automatic-calibration-20261007/browser-*.png`; the synthetic
+server was stopped after inspection. This is rendered UI evidence, not native
+gameplay or OCR acceptance.
+
+All 616 offline tests passed with zero failures or errors. The retained local
+result is `logs/offline-bot/automatic-calibration-20261007/full-tests.txt`.

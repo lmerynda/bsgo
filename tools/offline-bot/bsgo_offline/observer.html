@@ -177,7 +177,13 @@
 
   function connectionMessage(state) {
     const reason=String(state?.reason || '').toLowerCase();
-    if (state?.phase==='connected') return ['Game attached',state?.game?.startup_layout?.mode==='normalized' ? 'Scaled observation only' : state?.game?.startup_layout?.mode==='unsupported_aspect_ratio' ? 'HUD aspect ratio unsupported' : null];
+    if (state?.phase==='connected') {
+      const layout=state?.game?.startup_layout;
+      if (layout?.control_supported===false) return ['Game attached',
+        layout?.calibration?.status==='registered' ? 'Calibrated observation only' :
+        layout?.calibration?.reason==='selected_panel_anchor_missing_or_ambiguous' ? 'Select an asteroid for HUD calibration' : 'Calibrating HUD'];
+      return ['Game attached',null];
+    }
     if (state?.phase==='connecting') return ['Checking game','Read-only connection check'];
     if (state?.phase==='waiting_for_game' || reason.includes('no visible game')) return ['Waiting for game','Open or restore the game'];
     if (reason.includes('multiple') || reason.includes('ambiguous')) return ['Multiple game windows','Keep one game window open'];

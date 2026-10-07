@@ -1,5 +1,6 @@
 """Manual mission ownership with one asynchronous, temporary input lease."""
 from collections import deque
+from collections.abc import Mapping
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -239,6 +240,11 @@ class ManualAssistController:
                 "age_seconds": now - snapshot.acquired_at, "healthy": snapshot.healthy,
                 "window_id": snapshot.window_id, "fields": fields,
                 **{name: fields.get(name, {}).get("value") for name in ("target_identity", "distance", "speed")}}
+            evidence = snapshot.fields.get("ocr_evidence")
+            if evidence and evidence.valid and isinstance(evidence.value, Mapping):
+                calibration = evidence.value.get("startup_calibration")
+                if isinstance(calibration, Mapping):
+                    observation["layout_calibration"] = plain(calibration)
         if token_reading:
             stable = {name: token_reading[name] for name in ("context", "target_identity", "target_max_hp",
                 "target_portrait", "hull_max", "view_revision", "selection_revision", "selection_track_id")}

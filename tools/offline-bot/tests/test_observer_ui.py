@@ -855,12 +855,16 @@ const recorded={run:'sample',manifest:{synthetic:true},lifecycle:'FINALIZED',sta
 cockpit.renderHistory(recorded);
 const history={state:elements.historicstate.textContent,coverage:elements.historiccoverage.textContent,
   synthetic:elements.historicsynthetic.hidden,liveRange:elements.range.textContent};
-startup.game={...startup.game,client_size:[1920,1080],startup_layout:{mode:'normalized',control_supported:false}};
+startup.game={...startup.game,client_size:[1920,1080],startup_layout:{mode:'auto_calibration',control_supported:false}};
 startup.action_control={enabled:false,acknowledgment_token:'still-a-valid-token'};
 actions.ownership={owner:null,state:'idle'};cockpit.renderLive();
 const scaled={cause:elements.connectioncause.textContent,dimensions:elements.startupdetail.textContent,
   power:elements.powerbutton.textContent,powerDisabled:elements.powerbutton.disabled};
-console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,invalidRange,pausedOwner,history,scaled}));
+startup.game.startup_layout.calibration={status:'registered'};cockpit.renderLive();
+const registered={cause:elements.connectioncause.textContent,powerDisabled:elements.powerbutton.disabled};
+startup.game.startup_layout.calibration={status:'pending',reason:'selected_panel_anchor_missing_or_ambiguous'};cockpit.renderLive();
+const pending={cause:elements.connectioncause.textContent,powerDisabled:elements.powerbutton.disabled};
+console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,invalidRange,pausedOwner,history,scaled,registered,pending}));
 """.replace("SCRIPT", json.dumps(script))
         with scratch_directory() as directory:
             path = Path(directory) / "cockpit-render-smoke.js"
@@ -895,7 +899,11 @@ console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,inva
         self.assertIn("trace dropped 0", rendered["history"]["coverage"])
         self.assertFalse(rendered["history"]["synthetic"])
         self.assertEqual(rendered["history"]["liveRange"], "UNKNOWN")
-        self.assertEqual(rendered["scaled"]["cause"], "Scaled observation only")
+        self.assertEqual(rendered["scaled"]["cause"], "Calibrating HUD")
+        self.assertEqual(rendered["registered"]["cause"], "Calibrated observation only")
+        self.assertTrue(rendered["registered"]["powerDisabled"])
+        self.assertEqual(rendered["pending"]["cause"], "Select an asteroid for HUD calibration")
+        self.assertTrue(rendered["pending"]["powerDisabled"])
         self.assertIn("1920 × 1080", rendered["scaled"]["dimensions"])
         self.assertEqual(rendered["scaled"]["power"], "Observation only")
         self.assertTrue(rendered["scaled"]["powerDisabled"])

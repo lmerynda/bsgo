@@ -501,19 +501,25 @@ connection card explains the issue and offers **Retry game connection**.
 Opening the dashboard or retrying never focuses the game or sends an input.
 
 Startup and Retry discover dimensions afresh. At the calibrated 2560 × 1440
-size, the enlarged-HUD reader uses native pixels. Other 16:9 dimensions, including
-1920 × 1080 and 3840 × 2160, automatically normalize a separate recognition image
-to the calibrated size using BOX resampling. Original frames, source hashes,
-observation identities and input coordinates retain the detected native size.
+size, the enlarged-HUD reader uses native pixels. Other dimensions automatically
+locate the selected asteroid panel, own hull ratio and speed decimal independently.
+Select an asteroid and keep its HUD visible: three distinct, newer captures must
+agree on the regions and a supported uniform HUD scale. Existing font, spacing,
+ratio and clipping checks must also pass. This supports independently relocated
+regions and different aspect ratios without stretching the entire frame.
+Original frames, source hashes and observation identities retain the detected
+native size. Only private recognition crops are registered to the existing reader.
 The flight point is derived from that size rather than a fixed screen location.
 
 Other dimensions currently provide **observation only**: Enable, routine Start,
 focus handover and native input creation are blocked until their HUD accuracy is
-validated. Scaling is experimental and does not discover the game's HUD-scale
-setting; the explicit enlarged-HUD profile is still required. A different aspect
-ratio connects capture but keeps HUD fields unknown instead of stretching them.
-The cockpit shows dimensions and the observation-only reason; `/api/startup` and
-`/api/observation` include `game.startup_layout` metadata. A runtime move or resize
+validated. Registration is experimental and uses the existing enlarged-HUD fonts;
+it does not learn new numeric glyphs. Missing, duplicate, corrupted or unsupported
+anchors keep all readings unknown. Moved regions, a capture gap over two seconds,
+repeated/out-of-order captures or a changed session require new agreement.
+The cockpit shows dimensions and calibration status; `/api/startup` and
+`/api/observation` include `game.startup_layout.calibration` progress, scale,
+region boxes and validation limits. A runtime move or resize
 still invalidates the pinned session. Retry creates a fresh session and re-reads
 the current size; it does not reuse old scene assessments or enable actions.
 

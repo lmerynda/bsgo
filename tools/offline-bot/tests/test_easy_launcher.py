@@ -1,5 +1,6 @@
 """Easy launch admission, ownership and cleanup with fake native bindings."""
 from contextlib import redirect_stdout
+from dataclasses import replace
 import io
 import json
 from pathlib import Path
@@ -12,6 +13,8 @@ from bsgo_offline.easy_launcher import (EasyLauncher,compatible_listener,PROTOCO
     SERVICE_KIND,PROFILE,GAME_TITLE,main)
 from bsgo_offline.manual_assist import ManualAssistController
 from bsgo_offline.native_capture import WindowGeometry
+from bsgo_offline.state import FieldValue
+from bsgo_offline.startup_layout import StartupLayout
 from test_manual_assist import snapshot,request,drained
 from test_trace import scratch_directory
 
@@ -52,9 +55,13 @@ class EasyLauncherTests(unittest.TestCase):
                 runner=Mock(side_effect=AssertionError("must not run an action"))
                 resume=Mock(side_effect=AssertionError("must not enable uncalibrated input"))
                 configs=[]
+                def calibrated_snapshot():
+                    observed=snapshot()
+                    return replace(observed,fields={**observed.fields,"ocr_evidence":FieldValue(
+                        {"startup_calibration":{"status":"registered","input_authorized":False}},observed.acquired_at)})
                 def session(output,**args):
                     configs.append(args["configuration"])
-                    controller=ManualAssistController(output,snapshot_provider=snapshot,runner=runner,paused=True)
+                    controller=ManualAssistController(output,snapshot_provider=calibrated_snapshot,runner=runner,paused=True)
                     controller.resume_actions=resume
                     args["on_ready"](controller,None)
                     controller.close()
@@ -66,12 +73,37 @@ class EasyLauncherTests(unittest.TestCase):
                 self.assertEqual(state["game"]["client_size"],list(size))
                 self.assertEqual(configs[0]["wheel_point"],(size[0]//2,size[1]//3))
                 self.assertFalse(state["game"]["startup_layout"]["control_supported"])
+                self.assertEqual(state["game"]["startup_layout"]["calibration"]["status"],"pending")
+                self.assertEqual(launcher.actions_snapshot()["current_observation"]["layout_calibration"]["status"],"registered")
                 self.assertFalse(launcher.resume_actions()["accepted"])
                 self.assertFalse(launcher.start_action("scan_selected")["accepted"])
                 self.assertIsNone(launcher.actions_snapshot()["assessment_context"])
                 resume.assert_not_called()
                 runner.assert_not_called()
                 self.assertTrue(launcher.close())
+
+    def test_calibration_status_requires_attached_fresh_observation(self):
+        with scratch_directory() as directory:
+            launcher=self.create(directory)
+            observed=snapshot(at=20.)
+            observed=replace(observed,fields={**observed.fields,"ocr_evidence":FieldValue(
+                {"startup_calibration":{"status":"registered","input_authorized":False}},20.)})
+            clock=[20.]
+            controller=ManualAssistController(directory/"session",snapshot_provider=lambda:observed,
+                clock=lambda:clock[0],paused=True)
+            launcher._controller=controller
+            launcher._phase="connected"
+            launcher._game={"startup_layout":StartupLayout((1920,1200)).metadata()}
+            def status():
+                return launcher.startup_snapshot()["game"]["startup_layout"]["calibration"]["status"]
+            self.assertEqual(status(),"registered")
+            clock[0]=23.
+            self.assertEqual(status(),"pending")
+            clock[0]=20.
+            launcher._phase="disconnected"
+            self.assertEqual(status(),"pending")
+            controller.close()
+            self.assertTrue(launcher.close())
 
     def test_retry_discovers_a_new_size_instead_of_reusing_previous_layout(self):
         with scratch_directory() as directory:
@@ -91,7 +123,7 @@ class EasyLauncherTests(unittest.TestCase):
             launcher.retry_connection()
             second=wait_done(launcher)
             self.assertEqual(configurations[1]["client_size"],(3840,2160))
-            self.assertEqual(second["game"]["startup_layout"]["mode"],"normalized")
+            self.assertEqual(second["game"]["startup_layout"]["mode"],"auto_calibration")
             self.assertNotEqual(first["game"]["connection_id"],second["game"]["connection_id"])
             self.assertFalse(second["action_control"]["enabled"])
             self.assertTrue(launcher.close())
