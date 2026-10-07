@@ -12,6 +12,7 @@ from uuid import uuid4
 import webbrowser
 
 from .artifacts import plain
+from .live_frame import LiveImageError
 from .manual_assist_session import (native_binding,run_manual_assist_session,
     SelectionEvidenceRecognizer)
 from .manual_routines import GuardedManualRoutines
@@ -94,6 +95,31 @@ class EasyLauncher:
     def _current_controller(self):
         with self._lock:
             return self._controller
+
+    def live_frame_snapshot(self):
+        with self._lock:
+            controller, phase, reason = self._controller, self._phase, self._reason
+            game = self._game
+        provider = getattr(controller, "live_frame_snapshot", None)
+        if not callable(provider):
+            return {"available": False, "identity": None, "version": None, "image_url": None,
+                "status": "waiting", "fresh": False, "connected": False, "reason": reason,
+                "acquired_at": None, "age_seconds": None, "frame_size": None}
+        state = provider()
+        connected = phase == "connected" and state["connected"]
+        fresh = connected and state["fresh"]
+        return {**state, "connected": connected, "fresh": fresh,
+            "status": "current" if fresh else "last_known" if state["available"] else "waiting",
+            "reason": state["reason"] if connected else reason,
+            "connection_id": game.get("connection_id") if game else None,
+            "launcher_instance_id": self.instance_id}
+
+    def live_frame_image(self, identity, version):
+        controller = self._current_controller()
+        provider = getattr(controller, "live_frame_image", None)
+        if not callable(provider):
+            raise LiveImageError(404, "live_image_unavailable")
+        return provider(identity, version)
 
     def action_control_snapshot(self):
         controller=self._current_controller()
@@ -235,7 +261,7 @@ class EasyLauncher:
             configuration={"profile":PROFILE,"hwnd":geometry.hwnd,"expected_pid":geometry.pid,
                 "client_size":geometry.client_size,"screen_origin":geometry.screen_origin,
                 "connection_id":connection_id,"launcher_instance_id":self.instance_id,
-                "capture_mode":"visible_client_rgb","foreground_required_for_observation":False,
+                "capture_mode":"window_graphics_capture","foreground_required_for_observation":False,
                 "foreground_required_for_input":True,"minimum_key_hold_seconds":.05,
                 "wheel_point":wheel_point,"flight_point_assessed":False,
                 "flight_point_description":FLIGHT_DESCRIPTION,"focus_handover_enabled":False}

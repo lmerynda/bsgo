@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 from .observation_api import OBSERVATION_SCHEMA, observation_snapshot
+from .live_frame import LiveImageError
 
 
 RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
@@ -455,6 +456,42 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             query = parse_qs(request.query)
             if request.path == "/":
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
+                return
+            if request.path == "/api/live-frame":
+                if query:
+                    self._json(400, {"error": "live_frame_does_not_accept_query_parameters"})
+                    return
+                provider = getattr(actions, "live_frame_snapshot", None)
+                try:
+                    payload = provider() if callable(provider) else {
+                        "available": False, "identity": None, "version": None, "image_url": None,
+                        "status": "waiting", "fresh": False, "connected": False,
+                        "reason": "native_live_frame_provider_unavailable", "acquired_at": None,
+                        "age_seconds": None, "frame_size": None}
+                except Exception as exc:
+                    self._json(503, {"error": "live_frame_status_unavailable", "cause": type(exc).__name__})
+                    return
+                self._json(200, payload)
+                return
+            if request.path == "/api/live-image":
+                if (set(query) != {"identity", "version"} or any(len(v) != 1 for v in query.values())
+                        or not re.fullmatch(r"[a-f0-9]{32}", query["identity"][0])
+                        or not re.fullmatch(r"[1-9][0-9]{0,15}", query["version"][0])):
+                    self._json(400, {"error": "live_image_identity_and_version_required"})
+                    return
+                provider = getattr(actions, "live_frame_image", None)
+                if not callable(provider):
+                    self._json(404, {"error": "live_image_unavailable"})
+                    return
+                try:
+                    data, mime = provider(query["identity"][0], int(query["version"][0]))
+                except LiveImageError as exc:
+                    self._json(exc.code, {"error": exc.reason})
+                    return
+                except Exception as exc:
+                    self._json(503, {"error": "live_image_unavailable", "cause": type(exc).__name__})
+                    return
+                self._send(200, data, mime)
                 return
             if request.path in ("/api/observation", "/api/observation/schema"):
                 if query:

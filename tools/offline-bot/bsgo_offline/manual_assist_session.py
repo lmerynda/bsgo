@@ -14,6 +14,7 @@ import time
 from .artifacts import plain
 from .diagnostics import DiagnosticRun, recognition_failures
 from .manual_assist import ManualAssistController
+from .live_frame import LiveFrameStore, LiveFrameSource, LiveFrameDiagnostics
 from .manual_routines import GuardedManualRoutines
 from .recognition import RecognitionResult, RecognitionWorker
 from .state import FieldValue, Snapshot, SnapshotStore
@@ -122,6 +123,9 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
         wheel_point_description=wheel_point_description,
         focus_handover=focus_handover, wheel_point=wheel_point,
         selection_track_provider=selection_track_provider, action_output_root=action_output_root)
+    live_frames = LiveFrameStore()
+    controller.live_frame_snapshot = live_frames.snapshot
+    controller.live_frame_image = live_frames.image
     source = worker = server = server_thread = None
     error = None
     shutdown = {}
@@ -131,8 +135,9 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
         if cancel and cancel.exists():
             result.update(state="canceled", reason="session_cancel_requested")
         else:
-            source = source_factory()
-            worker = RecognitionWorker(source, recognizer_factory(), store, diagnostics=diagnostic)
+            source = LiveFrameSource(source_factory(), live_frames)
+            worker = RecognitionWorker(source, recognizer_factory(), store,
+                diagnostics=LiveFrameDiagnostics(diagnostic, live_frames))
             diagnostic.attach(worker=worker, store=store, coordinator=None, backend=None)
             diagnostic.update_execution(phase="observing", processing="reading HUD; Manual mission ownership",
                 waiting_for="an image or an explicit Manual action request",
@@ -177,6 +182,7 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
         error = f"{type(exc).__name__}: {exc}"
         result.update(state="blocked",reason=error)
     finally:
+        live_frames.disconnect(error or result["reason"])
         # Keep recognition available while the canceled action verifies its
         # actual stop. Shutdown never automatically takes game focus.
         shutdown["manual_actions"] = controller.close(shutdown_timeout)
@@ -231,7 +237,8 @@ def native_binding(hwnd, pid, profile, *, allow_focus_handover=False):
             raise ValueError(layout.control_reason)
         if inspect_window(hwnd,expected_pid=pid) != geometry:
             raise ValueError("pinned_game_window_changed")
-        capture = NativeCapture(hwnd,pid,layout=profile,require_foreground=action)
+        capture = NativeCapture(hwnd,pid,layout=profile,require_foreground=action,
+            background_window=not action)
         if capture.geometry != geometry:
             capture.close()
             raise ValueError("pinned_game_window_changed")
@@ -286,7 +293,7 @@ def main():
         return classification.scan_state,classification.reason
     configuration={"hwnd":args.hwnd,"expected_pid":args.pid,"profile":args.profile,
         "client_size":geometry.client_size,"screen_origin":geometry.screen_origin,
-        "capture_mode":"visible_client_rgb","foreground_required_for_observation":False,
+        "capture_mode":"window_graphics_capture","foreground_required_for_observation":False,
         "foreground_required_for_input":True,"minimum_key_hold_seconds":.05,
         "focus_handover_enabled":args.allow_action_focus_handover,
         "flight_point_assessed":args.flight_point_assessed,
