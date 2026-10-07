@@ -45,6 +45,12 @@ The new runtime observes stopping after a fault using speed alone, independently
 
 ## Saved screenshot recognition
 
+A limited offline resource-notification reader and its manually labeled native
+crops are documented in [the v3 corpus](../../test-data/vision/v3-reward-notices/README.md).
+Run `evaluate_reward_notices.py` to verify and score them without game access.
+This reader reports visible notice text only; it is not enabled in the default
+runtime and cannot produce inventory deltas, attributed rewards or mission success.
+
 `replay` defaults to the 25-frame `sol-tylium-live-2321` run in the [frozen corpus](../../test-data/vision/v1/README.md). `--source-run`, `--limit`, `--interval`, `--profile`, and `--consumer-delay` configure the experiment. Recognition owns its thread and publishes deeply immutable snapshots into a short-lock shared store. The delayed consumer retrieves already published state and never requests recognition.
 
 Frames are ordered by their original capture names and ordinals, rather than hash filenames. Capture-run boundaries change the session epoch. Acquisition times belong to the synthetic replay schedule; they do not recreate original game rendering timestamps. The explicit original/restart calibration profile is not inferred from successful reads. Invalid current fields remain unknown, with OCR rejection evidence available separately. A normal finite replay preserves its last observation and marks the source exhausted; its age continues to increase. A source or recognizer exception publishes unhealthy state with unknown fields.

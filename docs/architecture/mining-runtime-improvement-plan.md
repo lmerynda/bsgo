@@ -2,7 +2,7 @@
 
 This plan turns the existing approach experiment into an extensible mining runtime. It is written for an implementer who has not participated in the architecture discussion. Complete the numbered tasks in order, preserve existing behavior during extraction, and use the acceptance checks to decide whether a task is finished.
 
-Status: offline runtime implemented and verified, October 2, 2026. Source inspection baseline: commit `6b441eba`. The user subsequently authorized implementation and unit tests, with real-game engagement explicitly excluded. Tasks 1 through 8 are complete offline. Task 9 has an evidence inventory and explicit unknown-field adapter; validated mining perception remains incomplete. Task 10 remains deferred. [Results and evidence](mining-runtime-offline-results.md) record the acceptance boundary.
+Status: offline runtime implemented and verified, with perception work continued October 7, 2026. Source inspection baseline: commit `6b441eba`. Tasks 1 through 8 are complete offline. Task 9 now includes a limited offline resource-notification reader and source-linked native crop evaluation; mission-ready mining perception remains incomplete. Task 10 remains deferred for the full native mission. [Offline results](mining-runtime-offline-results.md) and [subsequent live probe results](mining-runtime-live-results.md) record the distinct acceptance boundaries.
 
 ## Current task status
 
@@ -16,10 +16,10 @@ Status: offline runtime implemented and verified, October 2, 2026. Source inspec
 | 6 Synthetic mission | `offline_verified` | `mission.py`, `mining_simulation.py`; one preselected-target cycle, resource eligibility, activation, depletion candidate and reward confirmation |
 | 7 Optional advice | `offline_verified` | `planning.py`; bounded fake advice, cancellation, dependency checks, no-op recording and deterministic continuation |
 | 8 Status and acceptance | `offline_verified` | `simulate-mining`, immutable status, report/source identity, journal traces; 216 tests and 11 threaded acceptance scenarios passed |
-| 9 Saved mining recognition | `blocked_on_evidence` | All 307 frozen inputs hash-verified; 50 source groups inventoried; four scene annotations added in v2. No action-linked, independently labeled scan/fire/reward validation set exists yet. `MiningHudRecognizer` explicitly publishes these fields as unknown. |
-| 10 BSGO acceptance | `planned` and deferred | Real capture/input compatibility, actual mining controls, timing and complete live cycle excluded by current user instruction |
+| 9 Saved mining recognition | `in_progress` | Frozen v1/v2 preserved. Limited `reward_notice` reader tested on 17 reviewed native crops from three firing runs; separate-run evaluation: one correct accept, no wrong accepts, one rejected visible notice and three absent rejects. Resource/amount text remains separate from inventory and causal reward events. Scan semantics, firing state, inventory and attribution remain incomplete. |
+| 10 BSGO acceptance | `planned` and deferred for full mission | Subsequent supervised capture/input/scan/approach/firing probes have partial live evidence in the live report; autonomous native mining-cycle integration and perception acceptance remain open. |
 
-Implementation is present as local source changes. The implementation steps below remain the specification and handoff checklist; completion labels apply only within their recorded scope. The existing approach-only `simulate` command preserves its legacy failure reporting, while `simulate-mining` uses the new bounded recovery phases.
+Implementation is committed incrementally. The implementation steps below remain the specification and handoff checklist; completion labels apply only within their recorded scope. The existing approach-only `simulate` command preserves its legacy failure reporting, while `simulate-mining` uses the new bounded recovery phases.
 
 ## Scope and completion boundaries
 

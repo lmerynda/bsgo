@@ -54,6 +54,37 @@ Accordingly, `MiningHudRecognizer` reuses the validated HUD reader and publishes
 
 The next perception work needs labels that identify the selected object and scan state before/after a request, own firing evidence, depletion/selection transitions, and resource changes with duplicates, gaps and competing activity. Reuse original images where their evidence is sufficient; obtain any missing sequences only when game capture is allowed. Split complete source runs and keep calibration/development separate from an independent evaluation set. Report correct accepts, wrong accepts and rejects per field before wiring a recognizer into the mission.
 
+## Saved resource-notification reader, October 7, 2026
+
+Task 9 now has a separate CPU reader for visible Water/Tylium notification text.
+The [v3 evidence corpus](../../test-data/vision/v3-reward-notices/README.md)
+contains 17 manually reviewed notification-only crops from three retained native
+firing runs. Original hashes, acquisition sequences, monotonic times and crop
+pixels were verified against local diagnostic sidecars. The frozen v1/v2 data
+is unchanged. No game capture or input was performed for this work.
+
+Two development runs provide glyph templates; a third run is held out from
+template construction. Development has two correct accepts, zero wrong accepts,
+two rejected visible notices and eight absent rejects. Evaluation has one
+correct accept, zero wrong accepts, one rejected visible notice and three absent
+rejects. It is a retrospective same-session split, not prospective validation;
+Water lacks evaluation positives. Supported amounts have four digits drawn from
+1,2,3,5,6,7,9; unsupported glyphs and layouts remain unknown. The evaluation
+report is local at `logs/offline-bot/reward-notices-20261007/evaluation.json`.
+
+`RewardNotice.as_field()` preserves source time and publishes visible text with
+`attributed: false`. The default reader and mission remain unchanged.
+`EventDetector` does not turn this field into inventory deltas or reward events;
+repeated notice frames cannot complete a mission. Damage/layout rejection and
+source-split/hash guards are covered by focused regression tests. Task 9 remains
+in progress: broader numeric/layout evidence, Water evaluation, inventory and
+action-linked attribution are needed before native outcome confirmation.
+
+All 13 focused notification/mining-recognition/event tests and the full 600-test
+offline suite passed. The full log is retained locally at
+`logs/offline-bot/reward-notices-20261007/full-tests.txt`; no native game input
+or game capture was used by these checks.
+
 ## Reproduction
 
 From the repository root, the existing Python environment suffices. Choose a new output directory for each acceptance run to preserve evidence.
