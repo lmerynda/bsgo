@@ -35,7 +35,10 @@ class ShipTelemetryTests(unittest.TestCase):
         for row in json.loads((ROOT/'manifest.json').read_text())['rows']:
             self.assertEqual(hashlib.sha256((ROOT/row['file']).read_bytes()).hexdigest(), row['sha256'])
         for index, expected in ((0, (4684, 5005, 671, 800, 25.7)),
-                                (1, (710, 5005, 728, 800, 33.0))):
+                                (1, (710, 5005, 728, 800, 33.0)),
+                                (3, (5005, 5005, 635, 800, 19.8)),
+                                (4, (5005, 5005, 586, 800, 17.6)),
+                                (5, (5005, 5005, 609, 800, 15.5))):
             result = self.reader.read(fixture(index))
             self.assertEqual(tuple(result[name] for name in
                 ('hull_current', 'hull_max', 'energy_current', 'energy_max', 'speed')), expected)
@@ -46,6 +49,24 @@ class ShipTelemetryTests(unittest.TestCase):
         result = self.reader.read(fixture(2))
         for name in ('hull_current', 'hull_max', 'energy_current', 'energy_max', 'speed'):
             self.assertIsNone(result[name])
+
+    def test_native_one_rasters_and_clipped_variants(self):
+        import numpy as np
+        calibration = json.loads((Path(__file__).resolve().parents[1] / 'bsgo_offline' /
+                                  'ship-telemetry-calibration.json').read_text())
+        for variant in calibration['speed_one_variants']:
+            source = variant['source']
+            with Image.open(ROOT/source['file']) as image:
+                rgb = np.asarray(image.convert('RGB'))
+            binary = (rgb.min(2)>=source['threshold']) & (rgb.max(2).astype(int)-rgb.min(2)<65)
+            left,right = source['column_bounds']
+            actual = binary[variant['top']:variant['top']+len(variant['rows']),left:right]
+            expected = np.array([[c=='1' for c in row] for row in variant['rows']])
+            self.assertTrue(np.array_equal(actual,expected))
+        for index in (3,4,5):
+            image = fixture(index)
+            ImageDraw.Draw(image).rectangle((1408,1062,1410,1067),fill='black')
+            self.assertIsNone(self.reader.read(image)['speed'])
 
     def test_erased_separator_and_complete_digit_do_not_become_smaller_values(self):
         for name, box, separator in [('hull',(128,88,279,106),(200,91,206,102)),

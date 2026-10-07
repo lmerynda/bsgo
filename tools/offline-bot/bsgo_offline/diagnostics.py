@@ -107,6 +107,9 @@ def source_manifest():
     package = Path(__file__).resolve().parent
     sources = {"bsgo_offline/" + path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                for path in sorted(package.glob("*.py"))}
+    telemetry_calibration = package / "ship-telemetry-calibration.json"
+    sources["bsgo_offline/ship-telemetry-calibration.json"] = hashlib.sha256(
+        telemetry_calibration.read_bytes()).hexdigest()
     reader = package.parents[1] / "hud-reader" / "hud_reader.py"
     sources["hud-reader/hud_reader.py"] = hashlib.sha256(reader.read_bytes()).hexdigest()
     for name in ("templates.json", "restart-calibration.json", "largehud-calibration.json", "large_hud_reader.py"):

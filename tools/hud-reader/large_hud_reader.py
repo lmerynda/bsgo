@@ -256,7 +256,7 @@ class LargeHudReader:
             return None, 'current_hp_exceeds_maximum', confidence
         return value, None, confidence
 
-    def speed(self, image, *, minimum_brightness=160, raster_error=.02):
+    def speed(self, image, *, minimum_brightness=160, raster_error=.02, one_variants=()):
         # The wider archival crop includes scenery before the fixed HUD text.
         # Read the measured text region with a two-pixel left margin; stars in
         # unused padding must not be mistaken for partial HUD digits.
@@ -293,7 +293,10 @@ class LargeHudReader:
             if right-left < 10:
                 expected = np.array(self.data['speed_one'], dtype=bool)
                 if top != 4 or g.shape != expected.shape or np.mean(g != expected) > .05:
-                    return None, 'incomplete_speed_one', 0.
+                    if not any(top == variant_top and g.shape == variant.shape
+                               and np.mean(g != variant) <= .02
+                               for variant_top, variant in one_variants):
+                        return None, 'incomplete_speed_one', 0.
                 digits.append('1')
                 continue
             if top == 4 and g.shape == (21, 12):

@@ -108,6 +108,114 @@
       ],
       "file": "2-speed.png",
       "sha256": "0bf1b5188cf1f09852cd0c265607a129cd8054d846d1f9614125b3d49c7257e9"
+    },
+    {
+      "sample": 3,
+      "field": "hull",
+      "box": [
+        128,
+        88,
+        279,
+        106
+      ],
+      "file": "3-hull.png",
+      "sha256": "e72672eac01cc88616bfd7433bc032b780a218a8a2f58a064560a3974c952d09"
+    },
+    {
+      "sample": 3,
+      "field": "energy",
+      "box": [
+        128,
+        112,
+        279,
+        130
+      ],
+      "file": "3-energy.png",
+      "sha256": "de4253bc2794a85ad6fd345ec6471be41effe321c576ae7ef905ea96808fd886"
+    },
+    {
+      "sample": 3,
+      "field": "speed",
+      "box": [
+        1404,
+        1062,
+        1462,
+        1091
+      ],
+      "file": "3-speed.png",
+      "sha256": "f7df6cd61e202204d84f5d7005413fce4a1a9fd7551fcf1b50df32eb003b8a5d"
+    },
+    {
+      "sample": 4,
+      "field": "hull",
+      "box": [
+        128,
+        88,
+        279,
+        106
+      ],
+      "file": "4-hull.png",
+      "sha256": "8ee2be38e67da7024015d700e25b12a314d4062830a3f7b290c977e004006b20"
+    },
+    {
+      "sample": 4,
+      "field": "energy",
+      "box": [
+        128,
+        112,
+        279,
+        130
+      ],
+      "file": "4-energy.png",
+      "sha256": "e8620ea9edc63eaa7f683a05512d79b1373c3462ad787eacd038e355423729cb"
+    },
+    {
+      "sample": 4,
+      "field": "speed",
+      "box": [
+        1404,
+        1062,
+        1462,
+        1091
+      ],
+      "file": "4-speed.png",
+      "sha256": "5cf3dd8ed71138bb824e3f6b59114350d719a556047f4fd0508e8ba66d111b90"
+    },
+    {
+      "sample": 5,
+      "field": "hull",
+      "box": [
+        128,
+        88,
+        279,
+        106
+      ],
+      "file": "5-hull.png",
+      "sha256": "0a1222d952cb3b4a43d303095579386426779af18bc1152dd3c46c0d0575f869"
+    },
+    {
+      "sample": 5,
+      "field": "energy",
+      "box": [
+        128,
+        112,
+        279,
+        130
+      ],
+      "file": "5-energy.png",
+      "sha256": "37af5a149819eaebfa0a81a27529cd34535cf0e8e389761e34e87c048914be3f"
+    },
+    {
+      "sample": 5,
+      "field": "speed",
+      "box": [
+        1404,
+        1062,
+        1462,
+        1091
+      ],
+      "file": "5-speed.png",
+      "sha256": "b160c23ffa8cd66dd4c66e3611eda5c2b7aad3e772ee91ce9fc3edff7556d6ee"
     }
   ]
 }

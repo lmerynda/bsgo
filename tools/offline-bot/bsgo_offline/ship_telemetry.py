@@ -4,12 +4,18 @@ The own-ship bars contain dim translucent separators and digits over colored
 fills. Require a complete ratio, measured glyphs and agreement across brightness
 thresholds. These readings never replace the calibrated fields used for input.
 """
+import json
+from pathlib import Path
 import numpy as np
 
 
 class ShipTelemetryReader:
     def __init__(self, reader):
         self.reader = reader
+        calibration = json.loads((Path(__file__).with_name('ship-telemetry-calibration.json')).read_text())
+        self.one_variants = [(variant['top'], np.array(
+            [[c == '1' for c in row] for row in variant['rows']], dtype=bool))
+            for variant in calibration['speed_one_variants']]
 
     def _number(self, glyphs):
         text, confidence = '', 1.
@@ -95,8 +101,9 @@ class ShipTelemetryReader:
             result[name+'_current'], result[name+'_max'] = current, maximum
             if reason:
                 result['reasons'][name] = reason
-        speeds = [self.reader.speed(image, minimum_brightness=threshold, raster_error=.08)[0]
-                  for threshold in (80, 100, 120, 140, 160)]
+        speeds = [self.reader.speed(image, minimum_brightness=threshold, raster_error=.08,
+                                   one_variants=self.one_variants)[0]
+                  for threshold in (80, 100, 110, 120, 140, 160)]
         valid = [value for value in speeds if value is not None]
         if len(set(valid)) == 1 and len(valid) >= 2:
             result['speed'] = valid[0]
