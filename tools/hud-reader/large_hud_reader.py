@@ -10,9 +10,9 @@ from PIL import Image
 PROFILE = 'largehud-20261003'
 
 
-def mask(image, box):
+def mask(image, box, minimum_brightness=160):
     rgb = np.asarray(image.crop(box).convert('RGB'))
-    return (rgb.min(2) >= 160) & (rgb.max(2).astype(int) - rgb.min(2) < 65)
+    return (rgb.min(2) >= minimum_brightness) & (rgb.max(2).astype(int) - rgb.min(2) < 65)
 
 
 def pieces(a):
@@ -256,11 +256,11 @@ class LargeHudReader:
             return None, 'current_hp_exceeds_maximum', confidence
         return value, None, confidence
 
-    def speed(self, image):
+    def speed(self, image, *, minimum_brightness=160, raster_error=.02):
         # The wider archival crop includes scenery before the fixed HUD text.
         # Read the measured text region with a two-pixel left margin; stars in
         # unused padding must not be mistaken for partial HUD digits.
-        a = mask(image, self.data['speed_text_box'])
+        a = mask(image, self.data['speed_text_box'], minimum_brightness)
         # A native star may also land wholly within the two-pixel margin.
         # Clear only separate components ending before the fixed font origin.
         # A glyph reaching into that margin spans farther right and retains
@@ -300,7 +300,7 @@ class LargeHudReader:
                 candidates = [(float(np.mean(g != np.array(t, dtype=bool))), digit)
                               for digit, t in self.data.get('speed_complete_variants', {}).items()
                               if np.array(t).shape == g.shape]
-                if candidates and min(candidates)[0] <= .02:
+                if candidates and min(candidates)[0] <= raster_error:
                     digits.append(min(candidates)[1])
                     confidence = min(confidence, 1-min(candidates)[0])
                     continue

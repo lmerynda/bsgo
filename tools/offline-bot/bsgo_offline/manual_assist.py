@@ -235,7 +235,8 @@ class ManualAssistController:
                     and not (type(field.value) is float and not math.isfinite(field.value)) else None,
                 "valid": field.valid, "reason": field.reason, "observed_at": field.observed_at,
                 "fresh": 0 <= now - field.observed_at < 2}
-                for name, field in snapshot.fields.items() if name in TARGET_FIELDS or name == "target_current_hp"}
+                for name, field in snapshot.fields.items()
+                if name in TARGET_FIELDS or name in ("target_current_hp", "ship_telemetry")}
             observation = {"sequence": snapshot.sequence, "acquired_at": snapshot.acquired_at,
                 "age_seconds": now - snapshot.acquired_at, "healthy": snapshot.healthy,
                 "window_id": snapshot.window_id, "fields": fields,
