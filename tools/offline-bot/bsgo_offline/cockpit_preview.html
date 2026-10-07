@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mining cockpit · design preview</title>
+  <style>
+    :root { color-scheme:dark; --bg:#091321; --panel:#102034; --panel2:#0c192b; --line:#294158; --text:#f0f5fa; --muted:#a6b8ca; --cyan:#75d9eb; --green:#8bddac; --amber:#ffd178; --red:#ff9ea6; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#07111e; color:var(--text); font:14px/1.38 system-ui,Segoe UI,sans-serif; }
+    button,select { font:inherit; color:inherit; background:#172d45; border:1px solid #416077; border-radius:8px; padding:8px 11px; }
+    button { cursor:pointer; } button:hover:not(:disabled),select:hover { border-color:var(--cyan); }
+    button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible { outline:3px solid var(--cyan); outline-offset:2px; }
+    button:disabled { opacity:.48; cursor:not-allowed; }
+    [hidden] { display:none !important; }
+    main { width:min(100%,760px); min-height:100vh; margin:auto; padding:16px 18px 20px; background:linear-gradient(145deg,#0c1b2d,#091321 45%); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px; }
+    h1 { font-size:23px; line-height:1; letter-spacing:.08em; margin:0; font-weight:800; }
+    h2 { font-size:13px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); margin:0 0 9px; }
+    .brand { display:flex; align-items:center; gap:9px; }
+    .brandmark { color:var(--cyan); font-size:26px; line-height:1; }
+    .small { color:var(--muted); font-size:12px; }
+    .mono { font-variant-numeric:tabular-nums; font-family:ui-monospace,Consolas,monospace; }
+    .synthetic { color:var(--amber); border:1px solid #79663a; border-radius:99px; padding:3px 8px; font-size:10px; font-weight:700; }
+    .strip,.rail,.instrument,.workspace,.drawer { border:1px solid var(--line); background:var(--panel); border-radius:11px; }
+    .strip { display:flex; align-items:center; flex-wrap:wrap; gap:7px 12px; min-height:41px; padding:7px 11px; margin-bottom:10px; }
+    .dot { width:9px; height:9px; border-radius:50%; background:var(--muted); display:inline-block; margin-right:6px; }
+    .dot.live { background:var(--green); }.dot.warn { background:var(--amber); }.dot.bad { background:var(--red); }
+    .strip button { padding:4px 7px; background:transparent; font-size:12px; }
+    #connectioncause { flex-basis:100%; color:var(--amber); }
+    #issuebutton { margin-left:auto; }
+    .rail { display:flex; align-items:center; flex-wrap:wrap; gap:9px; padding:9px 11px; margin-bottom:10px; }
+    .mode { border:1px solid var(--cyan); color:var(--cyan); background:#173c4c; font-weight:750; padding:6px 11px; border-radius:7px; }
+    .locked { border:1px solid var(--line); border-radius:7px; color:var(--muted); padding:6px 9px; opacity:.65; }
+    #modepending { font-size:11px; color:var(--amber); }
+    .authority { margin-left:auto; color:var(--muted); }
+    .authority strong { color:var(--text); }
+    #powerbutton { color:var(--amber); border-color:#94763d; background:#302b20; white-space:nowrap; }
+    .instrument { padding:14px 17px 12px; margin-bottom:10px; }
+    .instrumenttop { display:flex; justify-content:space-between; gap:14px; align-items:start; }
+    .eyebrow { font-size:11px; letter-spacing:.15em; font-weight:750; color:var(--muted); text-transform:uppercase; }
+    .targetname { font-size:17px; font-weight:700; margin-top:3px; }
+    .range { font-size:clamp(37px,7vw,59px); font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; margin:4px 0; }
+    .speedbox { min-width:140px; border:1px solid var(--line); border-radius:8px; padding:8px 11px; background:var(--panel2); }
+    .speedbox .value { font-size:27px; font-weight:780; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .tape { margin:17px 0 14px; position:relative; height:58px; }
+    .tapeline { position:absolute; left:0; right:0; top:20px; height:2px; background:#7e9bb0; }
+    .workband { position:absolute; left:0; top:16px; width:26.6666666667%; height:10px; background:#2d9bb4; opacity:.8; }
+    .boundary { position:absolute; left:26.6666666667%; top:10px; height:25px; width:2px; background:var(--cyan); }
+    .targetmarker { position:absolute; top:5px; left:0; transform:translateX(-50%); color:var(--text); font-size:21px; line-height:1; }
+    .tapelabel { position:absolute; top:35px; font-size:11px; color:var(--muted); }
+    .tapezero { left:0; }.tapeband { left:26.6666666667%; transform:translateX(-50%); color:var(--cyan); }.tapemax { right:0; }
+    .bandcaption { position:absolute; left:4%; top:34px; color:var(--cyan); font-size:10px; }
+    .offscale { color:var(--amber); font-size:11px; margin-top:-10px; }
+    .bars { display:grid; grid-template-columns:1fr 1fr; gap:14px; border-top:1px solid var(--line); padding-top:11px; }
+    .barrow { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:7px; min-width:0; }
+    .barrow label { font-size:10px; letter-spacing:.08em; color:var(--muted); }
+    .bar { height:11px; border:1px solid #526c80; border-radius:3px; background:#193044; overflow:hidden; }
+    .bar .fill { height:100%; width:0; background:#59c4dc; }
+    .bar.unknown { background:repeating-linear-gradient(120deg,#263649 0 3px,#0e1c2d 3px 7px); }
+    .barrow .barvalue { font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .workspace { padding:12px 14px 14px; }
+    .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+    .tabs button { background:#13283d; font-weight:700; min-height:38px; }
+    .tabs button[aria-selected="true"] { border-color:var(--cyan); color:var(--cyan); background:#174255; }
+    .phase { display:flex; align-items:center; gap:8px; padding:10px 2px 6px; min-height:36px; }
+    .phase .dot { flex:none; }
+    #phasetext { font-weight:750; }
+    #instruction { margin:0 0 8px; color:var(--amber); min-height:17px; }
+    .assessment { border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:10px 11px; }
+    .assessmenthead { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+    .assessmenthead strong { font-size:11px; letter-spacing:.12em; color:var(--muted); }
+    #expiry { color:var(--amber); font-size:11px; }
+    .checks { display:grid; grid-template-columns:repeat(2,1fr); gap:8px 13px; margin:11px 0; }
+    .checks label { display:flex; align-items:center; gap:6px; font-size:12px; }
+    .checks input { accent-color:var(--cyan); }
+    #previewbutton { padding:2px 4px; background:transparent; border:0; color:var(--cyan); text-decoration:underline; font-size:11px; }
+    .actionbuttons { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; }
+    #startbutton { background:#176178; border-color:#7ad8e7; font-weight:750; }
+    #cancelbutton { background:#332831; border-color:#88515c; color:#ffc2c8; }
+    .anomaly { margin:9px 0 0; color:var(--amber); font-size:11px; min-height:15px; }
+    .drawers { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px; }
+    .drawer { min-width:0; background:var(--panel2); }
+    .drawer summary { cursor:pointer; list-style:none; padding:9px 11px; font-weight:650; }
+    .drawer summary::before { content:'›'; color:var(--cyan); margin-right:8px; }
+    .drawer[open] { grid-column:1/-1; }.drawer[open] summary::before { content:'⌄'; }
+    .drawerbody { border-top:1px solid var(--line); padding:12px; }
+    .drawerbody p { margin:6px 0; }
+    .recorded { border:1px solid #6d5a37; color:var(--amber); border-radius:6px; padding:2px 6px; font-size:10px; }
+    .detailgrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .detailgrid > div { border:1px solid var(--line); border-radius:7px; padding:8px; min-width:0; overflow-wrap:anywhere; }
+    .detailgrid strong { display:block; font-size:11px; color:var(--muted); margin-bottom:3px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; max-height:190px; overflow:auto; }
+    .images { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .images img { width:100%; max-height:260px; object-fit:contain; background:#06111d; }
+    .images figure { margin:0; min-width:0; overflow-wrap:anywhere; font-size:11px; }
+    a { color:var(--cyan); }
+    .schematic { width:min(100%,350px); aspect-ratio:16/9; border:1px solid #6d8aa3; background:linear-gradient(#182b3e,#101e30); position:relative; margin:9px 0; }
+    .schematic::before,.schematic::after { content:''; position:absolute; background:#4a6174; }
+    .schematic::before { width:1px; height:100%; left:50%; }.schematic::after { height:1px; width:100%; top:50%; }
+    .schematic .point { position:absolute; left:50%; top:33.333%; transform:translate(-50%,-50%); color:var(--cyan); font-size:28px; z-index:1; }
+    .muted { color:var(--muted); }.warn { color:var(--amber); }.bad { color:var(--red); }
+    @media(max-width:640px) { main { padding:8px 10px; } header { margin-bottom:8px; } h1 { font-size:19px; } .strip,.rail,.instrument { margin-bottom:8px; } .strip { min-height:35px; padding:5px 9px; } .rail { gap:6px; padding:6px 9px; } .instrument { padding:10px 12px 8px; } .tape { margin:10px 0 8px; } .workspace { padding:9px 11px 10px; } .checks { margin:7px 0; gap:5px 9px; } .drawers { margin-top:8px; } .detailgrid,.images { grid-template-columns:1fr; } }
+    @media(max-width:470px) { .bars,.checks { grid-template-columns:1fr; } .authority { margin-left:0; } }
+    /* Desktop cockpit: supplemental overrides retain existing control contracts. */
+    :root { --bg:#070d16; --panel:#0e1a28; --panel2:#091320; --line:#2b4050; --muted:#8fa5b8; --cyan:#6dd6e7; }
+    body { background:#070d16; font-size:14px; }
+    main { width:100%; max-width:none; height:100dvh; min-height:720px; margin:0; padding:22px 26px 18px; display:flex; flex-direction:column; gap:12px; background:radial-gradient(ellipse at 18% 10%,#122230 0,transparent 55%),#070d16; }
+    header { flex:none; margin:0; min-height:42px; }
+    h1 { font-size:25px; letter-spacing:.13em; line-height:1.15; }
+    .brandcaption { color:var(--muted); font-size:9px; letter-spacing:.25em; margin-bottom:6px; }
+    .brandmark { border:1px solid #42606c; width:43px; height:43px; display:grid; place-content:center; background:#122936; font-size:29px; border-radius:3px; margin-right:5px; }
+    .designbadge { color:#d2ab68; border:1px solid #645337; padding:6px 10px; font-size:10px; letter-spacing:.1em; }
+    .strip,.rail,.instrument,.workspace,.drawer,.viewscreen { border-radius:4px; background:linear-gradient(125deg,#111f2d,#0d1723); box-shadow:inset 0 1px 0 #ffffff05; }
+    .statusdeck { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:12px; flex:none; }
+    .strip { flex:none; margin:0; min-height:41px; padding:8px 13px; gap:7px 16px; }
+    .strip button { border-radius:3px; }
+    .rail { flex:none; margin:0; min-height:49px; padding:8px 13px; }
+    .mode { padding:5px 13px; border-radius:3px; letter-spacing:.04em; }
+    .locked { padding:5px 10px; border-radius:3px; }
+    button,select { border-radius:3px; }
+    .flightdeck { display:grid; grid-template-columns:minmax(0,1.85fr) minmax(370px,.85fr); flex:1; min-height:0; gap:16px; }
+    .viewscreen { border:1px solid var(--line); min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+    .panelheading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px; border-bottom:1px solid var(--line); min-height:45px; flex:none; }
+    .eyebrow { font-size:10px; letter-spacing:.18em; color:#9bb4c5; }
+    .capturestatus { color:var(--amber); font-size:11px; font-family:ui-monospace,Consolas,monospace; }
+    .capturestatus.capturefresh { color:var(--green); }
+    .stalecapture { opacity:.78; }
+    .screenstage { background:#050b11; flex:1; min-height:0; position:relative; display:grid; place-items:center; overflow:hidden; }
+    #livecapture { width:100%; height:100%; object-fit:contain; min-height:0; display:block; position:absolute; inset:0; }
+    .screenstage::after { content:''; position:absolute; inset:10px; border:1px solid #6dc9dd10; pointer-events:none; }
+    .captureplaceholder { display:flex; flex-direction:column; align-items:center; gap:15px; text-align:center; padding:24px; max-width:410px; color:#829aab; }
+    .captureplaceholder svg { width:70px; stroke:#416470; fill:none; stroke-width:1.1; margin-bottom:5px; }
+    .captureplaceholder strong { color:#93b4c4; letter-spacing:.18em; font-size:13px; }
+    .captureplaceholder span { font-size:12px; line-height:1.7; max-width:300px; }
+    .screenlocator { position:absolute; left:20px; bottom:18px; font-family:ui-monospace,Consolas,monospace; font-size:9px; letter-spacing:.12em; color:#6e9aa9; background:#050b1199; padding:4px 7px; }
+    .capturefooter { flex:none; display:flex; justify-content:space-between; gap:12px; padding:10px 16px; background:#09131e; border-top:1px solid var(--line); font-size:10px; color:var(--muted); }
+    .capturefooter > span:last-child { letter-spacing:.12em; white-space:nowrap; }
+    .shiptelemetry { flex:none; padding:18px 20px 21px; border-top:1px solid var(--line); background:linear-gradient(135deg,#111e2b,#0b1420); }
+    .telemetrytitle { display:flex; justify-content:space-between; gap:12px; margin-bottom:18px; }
+    .vitalgrid { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+    .vital { min-width:0; }
+    .vitalname { font-size:10px; letter-spacing:.14em; color:var(--muted); display:block; margin-bottom:6px; }
+    .vitalvalue { font-size:24px; font-weight:650; display:block; margin-bottom:10px; letter-spacing:.02em; }
+    .vital .bar { height:9px; border-radius:1px; border-color:#345060; }
+    .vital .fill { background:linear-gradient(90deg,#399a9d,#8be1c4); }
+    .energy .fill { background:linear-gradient(90deg,#33869e,#63cce5); }
+    .controlstack { display:flex; flex-direction:column; gap:16px; min-height:0; }
+    .instrument { padding:0 18px 18px; margin:0; flex:none; }
+    .instrument > .panelheading,.workspace > .panelheading { margin:0 -18px 20px; }
+    .instrumenttop { gap:12px; }
+    .targetname { font-size:15px; color:var(--cyan); margin:6px 0 8px; }
+    .range { font-size:clamp(33px,3vw,58px); line-height:1.06; letter-spacing:-.02em; margin:0; }
+    .speedbox { min-width:120px; border-radius:3px; padding:10px 12px; }
+    .speedbox .value { font-size:23px; margin-top:9px; }
+    .tape { margin:22px 0 14px; }
+    .bars { grid-template-columns:1fr; padding-top:14px; }
+    .barrow { grid-template-columns:auto minmax(0,1fr) auto; }
+    .barrow .barvalue { font-size:12px; }
+    .workspace { padding:0 18px 18px; flex:1; min-height:0; display:flex; flex-direction:column; }
+    .workspace > .panelheading { margin-bottom:16px; }
+    .tabs { gap:7px; flex:none; }
+    .tabs button { min-height:44px; border-radius:3px; font-size:12px; }
+    .phase { padding:18px 0 8px; font-size:15px; flex:none; }
+    #instruction { flex:none; font-size:12px; line-height:1.45; }
+    #instruction:empty { display:none; }
+    .assessment { border-radius:3px; padding:14px; margin-top:auto; }
+    .assessmenthead { flex-wrap:wrap; }
+    .assessmenthead strong { font-size:10px; letter-spacing:.15em; }
+    .checks { gap:12px 8px; margin:16px 0; }
+    .checks label { font-size:12px; }
+    .checks input { width:15px; height:15px; }
+    .actionbuttons { margin-top:13px; gap:9px; }
+    .actionbuttons button { min-height:44px; }
+    #startbutton { background:linear-gradient(135deg,#246577,#174354); border-color:#64aab9; }
+    #cancelbutton { background:#261f29; border-color:#5f414a; font-size:12px; }
+    .anomaly { line-height:1.5; }
+    .drawers { display:flex; gap:10px; margin:0; flex:none; position:relative; min-height:41px; }
+    .drawer { min-width:145px; background:#0d1723; }
+    .drawer summary { padding:10px 18px; font-size:12px; }
+    .drawer[open] > summary { color:var(--cyan); }
+    .drawerbody { position:absolute; left:0; right:0; bottom:48px; max-height:min(58dvh,540px); overflow:auto; background:#0e1927; box-shadow:0 10px 40px #0009; border:1px solid #416071; border-radius:4px; padding:20px; z-index:10; }
+    .drawerbody .detailgrid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .drawerbody pre { max-height:140px; }
+    .drawerbody > p { max-width:none; }
+    #diagfields { white-space:pre-line; }
+    @media(min-width:1900px) { main { padding:26px 34px 20px; gap:15px; } .flightdeck { grid-template-columns:minmax(0,1.95fr) minmax(480px,.85fr); gap:20px; } .controlstack { gap:20px; } .instrument { padding:0 24px 20px; } .instrument > .panelheading,.workspace > .panelheading { margin-left:-24px; margin-right:-24px; } .workspace { padding:0 24px 20px; } .panelheading { padding:13px 24px; } .range { font-size:60px; } .speedbox .value { font-size:27px; } .speedbox { min-width:155px; } .instrumenttop { padding-top:4px; } .tape { margin:20px 0 14px; } .shiptelemetry { padding:24px 28px; } .vitalvalue { font-size:33px; } .checks label { font-size:13px; } .tabs button { font-size:14px; min-height:44px; } .assessment { padding:14px; } .actionbuttons button { min-height:44px; } }
+    @media(max-height:850px) and (min-width:1001px) { main { padding:14px 18px 12px; gap:8px; min-height:660px; } .flightdeck,.controlstack { gap:10px; } .flightdeck { grid-template-columns:minmax(0,1.4fr) minmax(400px,1fr); } .statusdeck { gap:10px; } .locked { font-size:11px; padding:5px 7px; } .rail { gap:7px; } .panelheading { padding:9px 14px; min-height:36px; } .instrument > .panelheading { margin-bottom:13px; } .workspace > .panelheading { margin-bottom:10px; } .shiptelemetry { padding:12px 16px 15px; } .telemetrytitle { margin-bottom:12px; } .vitalvalue { font-size:22px; } .tape { margin:13px 0 6px; height:52px; } .assessment { padding:10px; } .checks { margin:10px 0; gap:8px; } .phase { padding-top:12px; } .tabs button,.actionbuttons button { min-height:37px; } .actionbuttons { margin-top:10px; } }
+    @media(max-width:1150px) and (min-width:901px) { .flightdeck { grid-template-columns:minmax(0,1.2fr) minmax(360px,.9fr); } .speedbox { min-width:108px; } .speedbox .value { font-size:20px; } }
+    @media(max-width:900px) { main { height:auto; min-height:100dvh; padding:14px; gap:10px; } .statusdeck { display:flex; flex-direction:column; gap:10px; } .flightdeck { display:flex; flex-direction:column; gap:12px; } .screenstage { min-height:260px; aspect-ratio:16/9; flex:auto; } .controlstack { gap:12px; } .workspace { min-height:350px; } .assessment { margin-top:12px; } .drawerbody { position:static; max-height:500px; } .drawers { display:grid; grid-template-columns:repeat(3,1fr); } .drawer { min-width:0; } .drawer[open] { grid-column:1/-1; } .drawerbody .detailgrid { grid-template-columns:repeat(2,minmax(0,1fr)); } .designbadge { max-width:180px; text-align:right; font-size:8px; } h1 { font-size:20px; } }
+    @media(max-width:470px) { main { padding:10px; } .brandcaption { font-size:8px; letter-spacing:.12em; } h1 { font-size:16px; } .brandmark { width:34px; height:34px; font-size:24px; } .designbadge { max-width:100px; } .strip { gap:7px 10px; } .rail { gap:7px; } .locked { font-size:10px; } .screenstage { min-height:195px; } .capturefooter { font-size:9px; padding:9px 11px; } .shiptelemetry { padding:14px; } .vitalgrid { gap:16px; } .vitalvalue { font-size:19px; } .vitalname { font-size:9px; } .checks { grid-template-columns:1fr 1fr; } .checks label { font-size:11px; } .instrumenttop { gap:8px; } .range { font-size:33px; } .speedbox { min-width:110px; } .drawer summary { padding:10px; font-size:11px; } .drawerbody .detailgrid,.images { grid-template-columns:1fr; } }
+
+  </style>
+</head>
+<body>
+<main>
+  <header><div class="brand"><span class="brandmark" aria-hidden="true">◈</span><div><div class="brandcaption">BSGO / FLIGHT OPERATIONS</div><h1>MINING COCKPIT</h1></div></div><span id="syntheticchip" class="synthetic" hidden>SYNTHETIC DEMO</span><span class="designbadge">DESIGN PREVIEW · CONTROLS ISOLATED</span></header>
+  <div class="statusdeck">
+  <section class="strip" aria-label="Connection and image health">
+    <span><span id="connectiondot" class="dot"></span><strong id="connectionlabel">Checking game</strong></span>
+    <span id="imageage" class="small">Image UNKNOWN</span>
+    <button id="issuebutton" type="button">Field issues UNKNOWN ›</button>
+    <button id="retrybutton" type="button" hidden>Retry connection</button>
+    <span id="connectioncause" hidden></span>
+  </section>
+  <section class="rail" aria-label="Live control authority">
+    <span id="actualmode" class="mode">Mode UNKNOWN</span><span class="locked" aria-label="Autopilot unavailable">🔒 Autopilot unavailable</span>
+    <span id="modepending" hidden></span>
+    <span class="authority">Input: <strong id="inputowner">UNKNOWN</strong></span>
+    <button id="powerbutton" type="button" disabled>Actions unavailable</button>
+  </section>
+  </div>
+  <div class="flightdeck">
+    <section class="viewscreen" aria-label="Latest game screen capture">
+      <div class="panelheading"><span class="eyebrow">01 / Forward view</span><span id="capturestatus" class="capturestatus">Waiting for capture</span></div>
+      <div class="screenstage">
+        <img id="livecapture" alt="Latest captured game window" hidden>
+        <div id="captureplaceholder" class="captureplaceholder"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M18 38V18h20M62 18h20v20M82 62v20H62M38 82H18V62M38 50h24M50 38v24"/></svg><strong>AWAITING GAME IMAGE</strong><span>A fresh capture will appear here when the game connection is ready.</span></div>
+        <span class="screenlocator" aria-hidden="true">GAME WINDOW / OPTICAL FEED</span>
+      </div>
+      <div class="capturefooter"><span id="capturedetail">No captured frame available</span><span>READ ONLY VIEW</span></div>
+      <div class="shiptelemetry"><div class="telemetrytitle"><span class="eyebrow">Ship systems</span><span class="small">Current image readings</span></div><div class="vitalgrid">
+        <div class="vital"><span class="vitalname">HULL INTEGRITY</span><strong id="hullvalue" class="vitalvalue mono">UNKNOWN</strong><div id="hullbar" class="bar unknown"><div id="hullfill" class="fill"></div></div></div>
+        <div class="vital energy"><span class="vitalname">ENERGY RESERVE</span><strong id="energyvalue" class="vitalvalue mono">UNKNOWN</strong><div id="energybar" class="bar unknown"><div id="energyfill" class="fill"></div></div></div>
+      </div></div>
+    </section>
+    <div class="controlstack">
+    <section class="instrument" aria-label="Current live selected target">
+    <div class="panelheading"><span class="eyebrow">02 / Target solution</span><span class="small">Selected target</span></div><div class="instrumenttop"><div><div class="eyebrow">Range to selected target</div><div id="targetname" class="targetname">UNKNOWN</div><div id="range" class="range mono" aria-live="polite">UNKNOWN</div></div><div class="speedbox"><div class="eyebrow">Speed</div><div id="speed" class="value mono">UNKNOWN</div></div></div>
+    <div class="tape" role="img" id="rangetape" aria-label="Range unknown on a scalar 0 to 3000 meter scale; 800 meter working boundary">
+      <div class="tapeline"></div><div id="workband" class="workband"></div><div class="boundary"></div><div id="targetmarker" class="targetmarker" hidden aria-hidden="true">◆</div>
+      <span class="tapelabel tapezero">0</span><span class="bandcaption">Working range</span><span class="tapelabel tapeband">800 m</span><span class="tapelabel tapemax">3,000</span>
+    </div><div id="offscale" class="offscale" hidden>Target beyond displayed scale</div>
+    <div class="bars"><div class="barrow"><label>TARGET HP</label><div id="hpbar" class="bar unknown"><div id="hpfill" class="fill"></div></div><span id="hpvalue" class="barvalue mono">UNKNOWN</span></div></div>
+  </section>
+  <section class="workspace" aria-label="Manual action workspace"><div class="panelheading"><span class="eyebrow">03 / Command console</span><span class="small">Manual assist</span></div>
+    <div class="tabs" role="tablist" aria-label="Select an action; selection never starts it"><button id="scanonce" type="button" role="tab" aria-selected="false">Scan once</button><button id="autoscan" type="button" role="tab" aria-selected="false">Auto-scan OFF</button><button id="approach" type="button" role="tab" aria-selected="true">Approach</button></div>
+    <div class="phase"><span id="phasedot" class="dot warn"></span><span id="phasetext">Waiting for live state</span></div><p id="instruction"></p>
+    <div id="assessmenttray" class="assessment"><div class="assessmenthead"><strong>YOUR ASSESSMENT</strong><span id="expiry">No fresh target token</span></div>
+      <div id="scanchecks" class="checks" hidden><label><input id="scanselectedsafe" type="checkbox">Safe stopped scene</label></div>
+      <div id="autochecks" class="checks" hidden><label><input id="autoscansafe" type="checkbox">Safe stopped scene</label></div>
+      <div id="approachchecks" class="checks"><label><input id="clearcorridor" type="checkbox">Clear corridor</label><label><input id="alignedheading" type="checkbox">Aligned heading</label><label><input id="safestopped" type="checkbox">Safe stopped scene</label><label><input id="flightpoint" type="checkbox">Flight point</label></div>
+      <button id="previewbutton" type="button" hidden>Preview flight point</button>
+    </div>
+    <div class="actionbuttons"><button id="startbutton" type="button" disabled>Start</button><button id="cancelbutton" type="button" disabled>Cancel</button></div>
+    <p id="anomaly" class="anomaly" hidden></p>
+  </section>
+    </div>
+  </div>
+  <div class="drawers">
+    <details id="diagnostics" class="drawer"><summary>Diagnostics</summary><div class="drawerbody">
+      <p id="diagcontext" class="small">Live controller evidence unavailable</p><p id="diagaction" class="small">No active routine</p><p id="diagfields" class="small">No current field readings</p>
+      <div class="detailgrid"><div><strong>Requested input</strong><span id="actionintent">UNKNOWN</span><pre id="intentraw"></pre></div><div><strong>Delivered to input stream</strong><span id="actiondelivery">UNKNOWN</span><pre id="deliveryraw"></pre></div><div><strong>Observed image effect</strong><span id="actioneffect">UNKNOWN</span><pre id="effectraw"></pre></div><div><strong>Last routine package</strong><span id="actionartifactpath">UNKNOWN</span><br><button id="actionartifactlink" type="button" hidden>View saved run in History</button></div></div>
+      <p id="actionack" class="small">No action requested</p><p id="startupack" class="small">No control change requested</p><p id="capabilities" class="small">Nearby discovery and radar interpretation are unavailable.</p>
+    </div></details>
+    <details id="history" class="drawer"><summary>History</summary><div class="drawerbody">
+      <p class="small">Recorded packages only. Selecting one never changes live authority or telemetry.</p><label>Run <select id="runs"><option value="">Latest automatically</option></select></label>
+      <p><span id="historicsynthetic" class="synthetic" hidden>SYNTHETIC DEMO</span> <span id="historicbadge" class="recorded">RECORDED</span> <strong id="historicstate">UNKNOWN</strong></p>
+      <div class="detailgrid"><div><strong>Recorded phase / wait</strong><span id="historicphase">UNKNOWN</span></div><div><strong>Recorded readings</strong><span id="historicmetrics">UNKNOWN</span></div><div><strong>Result and first blocker</strong><span id="historicresult">UNKNOWN</span></div><div><strong>Coverage / writer health</strong><span id="historiccoverage">UNKNOWN</span></div><div><strong>Request → delivery → image effect</strong><span id="historicevidence">UNKNOWN</span></div><div><strong>Run / code</strong><span id="historicidentity">UNKNOWN</span></div></div>
+      <p id="historicwarnings" class="warn"></p><button id="privacy" type="button" aria-pressed="false">Show retained images</button><div id="images" class="images" hidden><figure><img id="currentimg" alt="Latest retained recorded frame"><figcaption id="currentpath">UNKNOWN</figcaption></figure><figure><img id="failureimg" alt="First recorded recognition failure"><figcaption><span id="failurepath">UNKNOWN</span> · <a id="sidecar" target="_blank" rel="noopener" hidden>View sidecar</a><br><span id="failurereasons"></span></figcaption></figure></div>
+    </div></details>
+    <details id="settings" class="drawer"><summary>Settings</summary><div class="drawerbody">
+      <p><strong id="startupstate">Checking game</strong> · <span id="startupdetail">No connection action has been requested.</span></p><p id="startuppausereason" class="small"></p><p id="startupacknotice" class="small"></p>
+      <button id="startupretry" type="button" disabled>Retry game connection</button> <button id="startupfocus" type="button" aria-pressed="false" disabled>Return to game on Start/Cancel: OFF</button>
+      <p id="startupfocusreason" class="small">This setting never focuses the game on page load, Retry, or Enable.</p>
+      <p id="flightpointdescription" class="small">Configured flight point: UNKNOWN</p><div id="flightdiagram" class="schematic" role="img" aria-label="Schematic game view with configured candidate flight point; not a game capture"><span id="flightdiagrammark" class="point">⊕</span></div><p class="small">Schematic only. Inspect the actual game view before checking Flight point. This diagram cannot assert safety.</p>
+    </div></details>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const set = (id,value) => { $(id).textContent = value === null || value === undefined || value === '' ? 'UNKNOWN' : String(value); };
+  const setOptional = (id,value) => { $(id).textContent = value == null ? '' : String(value); };
+  const pretty = value => value == null ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value,null,2) : String(value);
+  const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const label = name => ({scan_selected:'Scan once',auto_scan_selected:'Auto-scan',approach_current_target:'Approach'})[name] || name;
+  let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='approach_current_target';
+  let inFlight=false,imagesVisible=false,connectionKey=null,contextKey=null,lastNotice=null,statusFault=null,lastKnownActive=false,lastKnownEnabled=false,lastActionReceivedAt=null;
+  const assessments={scan_selected:null,auto_scan_selected:null,approach_current_target:null};
+  const checks={scan_selected:['scanselectedsafe'],auto_scan_selected:['autoscansafe'],approach_current_target:['clearcorridor','alignedheading','safestopped','flightpoint']};
+  const priorActive={scan_selected:false,auto_scan_selected:false,approach_current_target:false};
+  const short = value => { const phrase=String(value || '').replaceAll('_',' ').replace(/\s+/g,' ').trim(); return phrase.length>105 ? `${phrase.slice(0,102)}…` : phrase; };
+
+  function connectionMessage(state) {
+    const reason=String(state?.reason || '').toLowerCase();
+    if (state?.phase==='connected') {
+      const layout=state?.game?.startup_layout;
+      if (layout?.control_supported===false) return ['Game attached',
+        layout?.calibration?.status==='registered' ? 'Calibrated observation only' :
+        layout?.calibration?.reason==='selected_panel_anchor_missing_or_ambiguous' ? 'Select an asteroid for HUD calibration' : 'Calibrating HUD'];
+      return ['Game attached',null];
+    }
+    if (state?.phase==='connecting') return ['Checking game','Read-only connection check'];
+    if (state?.phase==='waiting_for_game' || reason.includes('no visible game')) return ['Waiting for game','Open or restore the game'];
+    if (reason.includes('multiple') || reason.includes('ambiguous')) return ['Multiple game windows','Keep one game window open'];
+    if (reason.includes('layout') || reason.includes('geometry') || reason.includes('size')) return ['Unsupported layout','Use 2560 × 1440 with enlarged HUD'];
+    if (state?.phase==='unattached') return ['Observer only','No game controller attached'];
+    if (state?.phase==='disconnected') return ['Game disconnected','Check game, then Retry'];
+    return ['Connection blocked',state?.reason || 'Check the game'];
+  }
+  const clientNow = () => performance.now();
+  function elapsedSinceAction() { return lastActionReceivedAt===null ? 0 : Math.max(0,(clientNow()-lastActionReceivedAt)/1000); }
+  function imageAge(current) { const age=number(current?.age_seconds); return age===null ? null : age+elapsedSinceAction(); }
+  function liveField(current,name) {
+    const field=current?.fields?.[name];
+    const age=imageAge(current);
+    if (!field || !current?.healthy || age===null || age<0 || age>=2 || field.valid!==true || field.fresh!==true || field.observed_at!==current.acquired_at) return null;
+    return field.value;
+  }
+  function semanticReason(name,value,fields) {
+    if (['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp'].includes(name)) {
+      if (typeof value!=='number' || !Number.isFinite(value) || value<0) return 'invalid numeric value';
+      if (['hull_max','target_max_hp'].includes(name) && value===0) return 'nonpositive maximum';
+      if (name==='hull_current' || name==='target_current_hp') {
+        const maximum=fields[name==='hull_current'?'hull_max':'target_max_hp'];
+        if (maximum?.valid===true && typeof maximum.value==='number' && Number.isFinite(maximum.value) && value>maximum.value) return 'current exceeds maximum';
+      }
+    }
+    return null;
+  }
+  function clearAssessment(name) { assessments[name]=null; for (const id of checks[name]) $(id).checked=false; }
+  function renderLive() {
+    const game=startup?.game || {}, control=startup?.action_control || {}, ownership=actions?.ownership || {}, routines=actions?.routines || {};
+    if (actions) lastKnownActive=Boolean(ownership.owner || routines.auto_scan_selected?.active===true);
+    if (startup?.action_control) lastKnownEnabled=startup.action_control.enabled===true;
+    const current=startup?.phase==='connected' ? actions?.current_observation : null;
+    const [connection,cause]=connectionMessage(startup);
+    set('connectionlabel',connection); set('connectioncause',cause); $('connectioncause').hidden=!cause;
+    set('startupstate',connection);
+    const dimensions=Array.isArray(game.client_size) ? `${game.client_size[0]} × ${game.client_size[1]} · ` : '';
+    set('startupdetail',startup?.phase==='connected' ? dimensions+(game.observation_healthy===true ? 'Window attached; fresh image reading available' : `Window attached; image ${short(game.observation_reason || 'not yet verified')}`) : cause || 'Waiting for a game window');
+    set('startuppausereason',control.enabled===true ? 'Manual actions enabled for this session' : `Manual actions paused · ${short(control.pause_reason || 'not enabled')}`);
+    setOptional('startupacknotice',lastNotice);
+    $('startupretry').disabled=inFlight || startup?.retry_available!==true;
+    const focus=startup?.focus_handover || {};
+    $('startupfocus').disabled=inFlight || focus.available!==true;
+    $('startupfocus').setAttribute('aria-pressed',String(focus.enabled===true));
+    set('startupfocus',`Return to game on Start/Cancel: ${focus.enabled===true?'ON':'OFF'}`);
+    set('startupfocusreason',focus.reason || 'This setting never focuses the game on page load, Retry, or Enable.');
+    $('connectiondot').className=`dot ${startup?.phase==='connected' ? 'live' : startup?.phase==='connecting' || startup?.phase==='waiting_for_game' ? 'warn' : 'bad'}`;
+    const age=imageAge(current);
+    set('imageage',age===null ? 'Image UNKNOWN' : `Image ${age.toFixed(1)}s${age>=2 ? ' · STALE' : ''}`);
+    const fields=current?.fields || {};
+    const issues=Object.entries(fields).filter(([name,field]) => field?.valid!==true || field?.fresh!==true || field?.observed_at!==current.acquired_at || semanticReason(name,field?.value,fields));
+    set('issuebutton',!current ? 'Field issues UNKNOWN ›' : current.healthy===false ? 'Image rejected ›' : age===null || age>=2 ? 'Image stale ›' : `${issues.length} field issue${issues.length===1?'':'s'} ›`);
+    $('issuebutton').className=issues.length || current?.healthy===false || (age!==null && age>=2) ? 'warn' : '';
+    $('retrybutton').hidden=!(startup?.retry_available && startup?.phase!=='connected');
+    $('retrybutton').disabled=inFlight;
+    $('syntheticchip').hidden=!(startup?.synthetic===true || actions?.synthetic_demo===true);
+    const actual=mode?.actual_mode || 'unknown';
+    set('actualmode',actual==='manual' ? 'Manual' : actual.toUpperCase());
+    $('modepending').hidden=mode?.pending!==true;
+    set('modepending',mode?.pending ? `Requested ${mode.requested_mode || 'UNKNOWN'} · pending` : null);
+    const owner=ownership.owner;
+    set('inputowner',owner ? `${label(owner)} · ${ownership.state || 'active'}` : startup?.phase==='connected' && actions?.ownership && ownership.owner===null ? 'Human' : 'UNKNOWN');
+    const power=control.enabled===true, uncertainPause=!actions && (lastKnownActive || lastKnownEnabled);
+    const pauseChoice=power || uncertainPause || Boolean(lastKnownActive && control.enabled!==true);
+    set('powerbutton',pauseChoice ? uncertainPause ? 'Pause actions · status unknown' : 'Pause actions' : game.startup_layout?.control_supported===false ? 'Observation only' : 'Enable actions');
+    $('powerbutton').disabled=inFlight || (!pauseChoice && (startup?.phase!=='connected' || !control.acknowledgment_token || game.startup_layout?.control_supported===false));
+    $('powerbutton').title=pauseChoice ? 'Request Manual action pause; current routine state may be unavailable' : control.pause_reason || 'Acknowledge the current pause for this session';
+
+    const shipTelemetry=liveField(current,'ship_telemetry');
+    const displayField=name=>liveField(current,name) ?? (shipTelemetry?.display_only===true ? shipTelemetry[name] : null);
+    const identity=liveField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
+    const distance=rawDistance!==null && rawDistance>=0 ? rawDistance : null;
+    const rawSpeed=number(displayField('speed'));
+    const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
+    set('targetname',typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true ? 'Asteroid' : 'UNKNOWN');
+    set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
+    set('speed',speed===null ? 'UNKNOWN' : `${speed.toFixed(1).replace(/\.0$/,'')} m/s`);
+    const marker=$('targetmarker');
+    marker.hidden=distance===null;
+    if (distance!==null) { marker.style.left=`${Math.min(100,distance/3000*100)}%`; marker.textContent=distance>3000?'›':'◆'; }
+    $('offscale').hidden=distance===null || distance<=3000;
+    $('rangetape').setAttribute('aria-label',distance===null ? 'Range UNKNOWN on scalar zero to 3000 meter scale; working boundary 800 meters' : `Target ${distance} meters on scalar zero to 3000 meter scale; working boundary 800 meters${distance>3000?', target beyond scale':''}`);
+    $('workband').style.width=`${800/3000*100}%`;
+    function bar(prefix,currentName,maxName) {
+      const read=prefix==='hp' ? name=>liveField(current,name) : displayField;
+      const value=number(read(currentName)), maximum=number(read(maxName));
+      const valid=maximum!==null && maximum>0 && value!==null && value>=0 && value<=maximum;
+      $(`${prefix}bar`).className=`bar${valid?'':' unknown'}`;
+      $(`${prefix}fill`).style.width=valid ? `${value/maximum*100}%` : '0%';
+      set(`${prefix}value`,maximum===null || maximum<=0 ? 'UNKNOWN' : `${value===null?'—':Math.round(value).toLocaleString()} / ${Math.round(maximum).toLocaleString()}`);
+      if (maximum!==null && value!==null && !valid) set(`${prefix}value`,'UNKNOWN');
+    }
+    bar('hull','hull_current','hull_max'); bar('hp','target_current_hp','target_max_hp'); bar('energy','energy_current','energy_max');
+    const delivery=actions?.last_input_delivery, effect=actions?.last_confirmed_effect;
+    const anomaly=lastNotice || statusFault || (delivery?.outcome==='injected' && !effect ? 'Input delivered; image effect unverified' : null);
+    set('anomaly',anomaly); $('anomaly').hidden=!anomaly;
+    set('diagcontext',`Live controller: ${actions?.attached_controller || 'none'} · session ${startup?.instance_id || 'UNKNOWN'} · input ${ownership.input_scope || 'human'} · observation #${current?.sequence ?? 'UNKNOWN'} · mode acknowledgment ${pretty(mode?.last_ack)}`);
+    set('diagfields',Object.entries(fields).map(([name,field])=>{
+      const value=field?.valid && field?.fresh && field?.observed_at===current?.acquired_at ? field.value : null;
+      const shown=Array.isArray(value) ? `array of ${value.length} values` : typeof value==='object' && value!==null ? 'structured value present' : pretty(value);
+      return `${name}: ${shown} · valid ${field?.valid ?? 'UNKNOWN'} · fresh ${field?.fresh ?? 'UNKNOWN'} · reason ${field?.reason || semanticReason(name,field?.value,fields) || 'none'} · observed ${field?.observed_at ?? 'UNKNOWN'} · confidence ${field?.confidence ?? 'UNKNOWN'}`;
+    }).join('\n') || 'No current field readings');
+    set('actionintent',compactIntent(actions?.last_input_intent)); set('actiondelivery',compactDelivery(delivery)); set('actioneffect',compactEffect(effect));
+    set('intentraw',pretty(actions?.last_input_intent)); set('deliveryraw',pretty(delivery)); set('effectraw',pretty(effect));
+    const artifact=actions?.action_artifacts || {};
+    set('actionartifactpath',artifact.run || 'No saved routine package');
+    $('actionartifactlink').hidden=!artifact.run;
+    $('actionartifactlink').dataset.run=artifact.run || '';
+    set('capabilities','Nearby discovery: unavailable without a verified scene-rock provider. Radar interpretation: unavailable. Auto-scan covers only the human-selected target and never steers or brakes.');
+    renderPreview();
+    renderAction(current,control,ownership,routines);
+    // This side preview cannot change the launcher or deliver native input.
+    for (const id of ['powerbutton','startbutton','cancelbutton','retrybutton','startupretry','startupfocus']) $(id).disabled=true;
+    set('powerbutton','Read-only preview');
+    $('powerbutton').title='Controls are isolated from the running mining session';
+  }
+  function renderPreview() {
+    const point=actions?.assessment_context?.wheel_point, size=startup?.game?.client_size;
+    const pointKnown=Array.isArray(point) && point.length===2 && point.every(value=>typeof value==='number' && Number.isFinite(value) && value>=0);
+    const sizeKnown=Array.isArray(size) && size.length===2 && size.every(value=>typeof value==='number' && Number.isFinite(value) && value>0);
+    const drawable=pointKnown && sizeKnown && point[0]<size[0] && point[1]<size[1];
+    $('flightdiagram').hidden=!drawable;
+    if (drawable) {
+      $('flightdiagrammark').style.left=`${point[0]/size[0]*100}%`;
+      $('flightdiagrammark').style.top=`${point[1]/size[1]*100}%`;
+    }
+    set('flightpointdescription',pointKnown
+      ? `${actions.assessment_context.flight_point_description || 'Configured candidate flight point'} · ${point[0]}, ${point[1]}${drawable?' · schematic only':' · preview unavailable without frame geometry'}`
+      : actions?.assessment_context?.token ? 'No configured flight point for this target context' : 'No fresh target context; flight-point preview unavailable');
+    return pointKnown;
+  }
+  function compactIntent(value) { return value ? `${value.kind || 'command'} ${value.key || value.button || (value.wheel_steps==null?'':`wheel ${value.wheel_steps}`)} · request #${value.sequence ?? 'UNKNOWN'}` : 'UNKNOWN'; }
+  function compactDelivery(value) { return value ? `${value.outcome || 'UNKNOWN'} · request #${value.request_sequence ?? 'UNKNOWN'} · inserted ${value.inserted_count ?? 'UNKNOWN'}/${value.requested_count ?? 'UNKNOWN'}` : 'UNKNOWN'; }
+  function compactEffect(value) { return value ? `${value.effect || 'UNKNOWN'} · latest image #${Array.isArray(value.observation_sequences)&&value.observation_sequences.length?value.observation_sequences.at(-1):'UNKNOWN'}` : 'UNKNOWN'; }
+  function renderAction(current,control,ownership,routines) {
+    const context=actions?.assessment_context || {}, nextKey=context.context_key || null;
+    const nextConnection=startup?.instance_id ? `${startup.instance_id}:${startup.game?.connection_id || ''}` : null;
+    if (nextConnection!==connectionKey || nextKey!==contextKey) {
+      connectionKey=nextConnection; contextKey=nextKey;
+      for (const name of Object.keys(assessments)) clearAssessment(name);
+    }
+    const serverTime=number(actions?.server_monotonic), now=serverTime===null ? null : serverTime+elapsedSinceAction();
+    for (const name of Object.keys(assessments)) {
+      const bound=assessments[name];
+      if (bound && (now===null || now>=bound.expires_at || bound.context_key!==nextKey)) clearAssessment(name);
+      const active=routines[name]?.active===true || ownership.owner===name;
+      if (priorActive[name] && !active) clearAssessment(name);
+      priorActive[name]=active;
+    }
+    const owner=ownership.owner && ownership.owner!=='none' && ownership.owner!=='idle' ? ownership.owner : null;
+    const activeToggle=routines.auto_scan_selected?.active===true ? 'auto_scan_selected' : null;
+    const name=owner || activeToggle || selectedAction;
+    if (owner || activeToggle) selectedAction=name;
+    for (const [id,routine] of [['scanonce','scan_selected'],['autoscan','auto_scan_selected'],['approach','approach_current_target']]) {
+      $(id).setAttribute('aria-selected',String(name===routine));
+      $(id).disabled=(!actions && lastKnownActive) || Boolean(owner || activeToggle) && name!==routine;
+    }
+    set('autoscan',`Auto-scan ${routines.auto_scan_selected?.active===true?'ON':'OFF'}`);
+    const routine=routines[name] || {}, owned=owner===name || routine.active===true;
+    const phase=!actions ? 'Status unavailable' : owned ? (routine.phase || routine.state || 'Active') : startup?.phase!=='connected' ? 'Waiting for game' : control.enabled!==true ? 'Paused' : routine.ready===true ? 'Awaiting checks' : 'Not ready';
+    set('phasetext',short(phase));
+    $('phasedot').className=`dot ${routine.error || routine.state==='faulted' ? 'bad' : owned ? 'live' : 'warn'}`;
+    const instruction=!actions ? lastKnownActive ? 'Routine state unknown. Use Pause actions to request cancellation; verify cleanup when status returns.' : 'Wait for current routine status.' : owned ? (routine.waiting_for || routine.expected_next_step || routine.error) : startup?.phase!=='connected' || control.enabled!==true ? '' : routine.reason || (routine.ready===true ? 'Confirm the assessment below' : 'Waiting for current target and image');
+    const concise=short(instruction || '');
+    setOptional('instruction',concise && concise.toLowerCase()!==short(phase).toLowerCase() ? concise : '');
+    set('diagaction',`Selected ${label(name)} · phase ${routine.phase || 'none'} · processing ${routine.processing || 'none'} · waiting ${routine.waiting_for || 'none'} · next ${routine.expected_next_step || 'none'} · reason ${routine.reason || 'none'} · result ${pretty(routine.result)} · error ${routine.error || 'none'}`);
+    $('assessmenttray').hidden=owned;
+    $('scanchecks').hidden=name!=='scan_selected'; $('autochecks').hidden=name!=='auto_scan_selected'; $('approachchecks').hidden=name!=='approach_current_target';
+    $('previewbutton').hidden=name!=='approach_current_target';
+    const pointKnown=Array.isArray(context.wheel_point) && context.wheel_point.length===2 && context.wheel_point.every(value=>typeof value==='number' && Number.isFinite(value) && value>=0);
+    $('flightpoint').disabled=!context.token || !pointKnown;
+    const bound=assessments[name], expiry=bound || context;
+    const remaining=number(expiry?.expires_at)!==null && now!==null ? Math.max(0,expiry.expires_at-now) : null;
+    set('expiry',bound ? `Assessed image #${bound.observation_sequence ?? 'UNKNOWN'} · ${remaining===null?'expiry UNKNOWN':`expires ${remaining.toFixed(0)}s`}` : context.token ? `Fresh context · ${remaining===null?'expiry UNKNOWN':`expires ${remaining.toFixed(0)}s`}` : 'No fresh target context');
+    const noOther=Object.entries(routines).every(([other,row])=>other===name || row?.active!==true);
+    const checksPass=checks[name].every(id=>$(id).checked) && Boolean(bound && bound.context_key===nextKey && now!==null && now<bound.expires_at);
+    const ready=actions?.actual_mode==='manual' && actions?.mode_pending!==true && startup?.phase==='connected' && control.enabled===true && actions?.paused===false && routine.available===true && routine.ready===true && !owner && noOther && checksPass && (name!=='approach_current_target' || pointKnown) && !inFlight;
+    $('startbutton').disabled=!ready || owned;
+    set('startbutton',name==='auto_scan_selected'?'Enable auto-scan':name==='scan_selected'?'Scan once':'Start approach');
+    $('cancelbutton').disabled=!owned || ownership.state==='stopping' || inFlight;
+    set('cancelbutton',name==='auto_scan_selected'?'Stop auto-scan':name==='scan_selected'?'Cancel scan':'Cancel approach');
+    $('cancelbutton').title=owned ? `Stop ${label(name)}; available even while new starts are blocked` : actions ? 'No active routine' : 'Current routine ownership unverified; use Pause actions if status is unavailable';
+  }
+  function captureAssessment(name) {
+    const ids=checks[name];
+    if (!ids.some(id=>$(id).checked)) assessments[name]=null;
+    else if (!assessments[name]) {
+      const context=actions?.assessment_context, now=number(actions?.server_monotonic);
+      if (context?.token && context.context_key && number(context.expires_at)!==null && now!==null && now<context.expires_at) assessments[name]={token:context.token,context_key:context.context_key,expires_at:context.expires_at,observation_sequence:context.observation_sequence};
+      else for (const id of ids) $(id).checked=false;
+    }
+    renderLive();
+  }
+  function actionRequest(name,action) {
+    if (action!=='start') return {};
+    const token=assessments[name]?.token;
+    if (name==='approach_current_target') return {assessment_token:token,supervisor_assessment:{clear_corridor:$('clearcorridor').checked,aligned_heading:$('alignedheading').checked,safe_stopped_scene:$('safestopped').checked,flight_point:$('flightpoint').checked}};
+    return {assessment_token:token,supervisor_assessment:{safe_stopped_scene:$(name==='auto_scan_selected'?'autoscansafe':'scanselectedsafe').checked}};
+  }
+  async function requestAction(action) {
+    if (inFlight || !actions) return;
+    const ownership=actions.ownership || {}, routines=actions.routines || {};
+    const name=ownership.owner || (routines.auto_scan_selected?.active===true?'auto_scan_selected':selectedAction);
+    const request=actionRequest(name,action);
+    inFlight=true; renderLive();
+    try {
+      const response=await fetch('/api/manual-actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,routine:name,request})});
+      const decision=await response.json();
+      set('actionack',`${decision.accepted?'Accepted':'Rejected'} ${action} ${label(name)}: ${decision.reason || 'controller response'}`);
+      lastNotice=decision.accepted ? null : `Action rejected: ${short(decision.reason || 'controller response')}`;
+      if (decision.state) actions=decision.state;
+    } catch(error) { lastNotice=`Action request failed: ${short(error)}`; set('actionack',`Action request failed: ${error}`); }
+    finally { inFlight=false; renderLive(); }
+  }
+  async function requestStartup(action,extra={}) {
+    if (inFlight || (!startup && action!=='pause_manual_actions')) return;
+    const token=startup?.action_control?.acknowledgment_token;
+    inFlight=true; renderLive();
+    try {
+      const response=await fetch('/api/startup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...extra,...(action==='enable_manual_actions'?{acknowledgment_token:token}:{})})});
+      const decision=await response.json();
+      set('startupack',`${decision.accepted?'Accepted':'Rejected'} ${action.replaceAll('_',' ')}: ${decision.reason || 'controller response'}`);
+      lastNotice=decision.accepted ? null : `Control request rejected: ${short(decision.reason || 'controller response')}`;
+      if (decision.state) startup=decision.state;
+    } catch(error) { lastNotice=`Control request failed: ${short(error)}`; set('startupack',`Control request failed: ${error}`); }
+    finally { inFlight=false; renderLive(); }
+  }
+  function selectAction(name) { if (!actions?.ownership?.owner && actions?.routines?.auto_scan_selected?.active!==true) selectedAction=name; renderLive(); }
+  function showPreview() {
+    $('settings').open=true; $('settings').scrollIntoView({block:'nearest'});
+  }
+  function renderHistory(data) {
+    history=data;
+    const status=data.status || {}, execution=status.execution || {}, report=data.report || {}, result=status.result || report.result || {}, observation=status.observation || {};
+    const synthetic=data.manifest?.synthetic===true;
+    $('historicsynthetic').hidden=!synthetic;
+    set('historicstate',`${data.lifecycle || 'UNKNOWN'} · ${result.state || execution.phase || 'outcome UNKNOWN'}`);
+    set('historicphase',`${execution.phase || 'UNKNOWN'} · waiting ${execution.waiting_for || 'none reported'} · next ${execution.expected_next_step || 'none reported'}`);
+    const value=name=>{ const field=observation.fields?.[name]; return field?.valid && field?.fresh && field?.observed_in_current_image ? field.value : 'UNKNOWN'; };
+    set('historicmetrics',`Range ${value('distance')} m · speed ${value('speed')} m/s · hull ${value('hull_current')} / ${value('hull_max')} · target HP ${value('target_current_hp')} / ${value('target_max_hp')} · image #${observation.sequence ?? 'UNKNOWN'}`);
+    set('historicresult',`${result.reason || execution.reason || 'reason UNKNOWN'} · first ${execution.first_blocker || result.first_blocker || result.first_rejection?.read_error || 'none reported'}`);
+    const frames=status.frames || {}, trace=status.trace || {};
+    set('historiccoverage',`Frames ${frames.written ?? 'UNKNOWN'}/${frames.accepted ?? 'UNKNOWN'}, budget-skipped ${frames.budget_skipped ?? 'UNKNOWN'}, dropped ${frames.dropped ?? 'UNKNOWN'}, unwritten ${frames.unwritten ?? 'UNKNOWN'}, error ${frames.error ?? 'none'} · trace dropped ${trace.dropped ?? 'UNKNOWN'}, unwritten ${trace.unwritten ?? 'UNKNOWN'}, error ${trace.error ?? 'none'} · status write errors ${status.status_write_errors ?? 'UNKNOWN'} · diagnostics ${report.complete_diagnostics ?? 'UNKNOWN'}`);
+    set('historicevidence',`${compactIntent(execution.last_input_intent)} → ${compactDelivery(execution.last_input_delivery)} → ${compactEffect(execution.last_confirmed_effect)}`);
+    set('historicidentity',`${data.run || 'UNKNOWN'} · ${data.manifest?.code_revision || 'commit UNKNOWN'}`);
+    set('historicwarnings',pretty([...(execution.warnings || []),result.warning,result.firing_state_after_probe].filter(Boolean)));
+    renderImages();
+  }
+  function renderImages() {
+    $('images').hidden=!imagesVisible;
+    if (!imagesVisible || !history) { $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src'); return; }
+    const url=path=>`/api/image?run=${encodeURIComponent(history.run)}&path=${encodeURIComponent(path)}`;
+    if (history.latest_image) { $('currentimg').src=url(history.latest_image); set('currentpath',history.latest_image); } else { $('currentimg').removeAttribute('src'); set('currentpath','No retained frame'); }
+    if (history.first_failure?.image) { $('failureimg').src=url(history.first_failure.image); set('failurepath',history.first_failure.image); } else { $('failureimg').removeAttribute('src'); set('failurepath','No saved failure'); }
+    set('failurereasons',history.first_failure ? pretty({read_error:history.first_failure.read_error,fields:history.first_failure.field_reasons,recognition:history.first_failure.recognition_failures}) : null);
+    $('sidecar').hidden=!history.first_failure?.sidecar;
+    if (history.first_failure?.sidecar) $('sidecar').href=`/api/sidecar?run=${encodeURIComponent(history.run)}&path=${encodeURIComponent(history.first_failure.sidecar)}`;
+    else $('sidecar').removeAttribute('href');
+  }
+  function clearHistory(reason) {
+    history=null;
+    set('historicstate',`History unavailable: ${short(reason)}`);
+    for (const id of ['historicphase','historicmetrics','historicresult','historiccoverage','historicevidence','historicidentity','historicwarnings','currentpath','failurepath','failurereasons']) set(id,'UNKNOWN');
+    $('historicsynthetic').hidden=true;
+    $('images').hidden=true;
+    $('currentimg').removeAttribute('src'); $('failureimg').removeAttribute('src');
+    $('sidecar').hidden=true; $('sidecar').removeAttribute('href');
+  }
+  async function refreshHistory() {
+    if (!$('history').open) return;
+    try {
+      const runs=await (await fetch('/api/runs',{cache:'no-store'})).json();
+      const selector=$('runs'),previous=selector.value;
+      selector.replaceChildren(new Option('Latest automatically',''));
+      for (const run of runs.runs || []) selector.add(new Option(`${run.synthetic?'[SYNTHETIC] ':''}${run.name}`,run.name));
+      selector.value=previous || selectedRun;
+      if (selector.value!==previous && previous) selector.value='';
+      selectedRun=selector.value;
+      const response=await fetch(`/api/status${selectedRun?`?run=${encodeURIComponent(selectedRun)}`:''}`,{cache:'no-store'});
+      if (!response.ok) throw new Error(`history unavailable (${response.status})`);
+      renderHistory(await response.json());
+    } catch(error) { clearHistory(error); }
+  }
+  async function refreshLive() {
+    const boundedFetch=url=>{
+      const controller=new AbortController(); let timer;
+      const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('live status timeout'));},3000);});
+      const request=fetch(url,{cache:'no-store',signal:controller.signal}).then(response=>{
+        if (!response.ok) throw new Error(`live status ${response.status}`);
+        return response.json();
+      });
+      return Promise.race([request,timeout]).finally(()=>clearTimeout(timer));
+    };
+    let actionReceivedAt=null;
+    const responses=await Promise.allSettled([boundedFetch('/api/startup'),boundedFetch('/api/control-mode'),
+      boundedFetch('/api/manual-actions').then(value=>{actionReceivedAt=clientNow();return value;})]);
+    const values=responses.map(row=>row.status==='fulfilled' ? row.value : null);
+    [startup,mode,actions]=values;
+    if (actions) lastActionReceivedAt=actionReceivedAt;
+    statusFault=values.every(Boolean) ? null : 'Live status unavailable; current telemetry and routine state may be unknown';
+    if (!startup) startup={phase:'blocked',reason:'Startup status unavailable'};
+    renderLive();
+    if ($('history').open) await refreshHistory();
+    setTimeout(refreshLive,1000);
+  }
+  $('issuebutton').addEventListener('click',()=>{ $('diagnostics').open=true; $('diagnostics').scrollIntoView({block:'nearest'}); });
+  $('retrybutton').addEventListener('click',()=>requestStartup('retry_connection'));
+  $('powerbutton').addEventListener('click',()=>requestStartup(startup?.action_control?.enabled===true || lastKnownEnabled || lastKnownActive?'pause_manual_actions':'enable_manual_actions'));
+  $('scanonce').addEventListener('click',()=>selectAction('scan_selected'));
+  $('autoscan').addEventListener('click',()=>selectAction('auto_scan_selected'));
+  $('approach').addEventListener('click',()=>selectAction('approach_current_target'));
+  $('startbutton').addEventListener('click',()=>requestAction('start'));
+  $('cancelbutton').addEventListener('click',()=>requestAction('stop'));
+  for (const [name,ids] of Object.entries(checks)) for (const id of ids) $(id).addEventListener('change',()=>captureAssessment(name));
+  $('previewbutton').addEventListener('click',showPreview);
+  $('startupretry').addEventListener('click',()=>requestStartup('retry_connection'));
+  $('startupfocus').addEventListener('click',()=>requestStartup('set_focus_handover',{enabled:startup?.focus_handover?.enabled!==true}));
+  $('runs').addEventListener('change',event=>{ selectedRun=event.target.value; refreshHistory(); });
+  $('history').addEventListener('toggle',()=>{ if ($('history').open) refreshHistory(); });
+  $('privacy').addEventListener('click',()=>{ imagesVisible=!imagesVisible; set('privacy',imagesVisible?'Hide retained images':'Show retained images'); $('privacy').setAttribute('aria-pressed',String(imagesVisible)); renderImages(); });
+  $('actionartifactlink').addEventListener('click',async event=>{
+    const run=event.currentTarget.dataset.run;
+    if (!run) return;
+    $('history').open=true;
+    await refreshHistory();
+    if (!Array.from($('runs').options).some(option=>option.value===run)) { set('historicstate',`Saved run ${run} is not indexed yet`); return; }
+    selectedRun=run; $('runs').value=run; await refreshHistory();
+  });
+  for (const id of ['diagnostics','history','settings']) {
+    $(id).addEventListener('toggle',()=>{if($(id).open) for(const other of ['diagnostics','history','settings']) if(other!==id) $(other).open=false;});
+  }
+  refreshLive();
+  setInterval(renderLive,250);
+})();
+</script>
+<script>
+(() => {
+  let image=document.getElementById('livecapture');
+  const placeholder=document.getElementById('captureplaceholder');
+  const status=document.getElementById('capturestatus');
+  const detail=document.getElementById('capturedetail');
+  let metadata=null, receivedAt=null, pendingKey=null, displayedKey=null, failedKey=null;
+  const key=frame=>frame?.available && /^[a-f0-9]{32}$/.test(frame.identity || '') && Number.isSafeInteger(frame.version) && frame.version>0 ? `${frame.identity}/${frame.version}` : null;
+  const age=()=>typeof metadata?.age_seconds==='number' && Number.isFinite(metadata.age_seconds) && metadata.age_seconds>=0 ? Math.max(0,metadata.age_seconds+(performance.now()-receivedAt)/1000) : null;
+  function describe() {
+    const seconds=age(), fresh=metadata?.status==='current' && metadata?.fresh===true && metadata?.connected===true && seconds!==null && seconds<2;
+    const shown=displayedKey!==null && displayedKey===key(metadata);
+    status.textContent=!metadata?.available ? 'Waiting for capture' : !shown ? 'Loading capture' : fresh ? `CURRENT · ${seconds.toFixed(1)}s` : `LAST KNOWN · ${seconds===null?'age unknown':`${seconds.toFixed(1)}s old`}`;
+    status.className=`capturestatus${shown && fresh?' capturefresh':''}`;
+    image.classList.toggle('stalecapture',!fresh);
+    detail.textContent=!metadata?.available ? metadata?.reason?.replaceAll('_',' ') || 'No captured frame available' : `Frame #${metadata.acquisition_sequence ?? 'unknown'} · ${metadata.frame_size?.join(' × ') || 'size unknown'}${metadata.observation_healthy===false?' · HUD reading needs attention':''}${failedKey===key(metadata)?' · image unavailable; retrying':''}`;
+  }
+  async function refreshCapture() {
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),3000);
+    try {
+      const response=await fetch('/api/live-frame',{cache:'no-store',signal:controller.signal});
+      if(!response.ok) throw new Error(`Capture status ${response.status}`);
+      const frame=await response.json();
+      metadata=frame; receivedAt=performance.now();
+      const nextKey=key(frame);
+      if(!nextKey) {
+        image.hidden=true; placeholder.hidden=false; image.removeAttribute('src'); displayedKey=null; pendingKey=null;
+      } else if(displayedKey!==nextKey && pendingKey!==nextKey && frame.image_url===`/api/live-image?identity=${frame.identity}&version=${frame.version}`) {
+        image.hidden=true; placeholder.hidden=false; displayedKey=null; pendingKey=nextKey;
+        const loaded=new Image();
+        loaded.onload=()=>{
+          if(pendingKey!==nextKey || key(metadata)!==nextKey) return;
+          // Insert the already decoded image. Reassigning src on the old element
+          // would request the fenced, no-store URL a second time after rotation.
+          loaded.id='livecapture'; loaded.alt='Latest captured game window'; loaded.className=image.className; loaded.hidden=false;
+          image.replaceWith(loaded); image=loaded; placeholder.hidden=true; displayedKey=nextKey; pendingKey=null; failedKey=null; describe();
+        };
+        loaded.onerror=()=>{
+          if(pendingKey!==nextKey) return;
+          pendingKey=null; failedKey=nextKey; describe();
+        };
+        loaded.src=frame.image_url;
+      } else if(displayedKey!==nextKey) {
+        image.hidden=true; placeholder.hidden=false; displayedKey=null;
+      }
+      describe();
+    } catch(error) {
+      // A previously verified image may remain visible, but cannot be called current.
+      if(metadata) metadata={...metadata,status:'last_known',fresh:false,reason:String(error)};
+      else {status.textContent='Capture connection unavailable';detail.textContent='Waiting for the game image service';}
+      if(metadata) describe();
+    } finally {clearTimeout(timeout);setTimeout(refreshCapture,1000);}
+  }
+  refreshCapture();
+  setInterval(describe,250);
+})();
+
+</script>
+</body>
+</html>
