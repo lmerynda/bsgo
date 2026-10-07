@@ -216,6 +216,42 @@
       ],
       "file": "5-speed.png",
       "sha256": "b160c23ffa8cd66dd4c66e3611eda5c2b7aad3e772ee91ce9fc3edff7556d6ee"
+    },
+    {
+      "sample": 6,
+      "field": "hull",
+      "box": [
+        128,
+        88,
+        279,
+        106
+      ],
+      "file": "6-hull.png",
+      "sha256": "d6c4acb88be563e2c9d25a12ce2f9f5cace56ddec3a5d1bec84ea2b3f1d081ed"
+    },
+    {
+      "sample": 6,
+      "field": "energy",
+      "box": [
+        128,
+        112,
+        279,
+        130
+      ],
+      "file": "6-energy.png",
+      "sha256": "cb8b9764cd21fa55201310994c72f69d2f04c984a3441f2fc480f8ff9f886b00"
+    },
+    {
+      "sample": 6,
+      "field": "speed",
+      "box": [
+        1404,
+        1062,
+        1462,
+        1091
+      ],
+      "file": "6-speed.png",
+      "sha256": "dcce3cea0c2fae223f52e7e907ecc3deb421d2bf9e6786628ff580a603135056"
     }
   ]
 }

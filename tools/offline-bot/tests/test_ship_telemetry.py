@@ -38,7 +38,8 @@ class ShipTelemetryTests(unittest.TestCase):
                                 (1, (710, 5005, 728, 800, 33.0)),
                                 (3, (5005, 5005, 635, 800, 19.8)),
                                 (4, (5005, 5005, 586, 800, 17.6)),
-                                (5, (5005, 5005, 609, 800, 15.5))):
+                                (5, (5005, 5005, 609, 800, 15.5)),
+                                (6, (1580, 5005, 260, 800, 4.0))):
             result = self.reader.read(fixture(index))
             self.assertEqual(tuple(result[name] for name in
                 ('hull_current', 'hull_max', 'energy_current', 'energy_max', 'speed')), expected)
@@ -54,7 +55,7 @@ class ShipTelemetryTests(unittest.TestCase):
         import numpy as np
         calibration = json.loads((Path(__file__).resolve().parents[1] / 'bsgo_offline' /
                                   'ship-telemetry-calibration.json').read_text())
-        for variant in calibration['speed_one_variants']:
+        for variant in calibration['speed_one_variants'] + calibration['speed_digit_variants']:
             source = variant['source']
             with Image.open(ROOT/source['file']) as image:
                 rgb = np.asarray(image.convert('RGB'))
@@ -67,6 +68,9 @@ class ShipTelemetryTests(unittest.TestCase):
             image = fixture(index)
             ImageDraw.Draw(image).rectangle((1408,1062,1410,1067),fill='black')
             self.assertIsNone(self.reader.read(image)['speed'])
+        image = fixture(6)
+        ImageDraw.Draw(image).rectangle((1406,1062,1418,1067),fill='black')
+        self.assertIsNone(self.reader.read(image)['speed'])
 
     def test_erased_separator_and_complete_digit_do_not_become_smaller_values(self):
         for name, box, separator in [('hull',(128,88,279,106),(200,91,206,102)),

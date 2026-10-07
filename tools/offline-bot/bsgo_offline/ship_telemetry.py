@@ -16,6 +16,9 @@ class ShipTelemetryReader:
         self.one_variants = [(variant['top'], np.array(
             [[c == '1' for c in row] for row in variant['rows']], dtype=bool))
             for variant in calibration['speed_one_variants']]
+        self.digit_variants = [(variant['digit'], variant['top'], np.array(
+            [[c == '1' for c in row] for row in variant['rows']], dtype=bool))
+            for variant in calibration.get('speed_digit_variants', [])]
 
     def _number(self, glyphs):
         text, confidence = '', 1.
@@ -102,7 +105,8 @@ class ShipTelemetryReader:
             if reason:
                 result['reasons'][name] = reason
         speeds = [self.reader.speed(image, minimum_brightness=threshold, raster_error=.08,
-                                   one_variants=self.one_variants)[0]
+                                   one_variants=self.one_variants,
+                                   digit_variants=self.digit_variants)[0]
                   for threshold in (80, 100, 110, 120, 140, 160)]
         valid = [value for value in speeds if value is not None]
         if len(set(valid)) == 1 and len(valid) >= 2:
