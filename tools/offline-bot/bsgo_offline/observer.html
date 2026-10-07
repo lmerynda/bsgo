@@ -206,6 +206,10 @@
     if (calibrated!==null) return calibrated;
     const telemetry=liveField(current,'ship_telemetry');
     const value=telemetry?.display_only===true ? telemetry[name] : null;
+    if (name.startsWith('hull_') || name.startsWith('energy_')) {
+      const prefix=name.split('_')[0], currentValue=telemetry?.[`${prefix}_current`], maximum=telemetry?.[`${prefix}_max`];
+      if (![currentValue,maximum].every(value=>typeof value==='number' && Number.isFinite(value)) || currentValue<0 || maximum<=0 || currentValue>maximum) return null;
+    }
     return typeof value==='number' && Number.isFinite(value) && value>=0 ? value : null;
   }
   function semanticReason(name,value,fields) {
@@ -242,7 +246,14 @@
     const age=imageAge(current);
     set('imageage',age===null ? 'Image UNKNOWN' : `Image ${age.toFixed(1)}s${age>=2 ? ' · STALE' : ''}`);
     const fields=current?.fields || {};
-    const issues=Object.entries(fields).filter(([name,field]) => field?.valid!==true || field?.fresh!==true || field?.observed_at!==current.acquired_at || semanticReason(name,field?.value,fields));
+    const noAsteroid=liveField(current,'asteroid_selected')===false;
+    const issues=Object.entries(fields).filter(([name,field]) => {
+      if (noAsteroid && ['target_identity','target_portrait','target_max_hp','target_current_hp'].includes(name) && field.reason==='asteroid_title_not_verified') return false;
+      if (['speed','hull_current','hull_max'].includes(name) && displayField(current,name)!==null) return false;
+      return field?.valid!==true || field?.fresh!==true || field?.observed_at!==current.acquired_at || semanticReason(name,field?.value,fields);
+    });
+    const telemetry=liveField(current,'ship_telemetry');
+    if (telemetry?.display_only===true && displayField(current,'energy_current')===null) issues.push(['energy',telemetry.reasons?.energy || 'Energy unreadable']);
     set('issuebutton',!current ? 'Field issues UNKNOWN ›' : current.healthy===false ? 'Image rejected ›' : age===null || age>=2 ? 'Image stale ›' : `${issues.length} field issue${issues.length===1?'':'s'} ›`);
     $('issuebutton').className=issues.length || current?.healthy===false || (age!==null && age>=2) ? 'warn' : '';
     $('retrybutton').hidden=!(startup?.retry_available && startup?.phase!=='connected');

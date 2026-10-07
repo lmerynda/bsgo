@@ -27,13 +27,18 @@ eval(SCRIPT);
 const telemetry={profile:'native-ship-telemetry',display_only:true,speed:25.7,
  hull_current:4684,hull_max:5005,energy_current:671,energy_max:800};
 const field={value:telemetry,valid:true,fresh:true,observed_at:1};
-const current={healthy:true,age_seconds:.2,acquired_at:1,fields:{ship_telemetry:field}};
+const unreadable={valid:false,fresh:true,observed_at:1,reason:'calibrated_font_rejected'};
+const absent={...unreadable,reason:'asteroid_title_not_verified'};
+const current={healthy:true,age_seconds:.2,acquired_at:1,fields:{ship_telemetry:field,
+ speed:unreadable,hull_current:unreadable,hull_max:unreadable,
+ asteroid_selected:{value:false,valid:true,fresh:true,observed_at:1},
+ target_identity:absent,target_portrait:absent,target_max_hp:absent,target_current_hp:absent}};
 const startup={phase:'connected',game:{},action_control:{enabled:false}};
 function render(row){show(startup,{actual_mode:'manual'},{current_observation:row,
  ownership:{owner:null,state:'idle'},routines:{}});return {
  speed:elements.speed.textContent,hull:elements.hullvalue.textContent,
  energy:elements.energyvalue.textContent,hp:elements.hpvalue.textContent,
- startDisabled:elements.startbutton.disabled};}
+ issues:elements.issuebutton.textContent,startDisabled:elements.startbutton.disabled};}
 const live=render(current);
 const stale=render({...current,age_seconds:3});
 const wrongFrame=render({...current,fields:{ship_telemetry:{...field,observed_at:2}}});
@@ -52,6 +57,7 @@ console.log(JSON.stringify({live,stale,wrongFrame,invalid,malformed}));
         self.assertEqual(values['live']['energy'],'671 / 800')
         self.assertEqual(values['live']['hp'],'UNKNOWN')
         self.assertTrue(values['live']['startDisabled'])
+        self.assertIn('0 field issues',values['live']['issues'])
         for name in ('stale','wrongFrame','invalid'):
             for field in ('speed','hull','energy'):
                 self.assertEqual(values[name][field],'UNKNOWN')
