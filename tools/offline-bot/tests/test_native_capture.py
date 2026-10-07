@@ -121,6 +121,40 @@ class NativeCaptureTests(unittest.TestCase):
             with self.assertRaisesRegex(native.NativeCaptureError, "layout"):
                 self.create(Backend(), layout=layout)
 
+    def test_window_backend_is_read_only_and_preserves_production_time(self):
+        backend = Backend()
+        backend.foreground = 99
+        backend.ensure_unoccluded = lambda geometry: self.fail("Desktop occlusion guard must not reject exact window pixels")
+        with self.assertRaisesRegex(native.NativeCaptureError, "read-only"):
+            self.create(backend, background_window=True)
+        capture = self.create(backend, require_foreground=False, background_window=True)
+        from unittest.mock import Mock
+        window = Mock()
+        window.capture.return_value = (bytes([255, 0, 0, 0, 255, 0]), 12.)
+        with patch("bsgo_offline.window_capture.WindowCapture", return_value=window):
+            frame = capture.capture()
+        self.assertEqual(frame.source_id, "native-window-graphics-capture")
+        self.assertEqual(frame.frame_produced_at, 12.)
+        self.assertEqual(frame.acquired_at, 12.)
+        self.assertEqual(backend.captures, 0)
+        capture.close()
+        window.close.assert_called_once()
+
+    def test_window_backend_geometry_change_discards_pixels_and_closes_worker(self):
+        from unittest.mock import Mock
+        backend = Backend()
+        capture = self.create(backend, require_foreground=False, background_window=True)
+        window = Mock()
+        def changed():
+            backend.geometry = replace(GEOMETRY, screen_origin=(101, 200))
+            return bytes([255, 0, 0, 0, 255, 0]), 12.
+        window.capture.side_effect = changed
+        with patch("bsgo_offline.window_capture.WindowCapture", return_value=window):
+            with self.assertRaisesRegex(native.NativeCaptureError, "geometry changed"):
+                capture.capture()
+        self.assertEqual(capture._sequence, 0)
+        window.close.assert_called_once()
+
     def test_loss_of_foreground_invalidates_before_reading_pixels(self):
         backend = Backend()
         capture = self.create(backend)

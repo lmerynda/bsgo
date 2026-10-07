@@ -1,9 +1,10 @@
-"""Windows visible-client capture, intended for a harmless test receiver first.
+"""Windows client capture with separate observation and action backends.
 
 This GDI backend copies pixels presently visible on the desktop. Foreground
 checks reduce accidental capture of another application but cannot detect every
 always-on-top overlay, compositor race, occlusion, or unsupported GPU surface.
-It is not a background-window or game-capture guarantee.
+Read-only observers may explicitly use exact-HWND Windows Graphics Capture.
+The visible-client GDI backend and its occlusion guards remain the action default.
 """
 from __future__ import annotations
 
@@ -272,18 +273,24 @@ class NativeCapture:
     Moving, resizing, losing foreground, becoming minimized, or changing process
     identity requires constructing a new NativeCapture after inspecting the target.
     No focus stealing, window selection, background retries, or automatic rebinding.
+    Explicit background_window capture is read-only and tolerates desktop overlays;
+    its source frame time, process identity, and client geometry remain guarded.
     """
 
     def __init__(self, hwnd: int, pid: int, *, require_foreground: bool = True,
-                 layout: str = "native-client-rgb") -> None:
+                 layout: str = "native-client-rgb", background_window: bool = False) -> None:
         if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
             raise NativeCaptureError("A positive explicit process ID is required")
         if not isinstance(layout, str) or not layout.strip() or len(layout) > 128:
             raise NativeCaptureError("An explicit nonempty layout name of at most 128 characters is required")
+        if background_window and require_foreground:
+            raise NativeCaptureError("Background window capture is restricted to read-only observation")
         self._api = _get_api()
         with self._api.dpi_context():
             self.geometry = self._api.inspect_window(hwnd, pid)
         self.require_foreground = require_foreground
+        self.background_window = background_window
+        self._window_capture = None
         self.layout = layout
         self._sequence = 0
         self._epoch = next(_SESSION_EPOCHS)
@@ -301,17 +308,30 @@ class NativeCapture:
                 with self._api.dpi_context():
                     geometry = self._guard()
                     acquired_at = time.monotonic()
-                    pixels = self._api.capture_rgb(geometry)
+                    produced_at = None
+                    if self.background_window:
+                        if self._window_capture is None:
+                            from .window_capture import WindowCapture
+                            self._window_capture = WindowCapture(geometry)
+                        pixels, produced_at = self._window_capture.capture()
+                    else:
+                        pixels = self._api.capture_rgb(geometry)
                     self._guard()
                 width, height = geometry.client_size
                 self._sequence += 1
                 return NativeFrame(self._sequence, self._epoch, self.layout,
-                                   acquired_at, width, height, pixels, geometry,
+                                   produced_at if produced_at is not None else acquired_at,
+                                   width, height, pixels, geometry,
+                                   source_id=("native-window-graphics-capture" if self.background_window
+                                              else "native-visible-client"),
                                    capture_started_at=acquired_at,
-                                   capture_completed_at=time.monotonic())
+                                   capture_completed_at=time.monotonic(),
+                                   frame_produced_at=produced_at)
             except Exception as exc:
                 self._invalid_reason = str(exc)
                 self._epoch += 1
+                if self._window_capture is not None:
+                    self._window_capture.close()
                 raise
 
     def _guard(self) -> WindowGeometry:
@@ -320,12 +340,15 @@ class NativeCapture:
             raise NativeCaptureError("Target client geometry changed; capture session invalidated")
         if self.require_foreground and self._api.foreground_hwnd() != self.geometry.hwnd:
             raise NativeCaptureError("Target window is not foreground")
-        self._api.ensure_unoccluded(geometry)
+        if not self.background_window:
+            self._api.ensure_unoccluded(geometry)
         return geometry
 
     def close(self) -> None:
         with self._lock:
             self._closed = True
+            if self._window_capture is not None:
+                self._window_capture.close()
 
 
 class NativeSource:
