@@ -16,13 +16,12 @@ from .manual_assist_session import (native_binding,run_manual_assist_session,
     SelectionEvidenceRecognizer)
 from .manual_routines import GuardedManualRoutines
 from .observer_ui import UnattachedManualActions,make_server
+from .startup_layout import PROFILE,StartupLayout
 
 
 PROTOCOL="bsgo-manual-assist-launcher-v1"
 SERVICE_KIND="manual_assist_launcher"
 GAME_TITLE="Battlestar Galactica Online"
-PROFILE="largehud-20261003"
-SIZE=(2560,1440)
 FLIGHT_DESCRIPTION="upper-center flight view; inspect for overlays"
 
 
@@ -98,11 +97,16 @@ class EasyLauncher:
 
     def action_control_snapshot(self):
         controller=self._current_controller()
-        return controller.action_control_snapshot() if controller else {
+        state=controller.action_control_snapshot() if controller else {
             "enabled":False,"paused":True,"pause_reason":"game_connection_not_attached",
             "global_pause_present":self.pause_file.exists(),"pause_fingerprint":None,
             "acknowledgment_token":None,"acknowledgment_required":True,
             "resume_starts_routine":False,"legacy_pause_file_preserved":True}
+        with self._lock:
+            layout=self._game.get("startup_layout") if self._game else None
+        if layout and not layout["control_supported"]:
+            state={**state,"enabled":False,"paused":True,"pause_reason":layout["control_reason"]}
+        return state
 
     def startup_snapshot(self):
         with self._lock:
@@ -131,9 +135,19 @@ class EasyLauncher:
     def actions_snapshot(self):
         controller=self._current_controller()
         state=controller.actions_snapshot() if controller else self._unattached.actions_snapshot()
+        with self._lock:
+            layout=self._game.get("startup_layout") if self._game else None
+        if layout and not layout["control_supported"]:
+            state={**state,"paused":True,"pause_reason":layout["control_reason"],"assessment_context":None,
+                "routines":{name:{**item,"ready":False,"start_allowed":False,"reason":layout["control_reason"]}
+                            for name,item in state.get("routines",{}).items()}}
         return {**state,"action_control":self.action_control_snapshot()}
 
     def start_action(self,name,request=None):
+        with self._lock:
+            layout=self._game.get("startup_layout") if self._game else None
+        if layout and not layout["control_supported"]:
+            return {"accepted":False,"reason":layout["control_reason"],"state":self.actions_snapshot()}
         controller=self._current_controller()
         if not controller:
             return {"accepted":False,"reason":"game_connection_not_attached","state":self.actions_snapshot()}
@@ -146,6 +160,10 @@ class EasyLauncher:
         return controller.stop_action(name)
 
     def resume_actions(self,*,acknowledgment_token=None):
+        with self._lock:
+            layout=self._game.get("startup_layout") if self._game else None
+        if layout and not layout["control_supported"]:
+            return {"accepted":False,"reason":layout["control_reason"],"state":self.startup_snapshot()}
         controller=self._current_controller()
         if not controller:
             return {"accepted":False,"reason":"game_connection_not_attached","state":self.startup_snapshot()}
@@ -196,8 +214,9 @@ class EasyLauncher:
             candidate=candidates[0]
             if isinstance(candidate,dict):
                 raise ValueError("Game window is unavailable: "+candidate.get("reason","unknown_window_state")+". Restore it, then Retry connection.")
-            if candidate.title!=GAME_TITLE or candidate.client_size!=SIZE:
-                raise ValueError("Game layout unsupported. Use a2560x1440 game client with the enlarged HUD, then Retry connection.")
+            if candidate.title!=GAME_TITLE:
+                raise ValueError("Unexpected game window title. Retry connection.")
+            layout=StartupLayout(candidate.client_size)
             geometry,source,recognizer,dispatcher,ready,handover=self.binding(
                 candidate.hwnd,candidate.pid,PROFILE,allow_focus_handover=True)
             if geometry!=candidate:
@@ -214,6 +233,7 @@ class EasyLauncher:
                 "foreground_required_for_input":True,"minimum_key_hold_seconds":.05,
                 "wheel_point":wheel_point,"flight_point_assessed":False,
                 "flight_point_description":FLIGHT_DESCRIPTION,"focus_handover_enabled":False}
+            configuration["startup_layout"]=layout.metadata()
             reader=SelectionEvidenceRecognizer(recognizer(),marker_reader=_marker_reader)
             runner=GuardedManualRoutines(source_factory=source,recognizer_factory=recognizer,
                 dispatcher_factory=dispatcher,profile=PROFILE,window_id=f"{geometry.pid}:{geometry.hwnd}",
@@ -224,8 +244,14 @@ class EasyLauncher:
                 with self._lock:
                     self._controller=controller
                     self._game={**plain(geometry),"connection_id":connection_id,"output":str(output),
-                        "cancel_file":str(cancel),"profile":PROFILE}
-                    self._phase,self._reason="connected","Manual observation connected. Enable actions explicitly when ready."
+                        "cancel_file":str(cancel),"profile":PROFILE,"startup_layout":layout.metadata()}
+                    self._phase="connected"
+                    self._reason=("Manual observation connected. Enable actions explicitly when ready."
+                        if layout.control_supported else
+                        f"Detected {geometry.client_size[0]}x{geometry.client_size[1]} client. "
+                        + ("Experimental scaled observation; actions unavailable until this layout is validated."
+                           if layout.mode=="normalized" else
+                           "Capture connected; HUD aspect ratio unsupported and actions unavailable."))
                     if self._closed:
                         cancel.write_text("launcher closed",encoding="utf-8")
             with self._lock:

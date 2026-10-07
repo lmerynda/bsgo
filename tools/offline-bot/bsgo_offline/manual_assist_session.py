@@ -211,12 +211,13 @@ def native_binding(hwnd, pid, profile, *, allow_focus_handover=False):
     """Create explicit guarded factories. Calling this requires a real window."""
     from .native_capture import NativeCapture, NativeSource, inspect_window, _get_api
     from .native_input import NativeInputDispatcher
-    from .mining_recognition import MiningHudRecognizer
+    from .startup_layout import StartupLayout, StartupHudRecognizer
     geometry = inspect_window(hwnd, expected_pid=pid)
     if geometry.title != "Battlestar Galactica Online":
         raise ValueError("unexpected_game_window_title")
-    if geometry.client_size != (2560,1440) or profile != "largehud-20261003":
-        raise ValueError("manual_assist_requires_validated_native_large_hud")
+    if profile != "largehud-20261003":
+        raise ValueError("manual_assist_requires_explicit_large_hud_profile")
+    layout = StartupLayout(geometry.client_size)
     api = _get_api()
     def focus(window):
         import ctypes
@@ -226,6 +227,8 @@ def native_binding(hwnd, pid, profile, *, allow_focus_handover=False):
     handover = ExactWindowHandover(geometry,inspect=lambda h,p:inspect_window(h,expected_pid=p),
         foreground=api.foreground_hwnd,focus=focus,unoccluded=api.ensure_unoccluded)
     def source(interval, *, action=True):
+        if action and not layout.control_supported:
+            raise ValueError(layout.control_reason)
         if inspect_window(hwnd,expected_pid=pid) != geometry:
             raise ValueError("pinned_game_window_changed")
         capture = NativeCapture(hwnd,pid,layout=profile,require_foreground=action)
@@ -234,11 +237,14 @@ def native_binding(hwnd, pid, profile, *, allow_focus_handover=False):
             raise ValueError("pinned_game_window_changed")
         return NativeSource(capture,interval)
     def dispatcher(backend,journal):
+        if not layout.control_supported:
+            raise ValueError(layout.control_reason)
         return NativeInputDispatcher(backend,hwnd,pid,expected_size=geometry.client_size,
             expected_origin=geometry.screen_origin,journal=journal,keyboard_mode="virtual_key",
             minimum_key_hold_seconds=.05,minimum_mouse_hold_seconds=.05,minimum_mouse_settle_seconds=.05)
-    return (geometry,source,lambda:MiningHudRecognizer(profile),dispatcher,handover.ready,
-            handover if allow_focus_handover else None)
+    return (geometry,source,lambda:StartupHudRecognizer(geometry.client_size,profile=profile),dispatcher,
+            handover.ready if layout.control_supported else lambda:layout.control_reason,
+            handover if allow_focus_handover and layout.control_supported else None)
 
 
 def main():
@@ -258,14 +264,16 @@ def main():
     args=parser.parse_args()
     if args.hwnd <= 0 or args.pid <= 0 or not 0 <= args.port <= 65535:
         parser.error("positive HWND/PID and port0..65535 required")
-    if not 0 <= args.wheel_x < 2560 or not 0 <= args.wheel_y < 1440:
-        parser.error("wheel point must be inside the configured native game client")
+    if args.wheel_x < 0 or args.wheel_y < 0:
+        parser.error("wheel point coordinates must be nonnegative")
     if args.pause_file.resolve() == args.cancel_file.resolve():
         parser.error("session cancellation and persistent mining pause must use separate files")
     from .observer_ui import make_server
     from .selected_scan_vision import locate_selected_marker,classify_selected_marker
     geometry,source,recognizer,dispatcher,ready,handover=native_binding(args.hwnd,args.pid,args.profile,
         allow_focus_handover=args.allow_action_focus_handover)
+    if not args.wheel_x < geometry.client_size[0] or not args.wheel_y < geometry.client_size[1]:
+        parser.error("wheel point must be inside the discovered native game client")
     def marker_reader(sample,result):
         selected=result.fields.get("asteroid_selected")
         if not selected or not selected.valid or selected.value is not True:
@@ -283,6 +291,8 @@ def main():
         "focus_handover_enabled":args.allow_action_focus_handover,
         "flight_point_assessed":args.flight_point_assessed,
         "wheel_point":[args.wheel_x,args.wheel_y]}
+    from .startup_layout import StartupLayout
+    configuration["startup_layout"]=StartupLayout(geometry.client_size).metadata()
     runner=GuardedManualRoutines(source_factory=source,recognizer_factory=recognizer,
         dispatcher_factory=dispatcher,profile=args.profile,window_id=f"{args.pid}:{args.hwnd}",
         frame_size=geometry.client_size,configuration=configuration,wheel_point=(args.wheel_x,args.wheel_y),

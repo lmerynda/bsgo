@@ -1525,3 +1525,41 @@ arguments, working directory and minimized/hidden launch configuration. The
 desktop link was created successfully; no gameplay or routine input was issued
 for this installation. The repository-root `Mining Dashboard.cmd` remains an
 alternative entry point.
+
+### Dynamic startup dimensions, October 7, 2026
+
+The normal dashboard now configures capture from the physical client rectangle
+already returned by read-only window discovery, rather than rejecting every
+size except 2560x1440. `StartupLayout` records the native client size, calibrated
+reader size, scale, observation mode and control support. Each startup/Retry
+recomputes it, pins the discovered process/window/origin, and derives the native
+flight point from that geometry. Advanced Manual-session point validation also
+uses the discovered client bounds.
+
+Native 2560x1440 retains the current enlarged-HUD reader and guarded controls.
+Other 16:9 sizes use a separate BOX-normalized image for experimental observation;
+original captured bytes and snapshot geometry remain native. Unrecognized aspect
+ratios retain capture but publish unknown HUD readings. Window dimensions do not
+identify a HUD-scale setting, so profile selection remains explicit.
+
+At unvalidated sizes, launcher Enable/Start requests, action capture factories,
+dispatcher construction and focus handover are blocked. The cockpit shows the
+detected dimensions and observation-only status, with Enable disabled. Runtime
+geometry changes still invalidate capture; a fresh Retry is required.
+
+Mocked startup/binding tests cover 1920x1080, 3200x1800, 3840x2160, unsupported
+aspect ratios, changed geometry and reconnection. Saved-crop and generated
+derivative tests check reader transport, rejection and original provenance;
+generated resizing is not native OCR accuracy evidence. The existing 2560x1440
+readings and input timing/focus guards passed their focused regressions.
+No game capture or input was performed for this change. New-size native OCR
+and control acceptance remain pending. Collaborative preview attachment failed;
+the cockpit changes have JavaScript rendering regression coverage rather than
+a new live-browser screenshot.
+
+All 60 initial startup/session/large-HUD focused tests and the final 607-test
+offline suite passed, including the cockpit dimension/read-only rendering check.
+The full result is local at
+`logs/offline-bot/dynamic-startup-20261007/full-tests.txt`. Restart the dashboard
+server to load this startup behavior; reloading an already running server's page
+updates only its HTML.

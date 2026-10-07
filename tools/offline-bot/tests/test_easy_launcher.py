@@ -32,7 +32,7 @@ class EasyLauncherTests(unittest.TestCase):
 
     def test_missing_ambiguous_and_unsupported_game_are_visible_retryable_without_binding(self):
         for candidates,message in (([],"No visible game"),([GAME,GAME],"Multiple game"),
-                ([WindowGeometry(17,42,GAME_TITLE,(1920,1080),(0,0))],"layout unsupported"),
+                ([WindowGeometry(17,42,"Another game",(1920,1080),(0,0))],"Unexpected game window title"),
                 ([GAME,WindowGeometry(18,43,GAME_TITLE,(1920,1080),(0,0))],"Multiple game")):
             with self.subTest(message=message),scratch_directory() as directory:
                 binding=Mock(side_effect=AssertionError("must not bind"))
@@ -44,6 +44,57 @@ class EasyLauncherTests(unittest.TestCase):
                 self.assertTrue(state["retry_available"])
                 binding.assert_not_called()
                 self.assertTrue(launcher.close())
+
+    def test_detected_dimensions_configure_observation_and_block_uncalibrated_actions(self):
+        for size in ((1920,1080),(3840,2160),(1920,1200)):
+            with self.subTest(size=size),scratch_directory() as directory:
+                game=WindowGeometry(17,42,GAME_TITLE,size,(20,30))
+                runner=Mock(side_effect=AssertionError("must not run an action"))
+                resume=Mock(side_effect=AssertionError("must not enable uncalibrated input"))
+                configs=[]
+                def session(output,**args):
+                    configs.append(args["configuration"])
+                    controller=ManualAssistController(output,snapshot_provider=snapshot,runner=runner,paused=True)
+                    controller.resume_actions=resume
+                    args["on_ready"](controller,None)
+                    controller.close()
+                    return {"shutdown":dict.fromkeys(("recognition","source","manual_actions","observer_server"),True),"error":None}
+                launcher=self.create(directory,discover=lambda:[game],
+                    binding=lambda *args,**kw:(game,Mock(),lambda:Mock(),Mock(),Mock(),None),session_runner=session)
+                launcher.retry_connection()
+                state=wait_done(launcher)
+                self.assertEqual(state["game"]["client_size"],list(size))
+                self.assertEqual(configs[0]["wheel_point"],(size[0]//2,size[1]//3))
+                self.assertFalse(state["game"]["startup_layout"]["control_supported"])
+                self.assertFalse(launcher.resume_actions()["accepted"])
+                self.assertFalse(launcher.start_action("scan_selected")["accepted"])
+                self.assertIsNone(launcher.actions_snapshot()["assessment_context"])
+                resume.assert_not_called()
+                runner.assert_not_called()
+                self.assertTrue(launcher.close())
+
+    def test_retry_discovers_a_new_size_instead_of_reusing_previous_layout(self):
+        with scratch_directory() as directory:
+            game=[GAME]
+            configurations=[]
+            def session(output,**args):
+                configurations.append(args["configuration"])
+                controller=ManualAssistController(output,snapshot_provider=snapshot,paused=True)
+                args["on_ready"](controller,None)
+                controller.close()
+                return {"shutdown":dict.fromkeys(("recognition","source","manual_actions","observer_server"),True),"error":"window_resized"}
+            launcher=self.create(directory,discover=lambda:game,
+                binding=lambda *args,**kw:(game[0],Mock(),lambda:Mock(),Mock(),Mock(),None),session_runner=session)
+            launcher.retry_connection()
+            first=wait_done(launcher)
+            game[0]=WindowGeometry(17,42,GAME_TITLE,(3840,2160),(20,30))
+            launcher.retry_connection()
+            second=wait_done(launcher)
+            self.assertEqual(configurations[1]["client_size"],(3840,2160))
+            self.assertEqual(second["game"]["startup_layout"]["mode"],"normalized")
+            self.assertNotEqual(first["game"]["connection_id"],second["game"]["connection_id"])
+            self.assertFalse(second["action_control"]["enabled"])
+            self.assertTrue(launcher.close())
 
     def test_attach_is_paused_unassessed_and_does_not_activate_game(self):
         with scratch_directory() as directory:

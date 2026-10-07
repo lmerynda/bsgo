@@ -177,7 +177,7 @@
 
   function connectionMessage(state) {
     const reason=String(state?.reason || '').toLowerCase();
-    if (state?.phase==='connected') return ['Game attached',null];
+    if (state?.phase==='connected') return ['Game attached',state?.game?.startup_layout?.mode==='normalized' ? 'Scaled observation only' : state?.game?.startup_layout?.mode==='unsupported_aspect_ratio' ? 'HUD aspect ratio unsupported' : null];
     if (state?.phase==='connecting') return ['Checking game','Read-only connection check'];
     if (state?.phase==='waiting_for_game' || reason.includes('no visible game')) return ['Waiting for game','Open or restore the game'];
     if (reason.includes('multiple') || reason.includes('ambiguous')) return ['Multiple game windows','Keep one game window open'];
@@ -215,7 +215,8 @@
     const [connection,cause]=connectionMessage(startup);
     set('connectionlabel',connection); set('connectioncause',cause); $('connectioncause').hidden=!cause;
     set('startupstate',connection);
-    set('startupdetail',startup?.phase==='connected' ? (game.observation_healthy===true ? 'Window attached; fresh image reading available' : `Window attached; image ${short(game.observation_reason || 'not yet verified')}`) : cause || 'Waiting for a game window');
+    const dimensions=Array.isArray(game.client_size) ? `${game.client_size[0]} × ${game.client_size[1]} · ` : '';
+    set('startupdetail',startup?.phase==='connected' ? dimensions+(game.observation_healthy===true ? 'Window attached; fresh image reading available' : `Window attached; image ${short(game.observation_reason || 'not yet verified')}`) : cause || 'Waiting for a game window');
     set('startuppausereason',control.enabled===true ? 'Manual actions enabled for this session' : `Manual actions paused · ${short(control.pause_reason || 'not enabled')}`);
     setOptional('startupacknotice',lastNotice);
     $('startupretry').disabled=inFlight || startup?.retry_available!==true;
@@ -242,8 +243,8 @@
     set('inputowner',owner ? `${label(owner)} · ${ownership.state || 'active'}` : startup?.phase==='connected' && actions?.ownership && ownership.owner===null ? 'Human' : 'UNKNOWN');
     const power=control.enabled===true, uncertainPause=!actions && (lastKnownActive || lastKnownEnabled);
     const pauseChoice=power || uncertainPause || Boolean(lastKnownActive && control.enabled!==true);
-    set('powerbutton',pauseChoice ? uncertainPause ? 'Pause actions · status unknown' : 'Pause actions' : 'Enable actions');
-    $('powerbutton').disabled=inFlight || (!pauseChoice && (startup?.phase!=='connected' || !control.acknowledgment_token));
+    set('powerbutton',pauseChoice ? uncertainPause ? 'Pause actions · status unknown' : 'Pause actions' : game.startup_layout?.control_supported===false ? 'Observation only' : 'Enable actions');
+    $('powerbutton').disabled=inFlight || (!pauseChoice && (startup?.phase!=='connected' || !control.acknowledgment_token || game.startup_layout?.control_supported===false));
     $('powerbutton').title=pauseChoice ? 'Request Manual action pause; current routine state may be unavailable' : control.pause_reason || 'Acknowledge the current pause for this session';
 
     const identity=liveField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));

@@ -494,11 +494,28 @@ or gameplay safety. [Recorded offline results](../../docs/architecture/offline-b
 
 For normal use on Windows, double-click [Mining Dashboard.cmd](../../Mining%20Dashboard.cmd)
 at the project root. The launcher opens the localhost dashboard, looks for a
-single visible game window, and attaches passive image observation only after
-checking the 2560 × 1440 enlarged-HUD layout. It starts with **Manual actions
-paused**. If the game is missing, duplicated, or in an unsupported layout, the
+single visible game window, reads its physical client dimensions and screen
+origin, and configures capture for that detected size. It starts with **Manual actions
+paused**. If the game is missing, duplicated, or unavailable, the
 connection card explains the issue and offers **Retry game connection**.
 Opening the dashboard or retrying never focuses the game or sends an input.
+
+Startup and Retry discover dimensions afresh. At the calibrated 2560 × 1440
+size, the enlarged-HUD reader uses native pixels. Other 16:9 dimensions, including
+1920 × 1080 and 3840 × 2160, automatically normalize a separate recognition image
+to the calibrated size using BOX resampling. Original frames, source hashes,
+observation identities and input coordinates retain the detected native size.
+The flight point is derived from that size rather than a fixed screen location.
+
+Other dimensions currently provide **observation only**: Enable, routine Start,
+focus handover and native input creation are blocked until their HUD accuracy is
+validated. Scaling is experimental and does not discover the game's HUD-scale
+setting; the explicit enlarged-HUD profile is still required. A different aspect
+ratio connects capture but keeps HUD fields unknown instead of stretching them.
+The cockpit shows dimensions and the observation-only reason; `/api/startup` and
+`/api/observation` include `game.startup_layout` metadata. A runtime move or resize
+still invalidates the pinned session. Retry creates a fresh session and re-reads
+the current size; it does not reuse old scene assessments or enable actions.
 
 The desktop shortcut **BSGO Mining Control** opens the same launcher with a
 hidden shell and automatically finds or reuses this workspace's dashboard URL.
