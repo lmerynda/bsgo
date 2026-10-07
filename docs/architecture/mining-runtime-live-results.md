@@ -1646,3 +1646,53 @@ Prospective map-selection/HUD pairs are the next native acceptance evidence.
 
 The full 626-test offline suite passed with zero failures or errors; the local
 result is `logs/offline-bot/map-discovery-20261007/full-tests.txt`.
+
+## Live ship instruments and separate cockpit preview, October 7
+
+The running game was attached by exact HWND/PID at physical client size
+2560 × 1440 and origin 3840,0. The old observer had terminated after a desktop
+obstruction; fresh GDI captures also rejected dim own-hull text and speed font
+variants, and no own-energy reader existed.
+
+Passive observation now captures the exact game surface through Windows
+Graphics Capture. Three native frames had approximately 16 ms source age.
+A brief owned, non-activating white overlay covered the upper-left HUD: the
+desktop capture contained the white overlay and rejected the obstruction,
+while the new window capture retained actual game pixels. The foreground
+window did not change; the overlay and owned worker were removed. A separate
+launcher-crash check observed its capture worker exit within 700 ms.
+Foreground/action capture and native input guards remain separate.
+
+`ship_telemetry.py` reads complete translucent own-hull/energy ratios and
+measured native speed glyphs across brightness thresholds. Its fresh display
+field does not replace the calibrated fields used for action authorization.
+Twenty-one HUD-only crops cover six manually labeled flight samples and one
+station sample with absent instruments. Flight labels include HP 4684/5005,
+710/5005, 5005/5005 and 1580/5005; energy 671/800, 728/800, 635/800,
+586/800, 609/800 and 260/800; speeds 25.7, 33.0, 19.8, 17.6, 15.5 and 4.0.
+Complete narrow-one and short-four glyphs have source-linked measured rasters.
+Damaged separators, removed digits, clipped speed glyphs, stale observations
+and non-native layouts remain unknown. This is development evidence, not a
+general accuracy estimate or full mining-control acceptance.
+
+Live HTTP observations and the rendered current dashboard agreed on
+HP 5005/5005, energy 800/800 and speed 33 m/s. Later passive observations read
+changing hull, energy and speeds down to zero during the user's own flight.
+No scan, navigation, firing or other game input was requested by this repair;
+the attached controller remained paused with no input owner.
+
+The latest image service retains one immutable native frame and one encoded
+copy in memory, independently of historical diagnostic retention. Identity
+and version fences prevent a request for one frame returning another frame;
+original source times keep stale or disconnected images explicitly aged.
+
+The desktop cockpit is intentionally a separate read-only design preview at
+`http://127.0.0.1:8874/`, while the current app remains at port 8765. It displays
+the real latest game image above own-ship instruments and uses the remaining
+width for target instruments and manual controls. Rendered checks at
+1920 × 1080 and 1280 × 800 showed no document scroll with primary controls
+visible; the 390-pixel fallback showed no horizontal overflow. The preview
+rejects every write and cannot start an action. Its seven focused checks and
+the 30 combined capture/view/ship-display checks passed. Source, pixel hashes
+and labels are committed; full game captures, chat and generated runtime
+artifacts remain local under `logs/offline-bot/cockpit-repair-20261007/`.

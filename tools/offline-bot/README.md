@@ -500,6 +500,37 @@ paused**. If the game is missing, duplicated, or unavailable, the
 connection card explains the issue and offers **Retry game connection**.
 Opening the dashboard or retrying never focuses the game or sends an input.
 
+Passive observation now uses exact-HWND Windows Graphics Capture, with the
+Windows packages pinned in `requirements.txt`. An overlapping cockpit window
+does not replace the game's pixels with desktop content. HWND/PID, physical
+client geometry and original source timestamps remain checked; minimized,
+resized or stale sources require a fresh connection. Action capture and input
+continue to require the original foreground and obstruction guards.
+
+At native 2560 × 1440, the ship instruments additionally read translucent own
+hull/energy ratios and the measured speed font across brightness thresholds.
+`current_observation.fields.ship_telemetry` carries these fresh **display-only**
+readings and rejection reasons. They do not promote the separately calibrated
+fields used by scan/approach routines. Unsupported, absent or incomplete text
+stays unknown; the station view does not contain flight instruments.
+
+The desktop cockpit design is available separately while the existing controls
+are being tested:
+
+```powershell
+$env:PYTHONPATH = 'tools/offline-bot'
+& 'tools/model-runtimes/fastvlm-venv/Scripts/python.exe' tools/offline-bot/preview-cockpit.py
+```
+
+Open `http://127.0.0.1:8874/`. This preview uses the desktop width, puts the
+latest native game capture above ship systems and keeps the main controls
+visible at 1280 × 800 and 1920 × 1080. It includes a mobile fallback. Its server
+accepts only bounded local reads and rejects every write, so reviewing the
+design cannot start a game action. Use `--upstream-port` if the normal launcher
+uses another port. `/api/live-frame` and its identity/version-fenced image URL
+retain one latest frame in memory independently of the diagnostic archive;
+capture failure leaves an explicitly aged last-known image.
+
 Startup and Retry discover dimensions afresh. At the calibrated 2560 × 1440
 size, the enlarged-HUD reader uses native pixels. Other dimensions automatically
 locate the selected asteroid panel, own hull ratio and speed decimal independently.

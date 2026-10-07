@@ -2,7 +2,7 @@
 
 This plan turns the existing approach experiment into an extensible mining runtime. It is written for an implementer who has not participated in the architecture discussion. Complete the numbered tasks in order, preserve existing behavior during extraction, and use the acceptance checks to decide whether a task is finished.
 
-Status: offline runtime implemented and verified, with perception work continued October 7, 2026. Source inspection baseline: commit `6b441eba`. Tasks 1 through 8 are complete offline. Task 9 now includes a limited offline resource-notification reader and source-linked native crop evaluation; mission-ready mining perception remains incomplete. Task 10 remains deferred for the full native mission. [Offline results](mining-runtime-offline-results.md) and [subsequent live probe results](mining-runtime-live-results.md) record the distinct acceptance boundaries.
+Status: offline runtime implemented and verified, with perception work continued October 7, 2026. Source inspection baseline: commit `6b441eba`. Tasks 1 through 8 are complete offline. Task 9 now includes a limited offline resource-notification reader, source-linked native crop evaluation, and live display-only ship HP/speed/energy reads. Passive exact-window capture and a separate desktop cockpit preview are implemented; mission-ready mining perception remains incomplete. Task 10 remains deferred for the full native mission. [Offline results](mining-runtime-offline-results.md) and [subsequent live probe results](mining-runtime-live-results.md) record the distinct acceptance boundaries.
 
 ## Current task status
 
