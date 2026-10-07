@@ -1,0 +1,1711 @@
+{
+  "scope": "Map contact glyph geometry only; no asteroid, unscanned, resource or click-authority labels.",
+  "privacy": "Small map-only crops; no account names, chat, full screenshots or cargo.",
+  "independence": "Overview and recovery are development. Older-map is frozen-parameter evaluation from another run; no prospective native acceptance.",
+  "footer_template": {
+    "file": "bsgo_offline/data/system-map-controls.png",
+    "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+    "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+    "crop_box": [
+      1400,
+      1350,
+      1620,
+      1435
+    ]
+  },
+  "close_corner": {
+    "file": "map-close-corner.png",
+    "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+    "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+    "crop_box": [
+      2505,
+      0,
+      2560,
+      55
+    ]
+  },
+  "rows": [
+    {
+      "file": "overview-visible_contact_glyph-00.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        873,
+        414,
+        897,
+        438
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "7bc12c0a503edd3777fd686014fc6de0570ae943f76660c6c3430b8e1eb33fd5"
+    },
+    {
+      "file": "overview-visible_contact_glyph-01.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        898,
+        439,
+        922,
+        463
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "40b195271eb1ba2b09d1388602dff7f7b88ce5855310062da667a62ec9d38b30"
+    },
+    {
+      "file": "overview-visible_contact_glyph-02.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        927,
+        455,
+        951,
+        479
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "5c4f70f33bfcd5a432e358554f6920e43ef0b8a6a57f37a29414e876c8b129e5"
+    },
+    {
+      "file": "overview-visible_contact_glyph-03.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        954,
+        435,
+        978,
+        459
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "ca2dd0e0862759ec1387ee35ec87a881d6170c00e03ed97c50ee35ce7f0ec5bf"
+    },
+    {
+      "file": "overview-visible_contact_glyph-04.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        971,
+        420,
+        995,
+        444
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "3df6854dae3ac8fce99beb783dff75dc72da08caa82011a1263279ffdd9fc7b7"
+    },
+    {
+      "file": "overview-visible_contact_glyph-05.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1111,
+        418,
+        1135,
+        442
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "0f8bffe578f1e65bb6960804d1cd1397df05a3afb235622a9272728b3065202b"
+    },
+    {
+      "file": "overview-visible_contact_glyph-06.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1196,
+        347,
+        1220,
+        371
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "bb088b1ad08a11f6c10207ed08dcf9c5a5a6528e86b83943a147965c9d22b03b"
+    },
+    {
+      "file": "overview-visible_contact_glyph-07.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1182,
+        370,
+        1206,
+        394
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "48977be35d7fd2ef7017cc22d4d07d1c17826cc16ad262163f6145b93f92c01c"
+    },
+    {
+      "file": "overview-visible_contact_glyph-08.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1191,
+        379,
+        1215,
+        403
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "93d85b74bf879d92a360f8528a3ae04e928748586f947980efeb290687bff62c"
+    },
+    {
+      "file": "overview-visible_contact_glyph-09.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1193,
+        456,
+        1217,
+        480
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "b003538e963ae2a7d9a439f949354064a1a033f226fb3065b10a36f80cdd9b1c"
+    },
+    {
+      "file": "overview-visible_contact_glyph-10.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1138,
+        476,
+        1162,
+        500
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "7f0f34631d988aad89f3b03c2b90bb580e9b2f91ec86ea8d06c18e71f0d06755"
+    },
+    {
+      "file": "overview-visible_contact_glyph-11.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1209,
+        486,
+        1233,
+        510
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "fc91372765e2a5a6318740883fc44d825883d94f081bf9d88d3b4cf128691bdd"
+    },
+    {
+      "file": "overview-background_or_noncontact-00.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1049,
+        338,
+        1073,
+        362
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "3fccef5ebb482a48d02eee42f19c6174c5a49f1ad1492554bdfde48b40e4bcba"
+    },
+    {
+      "file": "overview-background_or_noncontact-01.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1196,
+        297,
+        1220,
+        321
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "fed7d5230d8b953feed996637b474f50fe1eea5ac485dedd3fa90b79d30f34b2"
+    },
+    {
+      "file": "overview-background_or_noncontact-02.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1137,
+        584,
+        1161,
+        608
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "fa4ef62fb3e68eece713c5db6726aa93993ebe55dad5cad836144693238f27cf"
+    },
+    {
+      "file": "overview-background_or_noncontact-03.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1028,
+        487,
+        1052,
+        511
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "9063e3efd0f04beb7f51d96995119f206795238a97b3f548378d764abc9fb857"
+    },
+    {
+      "file": "overview-background_or_noncontact-04.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        813,
+        678,
+        837,
+        702
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "a9865fcd6ee62d26f14cc823c2422c98a1f59ac78040e83e803863b915e776d1"
+    },
+    {
+      "file": "overview-background_or_noncontact-05.png",
+      "source_image": "tools/hud-reader/runs/belt-reorient-20261001-2103/03-map-overview.jpg",
+      "source_sha256": "3eeca61e2001f9586a01330f9441293c6fd06d60ef0f4efe052db3e4c813779f",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1266,
+        553,
+        1290,
+        577
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "63169d7b3f4786e0f13962ad9b15dc469d6b261041c0f74cd35311ad5249a4b1"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-00.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1420,
+        410,
+        1444,
+        434
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "dbbfa41f6549e5b6fbb24b07b25a246a7cd032a29e38207bc12f5d60197363bc"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-01.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1459,
+        419,
+        1483,
+        443
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "f815d12a52f8aa341aa59339ed0af02f6c560e91b81e59906dcb7c08009f1dd8"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-02.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1499,
+        396,
+        1523,
+        420
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "8dea76099f70303bf7aa7f0b270aa7700b85ed12c4dd365abe72c4edc91d6261"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-03.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1333,
+        450,
+        1357,
+        474
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "06d6dc5f97f689794338fa2f4d4a37cbc78feb13c162b55fb7bca73a51b56c32"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-04.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1362,
+        482,
+        1386,
+        506
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "61a102d690d8ec73a2d4f72a1e62d7cbf77d9f7e308263c28d2d0f70dd68aa6f"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-05.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1382,
+        492,
+        1406,
+        516
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "eaa03117d7e1b3ebd5bf8291456d285bc6cf25407d243bd65451e34e709b7488"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-06.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1453,
+        513,
+        1477,
+        537
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "44113d8ed2d6ac87a4281bda16e3527f9dc0e3617059f03c1aa0f1b5756c070a"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-07.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1475,
+        507,
+        1499,
+        531
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "a04872e3fb448da8ed0ffc13dc6185b10dd6cf332bc04dc4459c5b63e450ed17"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-08.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1297,
+        557,
+        1321,
+        581
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "5c56b8c11bf81c515bec258c1eeb94b083db07ae8f452826c5cbd75a89b5bb0a"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-09.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1326,
+        582,
+        1350,
+        606
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "4a9b7a70830f64dcb8f546ace5891e40b8d4b56027a4a2a6c0b2c191c34b6b7c"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-10.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1306,
+        600,
+        1330,
+        624
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "177f447563e9042f6309aa5a42fbd91d444a66d57e8412b7fb2bab52c013a0ac"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-11.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1385,
+        680,
+        1409,
+        704
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "fec740bedbbab6c4bb321a9044afe218ea5748c27a9f792556f05619ffc04264"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-12.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1425,
+        671,
+        1449,
+        695
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "0dfb54009c353f63d5e14f8c80004db7d5528ee7815f983b5e22231d24985341"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-13.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1421,
+        687,
+        1445,
+        711
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "9ff7b154cb11f71f60ff369ad299a5700772a16e11e2641aabffa0690bcb9c4f"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-14.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1473,
+        688,
+        1497,
+        712
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "d95a1324dd0a91d5869d271a49d01847afb71629a6b820eb73534c05418e5ddb"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-15.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1355,
+        738,
+        1379,
+        762
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "597f21582c3eb27c8305cff2bf3abe4db5124f983115c62b0357b46f5cb2b6e0"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-16.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1425,
+        743,
+        1449,
+        767
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "176786210e222a87e7e2f0b2c979c9408a99b813b31198b7e182f1971b854701"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-17.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1329,
+        807,
+        1353,
+        831
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "b58a81f502bc15eab02fc9343897515bfba61ab383309068dbca2735481394da"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-18.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1373,
+        785,
+        1397,
+        809
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "16ad218e5673ecd96c2b7028614f574d6712934a86eb8f0bfa1302c6bafa63c8"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-19.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1398,
+        781,
+        1422,
+        805
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "8721c018c7dafd4693ab5e0f92e7e918303f8521232d4b060e75d7eb7b880599"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-20.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1433,
+        816,
+        1457,
+        840
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "1a1ba651ac8c640f7b0ebdc3ace6f6850c853caaafc16ee9656a4bccf471ab94"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-21.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1516,
+        804,
+        1540,
+        828
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "cf99ae3199690923897a43ab7fec8704155bfd988ab4c877547d623de83a99d9"
+    },
+    {
+      "file": "recovery-visible_contact_glyph-22.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1301,
+        809,
+        1325,
+        833
+      ],
+      "split": "development",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "1462f21b3cef528ad9f03524a1bb88b7877c285f4e38956cf1d2481bbc8a5851"
+    },
+    {
+      "file": "recovery-background_or_noncontact-00.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1392,
+        553,
+        1416,
+        577
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "1f7c8976dd436a6531d756ba5195bb9b161503d4a2e7b144e0275b8451ee07c5"
+    },
+    {
+      "file": "recovery-background_or_noncontact-01.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1515,
+        478,
+        1539,
+        502
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "c1ff555224c57c0ec3f5fbd8e25e85dd7b17dcd608d611975224d39e6edea08d"
+    },
+    {
+      "file": "recovery-background_or_noncontact-02.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1422,
+        444,
+        1446,
+        468
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "0dbb7f0bc0bb246302012d9c137fbd71d18f5298ede2847819bbc1215c77109c"
+    },
+    {
+      "file": "recovery-background_or_noncontact-03.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1604,
+        457,
+        1628,
+        481
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "24f0b5b07233f9d1033bf1c8b41ec2b335f421abe81efa47b8b98c09babdda68"
+    },
+    {
+      "file": "recovery-background_or_noncontact-04.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1629,
+        625,
+        1653,
+        649
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "d6880123e5d1425d0429a1468b75b67473cf76bf51dc8cbd12db35cff3f6f375"
+    },
+    {
+      "file": "recovery-background_or_noncontact-05.png",
+      "source_image": "tools/hud-reader/runs/map-recovery-20261001-2333/04-second-marker-map.jpg",
+      "source_sha256": "1395065be22a9d3189c2e80119f7b6c6b66a59374c082d5550938043bfb550a6",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1646,
+        704,
+        1670,
+        728
+      ],
+      "split": "development",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "e2a197288ab1eb427772efd0043a7c657c558514cac7dbb329707c4b7e0de3e5"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-00.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1246,
+        297,
+        1270,
+        321
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "9e1d19b46c455ba76f7dbc3870d4f35794bc2c715da819ff3ad30b98ba4d7f52"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-01.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1037,
+        346,
+        1061,
+        370
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "82bcbac00a79f9ac52aa9c96be64e89fc94fc88fc2b4eb16784e8841069c35c2"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-02.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        980,
+        430,
+        1004,
+        454
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "65d20170136a1b14df851262a028e25759129e5408489d2575da7c0478c1b11c"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-03.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        965,
+        445,
+        989,
+        469
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "0a9b3accc261e3ed9478c214073b4c5905b71f87b7dd7925550377c55bddbb59"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-04.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        906,
+        465,
+        930,
+        489
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "aecdc8bc5e7febf37c12effe3e3a921f3e2df7723a388d067e132a221913a965"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-05.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1117,
+        428,
+        1141,
+        452
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "2e6bbc00acd71b5661fa7ae08cca817ad8e56c1a166cba535d6aee2356f2704d"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-06.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1239,
+        439,
+        1263,
+        463
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "c0cf434680553f975ff098a6a9248efce4ff652cf0c8022adc0d92413186c98e"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-07.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1195,
+        465,
+        1219,
+        489
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "210636183953cf14ae503ea933c570c23881f8ae37bfca2700de272eb31803b0"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-08.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1069,
+        520,
+        1093,
+        544
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "98d1e8511103691e5aeab1c016b322b42997bf65aa8d4ae1c20ba209f3b78337"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-09.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1007,
+        549,
+        1031,
+        573
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "8076193b7b35a3a85628fe41d61e059932d89d005bed9f474fb5642e3cbe4cd6"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-10.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1059,
+        583,
+        1083,
+        607
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "0325a96e114ff96c409663c2d8bb34dbd302e9f4f2a792f3ee5c9016cf4935e1"
+    },
+    {
+      "file": "older-map-visible_contact_glyph-11.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        995,
+        617,
+        1019,
+        641
+      ],
+      "split": "evaluation",
+      "label": "visible_contact_glyph",
+      "reviewed_center_in_crop": [
+        12,
+        12
+      ],
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "2aa4ba8a27aae4afe2f3d2f93f1c2fe35e0219f149a3932f653b8b291936f8f5"
+    },
+    {
+      "file": "older-map-background_or_noncontact-00.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1195,
+        298,
+        1219,
+        322
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "9365fc6ae37949b78fe2b7e542440f5f79bc0263f96a8855379119493fe67862"
+    },
+    {
+      "file": "older-map-background_or_noncontact-01.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1052,
+        337,
+        1076,
+        361
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "e54a60c319b4f4ded9bd22be187489a7d65da622ade2affd39a7dad62d1cf92c"
+    },
+    {
+      "file": "older-map-background_or_noncontact-02.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1187,
+        407,
+        1211,
+        431
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "9502fc6849db6f69dfb0e54784c045cafcc146dd0c49eb58e24e32a5966c1ee8"
+    },
+    {
+      "file": "older-map-background_or_noncontact-03.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1138,
+        538,
+        1162,
+        562
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "90b206d1658840099cf4995fef88df0b1f00935ef3d4b91949f36e2e08d2b8f2"
+    },
+    {
+      "file": "older-map-background_or_noncontact-04.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        951,
+        393,
+        975,
+        417
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "7b740de245804c16d27714424c3c9c75285f7e5c4483a74eb26c5fca0238a9e4"
+    },
+    {
+      "file": "older-map-background_or_noncontact-05.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1052,
+        495,
+        1076,
+        519
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "1683d06cdfb8369a6386d298958c75cb626cd424cca40c96d638c289729173c5"
+    },
+    {
+      "file": "older-map-background_or_noncontact-06.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1147,
+        588,
+        1171,
+        612
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "5b01dcf3bf41b4fbe9af12917367e005fd13b9658dba28b0fd9e23a345a88424"
+    },
+    {
+      "file": "older-map-background_or_noncontact-07.png",
+      "source_image": "logs/mining/2026-09-30-3d-map.png",
+      "source_sha256": "644a3ec61a0e6f3fb28375dca27db20499a87f0e8920a4abbe250b24b0040757",
+      "native_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        821,
+        703,
+        845,
+        727
+      ],
+      "split": "evaluation",
+      "label": "background_or_noncontact",
+      "reviewed_center_in_crop": null,
+      "label_source": "Manual visual review of native map pixels, before evaluation; no detector prediction label.",
+      "object_type": "unknown",
+      "scan_state": "unknown",
+      "resource": null,
+      "crop_sha256": "7520d017c130611c49fe7dcaeacf92edb9e98fb404353210a62aa1e5740309c2"
+    }
+  ]
+}

@@ -254,6 +254,14 @@ After the first accepted cycle, measure progress over elapsed time to remove the
 
 Then consider candidate discovery, repeated mining, route interpretation, and optional AI advice against explicit evidence sets. A behavior tree may become useful if nested interruptions and reusable behaviors make ordinary state objects difficult to maintain. Process isolation is justified if blocking capture/inference or crash containment becomes a demonstrated problem.
 
+October 7 extension: the user requested asteroid discovery through OCR or map
+selection. [Map contact discovery and target-HUD verification](asteroid-map-discovery.md)
+records the chosen combined mechanism. A read-only map-glyph locator, local
+overlay CLI and 67 native map-only patches now provide offline geometry evidence.
+Native acquisition/scan execution and cockpit nearby-scan availability remain
+pending; this does not complete Task 9 or authorize map coordinates as route
+clearance or unscanned-asteroid identity.
+
 ## Handoff and progress record
 
 For each task, record status as `planned`, `in_progress`, `implemented_unverified`, `offline_verified`, `live_verified`, or `blocked_on_evidence`. Include changed files, test commands and results, report paths, unresolved limitations, and the next task. Never translate `offline_verified` into `live_verified` in summaries.

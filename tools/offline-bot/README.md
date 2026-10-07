@@ -598,6 +598,21 @@ Manual mode means the human retains mission decisions while a routine may
 temporarily own its stated input scope. Manual actions never inherit readiness
 from the selected historical diagnostic package.
 
+For nearby acquisition research, a read-only system-map contact extractor now
+proposes native 2560 × 1440 marker locations. It verifies map controls, rejects
+unsupported or crowded glyphs, and writes source-hashed JSON plus an overlay:
+
+```powershell
+& tools/model-runtimes/fastvlm-venv/Scripts/python.exe tools/offline-bot/discover_map_contacts.py --image SAVED_MAP.png --output logs/offline-bot/map-discovery-NEW-RUN
+```
+
+Use a new output directory. These contacts have unknown object type, distance,
+scan state and resource; this command sends no game input. The chosen autoscan
+route is map-contact selection followed by flight-HUD OCR verification and a
+stationary scan. Map markers alone cannot enable the nearby toggle. Native
+selection association, freshness while the map hides speed, and execution
+acceptance remain pending. See [the mechanism and evidence](../../docs/architecture/asteroid-map-discovery.md).
+
 For advanced pinned native startup, first stop the standalone observer on port
 8765. Refresh the game's HWND and PID after every client restart, inspect the
 current scene and flight point, and then launch a Manual-assist session with its

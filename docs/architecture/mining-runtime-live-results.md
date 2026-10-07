@@ -1611,3 +1611,38 @@ gameplay or OCR acceptance.
 
 All 616 offline tests passed with zero failures or errors. The retained local
 result is `logs/offline-bot/automatic-calibration-20261007/full-tests.txt`.
+
+## Map-contact discovery research, October 7, 2026
+
+The user requested a way to discover asteroids through OCR or map selection.
+The chosen mechanism uses the circular system map for candidate locations and
+the selected-target flight HUD for asteroid/type/range verification before Z.
+This avoids relying on obscured flight silhouettes or assuming that a map mark
+already identifies an unscanned asteroid. [The mechanism and acceptance sequence](asteroid-map-discovery.md)
+record map-view, fresh-speed, ownership, selection association and repeat guards.
+
+The implemented prototype is read-only: a native 2560x1440 map-view guard and
+bounded hollow-contact extractor, plus `discover_map_contacts.py` for saved
+images. Every contact preserves unknown object type, range, scan state and
+resource. Source-hashed JSON and annotated overlays remain local. The cockpit's
+nearby scan routine stays unavailable; there is no new input executor or route
+authority. Map recognition is separate from the new startup HUD calibration.
+
+The reviewed corpus contains 67 map-only patches. Two development captures
+provided 35 positives and 12 negatives: 30 correct contacts accepted, zero wrong
+contacts accepted, five positives rejected and all 12 negatives rejected.
+Frozen-parameter evaluation on an older different run accepted 10 of 12 contact
+glyphs, rejected two and accepted none of eight noncontact patches. The second
+development run was inspected during tuning and is explicitly not a holdout.
+These results measure patch geometry, not asteroid class or whole-map accuracy.
+Exploratory full-map replay produced 178 overview proposals and 164 recovery
+proposals without claiming that those full lists are manually verified asteroids.
+
+Sixty focused map/catalog/selected-scan tests passed. Local evidence is under
+`logs/offline-bot/map-discovery-20261007/`, including `patch-evaluation.json`,
+`fixture-review.png` and the two full-map replay directories. No live game capture,
+selection, scanner, flight or recovery input was performed for this research.
+Prospective map-selection/HUD pairs are the next native acceptance evidence.
+
+The full 626-test offline suite passed with zero failures or errors; the local
+result is `logs/offline-bot/map-discovery-20261007/full-tests.txt`.
