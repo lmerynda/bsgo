@@ -126,7 +126,7 @@
       <div class="tapeline"></div><div id="workband" class="workband"></div><div class="boundary"></div><div id="targetmarker" class="targetmarker" hidden aria-hidden="true">◆</div>
       <span class="tapelabel tapezero">0</span><span class="bandcaption">Working range</span><span class="tapelabel tapeband">800 m</span><span class="tapelabel tapemax">3,000</span>
     </div><div id="offscale" class="offscale" hidden>Target beyond displayed scale</div>
-    <div class="bars"><div class="barrow"><label>HULL</label><div id="hullbar" class="bar unknown"><div id="hullfill" class="fill"></div></div><span id="hullvalue" class="barvalue mono">UNKNOWN</span></div><div class="barrow"><label>TARGET HP</label><div id="hpbar" class="bar unknown"><div id="hpfill" class="fill"></div></div><span id="hpvalue" class="barvalue mono">UNKNOWN</span></div></div>
+    <div class="bars"><div class="barrow"><label>HULL</label><div id="hullbar" class="bar unknown"><div id="hullfill" class="fill"></div></div><span id="hullvalue" class="barvalue mono">UNKNOWN</span></div><div class="barrow"><label>TARGET HP</label><div id="hpbar" class="bar unknown"><div id="hpfill" class="fill"></div></div><span id="hpvalue" class="barvalue mono">UNKNOWN</span></div><div class="barrow"><label>ENERGY</label><div id="energybar" class="bar unknown"><div id="energyfill" class="fill"></div></div><span id="energyvalue" class="barvalue mono">UNKNOWN</span></div></div>
   </section>
   <section class="workspace" aria-label="Manual action workspace">
     <div class="tabs" role="tablist" aria-label="Select an action; selection never starts it"><button id="scanonce" type="button" role="tab" aria-selected="false">Scan once</button><button id="autoscan" type="button" role="tab" aria-selected="false">Auto-scan OFF</button><button id="approach" type="button" role="tab" aria-selected="true">Approach</button></div>
@@ -201,6 +201,13 @@
     if (!field || !current?.healthy || age===null || age<0 || age>=2 || field.valid!==true || field.fresh!==true || field.observed_at!==current.acquired_at) return null;
     return field.value;
   }
+  function displayField(current,name) {
+    const calibrated=liveField(current,name);
+    if (calibrated!==null) return calibrated;
+    const telemetry=liveField(current,'ship_telemetry');
+    const value=telemetry?.display_only===true ? telemetry[name] : null;
+    return typeof value==='number' && Number.isFinite(value) && value>=0 ? value : null;
+  }
   function semanticReason(name,value,fields) {
     if (['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp'].includes(name)) {
       if (typeof value!=='number' || !Number.isFinite(value) || value<0) return 'invalid numeric value';
@@ -255,7 +262,7 @@
 
     const identity=liveField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
     const distance=rawDistance!==null && rawDistance>=0 ? rawDistance : null;
-    const rawSpeed=number(liveField(current,'speed'));
+    const rawSpeed=number(displayField(current,'speed'));
     const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
     set('targetname',typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true ? 'Asteroid' : 'UNKNOWN');
     set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
@@ -267,14 +274,15 @@
     $('rangetape').setAttribute('aria-label',distance===null ? 'Range UNKNOWN on scalar zero to 3000 meter scale; working boundary 800 meters' : `Target ${distance} meters on scalar zero to 3000 meter scale; working boundary 800 meters${distance>3000?', target beyond scale':''}`);
     $('workband').style.width=`${800/3000*100}%`;
     function bar(prefix,currentName,maxName) {
-      const value=number(liveField(current,currentName)), maximum=number(liveField(current,maxName));
+      const read=prefix==='hp' ? name=>liveField(current,name) : name=>displayField(current,name);
+      const value=number(read(currentName)), maximum=number(read(maxName));
       const valid=maximum!==null && maximum>0 && value!==null && value>=0 && value<=maximum;
       $(`${prefix}bar`).className=`bar${valid?'':' unknown'}`;
       $(`${prefix}fill`).style.width=valid ? `${value/maximum*100}%` : '0%';
       set(`${prefix}value`,maximum===null || maximum<=0 ? 'UNKNOWN' : `${value===null?'—':Math.round(value).toLocaleString()} / ${Math.round(maximum).toLocaleString()}`);
       if (maximum!==null && value!==null && !valid) set(`${prefix}value`,'UNKNOWN');
     }
-    bar('hull','hull_current','hull_max'); bar('hp','target_current_hp','target_max_hp');
+    bar('hull','hull_current','hull_max'); bar('hp','target_current_hp','target_max_hp'); bar('energy','energy_current','energy_max');
     const delivery=actions?.last_input_delivery, effect=actions?.last_confirmed_effect;
     const anomaly=lastNotice || statusFault || (delivery?.outcome==='injected' && !effect ? 'Input delivered; image effect unverified' : null);
     set('anomaly',anomaly); $('anomaly').hidden=!anomaly;
