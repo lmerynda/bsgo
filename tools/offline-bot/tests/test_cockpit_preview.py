@@ -151,3 +151,13 @@ class CockpitPreviewTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Viewer checks passed", result.stdout)
+
+    @unittest.skipUnless(shutil.which("node"), "Node is required for actual telemetry script checks")
+    def test_preview_uses_same_telemetry_and_expected_target_warning_rules(self):
+        # Replay the production display contract against the separate preview page.
+        # This includes healthy supplemental readings, stale/wrong-image rejection,
+        # malformed energy ratios, and expected missing fields on non-asteroids.
+        from test_ship_telemetry_ui import ShipTelemetryUiTests
+        check = ShipTelemetryUiTests("test_native_display_fallback_freshness_and_numeric_rejection")
+        with patch("test_ship_telemetry_ui.HTML", cockpit_preview.HTML):
+            check.test_native_display_fallback_freshness_and_numeric_rejection()

@@ -308,6 +308,17 @@
     if (!field || !current?.healthy || age===null || age<0 || age>=2 || field.valid!==true || field.fresh!==true || field.observed_at!==current.acquired_at) return null;
     return field.value;
   }
+  function displayField(current,name) {
+    const calibrated=liveField(current,name);
+    if (calibrated!==null) return calibrated;
+    const telemetry=liveField(current,'ship_telemetry');
+    const value=telemetry?.display_only===true ? telemetry[name] : null;
+    if (name.startsWith('hull_') || name.startsWith('energy_')) {
+      const prefix=name.split('_')[0], currentValue=telemetry?.[`${prefix}_current`], maximum=telemetry?.[`${prefix}_max`];
+      if (![currentValue,maximum].every(value=>typeof value==='number' && Number.isFinite(value)) || currentValue<0 || maximum<=0 || currentValue>maximum) return null;
+    }
+    return typeof value==='number' && Number.isFinite(value) && value>=0 ? value : null;
+  }
   function semanticReason(name,value,fields) {
     if (['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp'].includes(name)) {
       if (typeof value!=='number' || !Number.isFinite(value) || value<0) return 'invalid numeric value';
@@ -342,7 +353,14 @@
     const age=imageAge(current);
     set('imageage',age===null ? 'Image UNKNOWN' : `Image ${age.toFixed(1)}s${age>=2 ? ' · STALE' : ''}`);
     const fields=current?.fields || {};
-    const issues=Object.entries(fields).filter(([name,field]) => field?.valid!==true || field?.fresh!==true || field?.observed_at!==current.acquired_at || semanticReason(name,field?.value,fields));
+    const noAsteroid=liveField(current,'asteroid_selected')===false;
+    const issues=Object.entries(fields).filter(([name,field]) => {
+      if (noAsteroid && ['target_identity','target_portrait','target_max_hp','target_current_hp'].includes(name) && field.reason==='asteroid_title_not_verified') return false;
+      if (['speed','hull_current','hull_max'].includes(name) && displayField(current,name)!==null) return false;
+      return field?.valid!==true || field?.fresh!==true || field?.observed_at!==current.acquired_at || semanticReason(name,field?.value,fields);
+    });
+    const telemetry=liveField(current,'ship_telemetry');
+    if (telemetry?.display_only===true && displayField(current,'energy_current')===null) issues.push(['energy',telemetry.reasons?.energy || 'Energy unreadable']);
     set('issuebutton',!current ? 'Field issues UNKNOWN ›' : current.healthy===false ? 'Image rejected ›' : age===null || age>=2 ? 'Image stale ›' : `${issues.length} field issue${issues.length===1?'':'s'} ›`);
     $('issuebutton').className=issues.length || current?.healthy===false || (age!==null && age>=2) ? 'warn' : '';
     $('retrybutton').hidden=!(startup?.retry_available && startup?.phase!=='connected');
@@ -360,11 +378,9 @@
     $('powerbutton').disabled=inFlight || (!pauseChoice && (startup?.phase!=='connected' || !control.acknowledgment_token || game.startup_layout?.control_supported===false));
     $('powerbutton').title=pauseChoice ? 'Request Manual action pause; current routine state may be unavailable' : control.pause_reason || 'Acknowledge the current pause for this session';
 
-    const shipTelemetry=liveField(current,'ship_telemetry');
-    const displayField=name=>liveField(current,name) ?? (shipTelemetry?.display_only===true ? shipTelemetry[name] : null);
     const identity=liveField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
     const distance=rawDistance!==null && rawDistance>=0 ? rawDistance : null;
-    const rawSpeed=number(displayField('speed'));
+    const rawSpeed=number(displayField(current,'speed'));
     const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
     set('targetname',typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true ? 'Asteroid' : 'UNKNOWN');
     set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
@@ -376,7 +392,7 @@
     $('rangetape').setAttribute('aria-label',distance===null ? 'Range UNKNOWN on scalar zero to 3000 meter scale; working boundary 800 meters' : `Target ${distance} meters on scalar zero to 3000 meter scale; working boundary 800 meters${distance>3000?', target beyond scale':''}`);
     $('workband').style.width=`${800/3000*100}%`;
     function bar(prefix,currentName,maxName) {
-      const read=prefix==='hp' ? name=>liveField(current,name) : displayField;
+      const read=prefix==='hp' ? name=>liveField(current,name) : name=>displayField(current,name);
       const value=number(read(currentName)), maximum=number(read(maxName));
       const valid=maximum!==null && maximum>0 && value!==null && value>=0 && value<=maximum;
       $(`${prefix}bar`).className=`bar${valid?'':' unknown'}`;
