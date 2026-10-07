@@ -9,6 +9,8 @@ import ctypes
 import importlib.util
 import math
 import multiprocessing
+import os
+from threading import Thread
 import time
 
 from .native_capture import NativeCaptureError, _RECT, _coordinate_signature, _get_api
@@ -45,8 +47,20 @@ def _client_pixels(frame, geometry, bounds):
     return frame.frame_buffer[y:y + height, x:x + width, 2::-1].tobytes()
 
 
+def _watch_parent(parent):
+    while parent.is_alive():
+        time.sleep(.25)
+    os._exit(0)
+
+
 def _worker(connection, geometry):
     try:
+        # A crashed launcher cannot run Python's usual daemon-child cleanup.
+        # Watch its OS process sentinel even when the game stops producing frames.
+        parent = multiprocessing.parent_process()
+        if parent is not None:
+            Thread(target=_watch_parent, args=(parent,), daemon=True,
+                   name="capture-parent-watch").start()
         from windows_capture import WindowsCapture
         api = _get_api()
         capture = WindowsCapture(window_hwnd=geometry.hwnd, cursor_capture=False,

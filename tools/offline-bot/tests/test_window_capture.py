@@ -27,6 +27,15 @@ class WindowCaptureTests(unittest.TestCase):
             with self.assertRaisesRegex(NativeCaptureError, "windows-capture==2.0.1"):
                 window.WindowCapture(None)
 
+    def test_child_exits_when_launcher_dies_without_waiting_for_game_frames(self):
+        parent = Mock()
+        parent.is_alive.side_effect = [True, True, False]
+        with patch.object(window.time, "sleep") as sleep, patch.object(window.os, "_exit") as exit:
+            window._watch_parent(parent)
+        self.assertEqual(sleep.call_count, 2)
+        sleep.assert_called_with(.25)
+        exit.assert_called_once_with(0)
+
     def test_source_time_maps_qpc_age_and_rejects_stale_or_future_frame(self):
         self.assertAlmostEqual(window._produced_at(100_000_000, 100., 10.125), 99.875)
         for timestamp in [0, 120_000_000, float("nan")]:
