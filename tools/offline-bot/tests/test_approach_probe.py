@@ -13,7 +13,7 @@ from bsgo_offline.approach_probe import run_approach_probe
 from bsgo_offline.native_capture import WindowGeometry
 from bsgo_offline.native_input import DeliveryRecord
 from bsgo_offline.recognition import RecognitionResult
-from bsgo_offline.state import FieldValue
+from bsgo_offline.state import FieldValue, SnapshotStore
 from test_trace import scratch_directory
 
 
@@ -82,8 +82,24 @@ class PixelSource:
         self.target_loss_after_brake = target_loss_after_brake
         self.sequence = 0
         self.closed = False
+        self._sample_requested = Event()
+        self._last_requested_sequence = -1
+        self.consumer_paced = False
+
+    def request_sample_after(self, sequence):
+        # A timeout may request the same sequence again while capture is pending.
+        # One permit per consumer cursor prevents overwriting an unseen fixture
+        # image when the OS pauses the probe thread for longer than 25ms.
+        if sequence > self._last_requested_sequence:
+            self._last_requested_sequence = sequence
+            self._sample_requested.set()
 
     def next_sample(self, stop):
+        if self.consumer_paced:
+            while not self._sample_requested.wait(.01):
+                if stop.is_set():
+                    return None
+            self._sample_requested.clear()
         if self.stall_after is not None and self.sequence >= self.stall_after:
             stop.wait(2)
             return None
@@ -104,6 +120,16 @@ class PixelSource:
 
     def close(self):
         self.closed = True
+
+
+class FixtureSnapshotStore(SnapshotStore):
+    def __init__(self, source):
+        super().__init__()
+        self.source = source
+
+    def wait_for_sequence(self, after, timeout):
+        self.source.request_sample_after(after)
+        return super().wait_for_sequence(after, timeout)
 
 
 def recognize(sample):
@@ -192,6 +218,7 @@ class ApproachProbeTests(unittest.TestCase):
         ship = Ship(brake_decay_seconds, distance)
         source = (source_factory(ship) if source_factory else
                   PixelSource(ship, **(source_options or {})))
+        source.consumer_paced = True
         dispatchers = []
         def dispatcher_factory(backend, journal):
             dispatcher = FakeDispatcher(backend, ship,
@@ -202,20 +229,22 @@ class ApproachProbeTests(unittest.TestCase):
                 cancel_on_transition_down=(cancel_file if cancel_on_transition_down else None))
             dispatchers.append(dispatcher)
             return dispatcher
-        result = run_approach_probe(directory / "run", source_factory=lambda: source,
-            recognizer_factory=lambda: recognize,
-            dispatcher_factory=dispatcher_factory,
-            configuration={"fixture": True}, profile=PROFILE,
-            expected_window_id="42:17", frame_size=(4, 3),
-            clear_corridor_assessed=True, aligned_heading_assessed=True,
-            safe_stopped_scene_assessed=True, scope="synthetic",
-            baseline_seconds=.3, max_thrust_seconds=max_thrust_seconds,
-            stop_seconds=stop_seconds, decision_interval=.1,
-            cancel_file=cancel_file, sample_interval=sample_interval,
-            brake_at=brake_at, launch_clearance=launch_clearance,
-            reduced_transition_at=reduced_transition_at,
-            wheel_point=(1, 1) if reduced_transition_at is not None else None,
-            flight_point_assessed=reduced_transition_at is not None)
+        with patch("bsgo_offline.approach_probe.SnapshotStore",
+                   side_effect=lambda: FixtureSnapshotStore(source)):
+            result = run_approach_probe(directory / "run", source_factory=lambda: source,
+                recognizer_factory=lambda: recognize,
+                dispatcher_factory=dispatcher_factory,
+                configuration={"fixture": True}, profile=PROFILE,
+                expected_window_id="42:17", frame_size=(4, 3),
+                clear_corridor_assessed=True, aligned_heading_assessed=True,
+                safe_stopped_scene_assessed=True, scope="synthetic",
+                baseline_seconds=.3, max_thrust_seconds=max_thrust_seconds,
+                stop_seconds=stop_seconds, decision_interval=.1,
+                cancel_file=cancel_file, sample_interval=sample_interval,
+                brake_at=brake_at, launch_clearance=launch_clearance,
+                reduced_transition_at=reduced_transition_at,
+                wheel_point=(1, 1) if reduced_transition_at is not None else None,
+                flight_point_assessed=reduced_transition_at is not None)
         return result, ship, source, dispatchers
 
     def test_short_approach_requires_explicit_launch_clearance(self):
@@ -461,6 +490,23 @@ class ApproachProbeTests(unittest.TestCase):
                 max_thrust_seconds=None, ignore_acceleration=True)
             self.assertEqual(result["state"], "blocked")
             self.assertIn("Acceleration not observed", result["reason"])
+            self.assertEqual(result["brake_reason"], "image_evidence_rejected")
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
+
+    def test_fixture_consumer_pause_does_not_replace_acceleration_evidence_with_sequence_gap(self):
+        original = FixtureSnapshotStore.wait_for_sequence
+        def delayed_consumer(store, after, timeout):
+            snapshot = original(store, after, timeout)
+            if snapshot is not None and after == 2:
+                time.sleep(.08)
+            return snapshot
+        with scratch_directory() as directory, patch.object(
+                FixtureSnapshotStore, "wait_for_sequence", delayed_consumer):
+            result, ship, source, _ = self.run_fixture(directory,
+                max_thrust_seconds=None, ignore_acceleration=True)
+            self.assertIn("Acceleration not observed", result["reason"], result)
             self.assertEqual(result["brake_reason"], "image_evidence_rejected")
             self.assertTrue(result["final_stop_observed"])
             self.assertEqual(ship.speed, 0)
