@@ -1,14 +1,18 @@
 """Scanner-only evidence does not widen navigation authority."""
 from dataclasses import replace
+import hashlib
+import json
+from pathlib import Path
 import time
 import unittest
 from PIL import Image, ImageDraw
-from bsgo_offline.stationary_scan import StationaryScanReader, stationary_scan_values
+from bsgo_offline.stationary_scan import StationaryScanReader, stationary_scan_values, scanner_target_values
 from bsgo_offline.recognition import HudRecognizer
 from bsgo_offline.manual_assist import ManualAssistController, target_reading
 from bsgo_offline.manual_routines import PinnedRecognizer
 from bsgo_offline.recognition import RecognitionResult
 from bsgo_offline.native_capture import NativeFrame, WindowGeometry
+from bsgo_offline.manual_assist_session import SelectionEvidenceRecognizer
 from bsgo_offline.state import FieldValue
 from test_manual_assist import snapshot, drained
 from test_trace import scratch_directory
@@ -29,6 +33,54 @@ def scan_snapshot(now=None):
 
 
 class StationaryScanTests(unittest.TestCase):
+    def test_complete_native_target_ratios_and_erased_digits(self):
+        reader = StationaryScanReader(HudRecognizer('largehud-20261003')._reader._large)
+        root = Path(__file__).parent/'fixtures'/'stationary_scanner'
+        for row in json.loads((root/'annotations.json').read_text()):
+            path = root/row['file']
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),row['crop_sha256'])
+            image = fixture_image()
+            with Image.open(path) as crop:
+                image.paste(crop,tuple(row['crop_box'][:2]))
+            result = reader.read(image,selected_asteroid=True)
+            self.assertEqual(result['target_max_hp'],row['maximum'])
+            self.assertEqual(result['target_current_hp'],row['current'])
+            self.assertNotIn('target_ratio_verified',reader.read(image,selected_asteroid=False))
+            # Erasing one side of the ratio cannot retain a partial HP identity.
+            ImageDraw.Draw(image).rectangle((929,88,945,106),fill='black')
+            self.assertNotIn('target_ratio_verified',reader.read(image,selected_asteroid=True))
+
+    def test_scanner_target_ratio_stays_local_to_scanning_and_selection_track(self):
+        row = scan_snapshot()
+        fields = dict(row.fields)
+        for name in ('target_identity','target_max_hp'):
+            fields[name] = FieldValue(None,row.acquired_at,False,'translucent_target_ratio')
+        fields['stationary_scan_evidence'] = FieldValue({
+            **fields['stationary_scan_evidence'].value,'target_ratio_verified':True,
+            'target_current_hp':3900,'target_max_hp':3900,
+            'target_identity':'asteroid:hp:3900'},row.acquired_at)
+        row = replace(row,fields=fields)
+        self.assertEqual(target_reading(row,row.acquired_at,for_scan=True)[0]['target_max_hp'],3900)
+        self.assertIsNone(target_reading(row,row.acquired_at)[0])
+        pid,hwnd = map(int,row.window_id.split(':'))
+        frame = NativeFrame(1,1,row.layout,row.acquired_at,2560,1440,bytes(2560*1440*3),
+            WindowGeometry(hwnd,pid,'fixture',(2560,1440),(0,0)))
+        reader = SelectionEvidenceRecognizer(lambda sample:RecognitionResult(row.frame_size,row.fields))
+        result = reader(frame)
+        self.assertTrue(result.fields['selection_track_id'].valid)
+        self.assertFalse(result.fields['target_max_hp'].valid)
+        # Human flight can retain passive selection; it never authorizes Z.
+        moving = dict(fields)
+        moving['stationary_scan_evidence'] = FieldValue({
+            **moving['stationary_scan_evidence'].value,'speed':4.,'stationary_verified':False},row.acquired_at)
+        flying = replace(row,fields=moving)
+        self.assertIsNotNone(scanner_target_values(flying,row.acquired_at))
+        self.assertIsNone(stationary_scan_values(flying,row.acquired_at))
+        fields['target_max_hp'] = FieldValue(4000,row.acquired_at)
+        self.assertIsNone(stationary_scan_values(replace(row,fields=fields),row.acquired_at))
+        fields['asteroid_selected'] = FieldValue(False,row.acquired_at)
+        self.assertIsNone(stationary_scan_values(replace(row,fields=fields),row.acquired_at))
+
     def test_native_stationary_and_moving_corpus(self):
         reader = StationaryScanReader(HudRecognizer('largehud-20261003')._reader._large)
         stopped = reader.read(fixture_image())

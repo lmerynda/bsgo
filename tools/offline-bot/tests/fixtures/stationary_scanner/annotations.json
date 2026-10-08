@@ -1,0 +1,34 @@
+[
+  {
+    "file": "target-hp-4685.png",
+    "current": 4685,
+    "maximum": 4685,
+    "source": "logs\\mining\\scan-development-20261007\\map-selection-flight.png",
+    "source_sha256": "ac3847544e6e34af60ea6f0ba23b4d23879ad3b13ccb3df28228b7e1994990b5",
+    "crop_box": [
+      929,
+      88,
+      1080,
+      106
+    ],
+    "crop_sha256": "8192eec3875644636fdd0d9bede9e31ecb41e9cb666a0862800ec9371be164f0",
+    "basis": "Supervisor visually read the full selected asteroid HP ratio on the original native screenshot",
+    "scope": "Development regression only; no held-out accuracy or world identity claim"
+  },
+  {
+    "file": "target-hp-3180.png",
+    "current": 3180,
+    "maximum": 3180,
+    "source": "logs\\mining\\scan-development-20261007\\exrun-selected-hud.png",
+    "source_sha256": "78da61ec0e62b4f25cef30f99558300189f2b1e51fe148c670353ab8f3affe10",
+    "crop_box": [
+      929,
+      88,
+      1080,
+      106
+    ],
+    "crop_sha256": "8aca124e1704a32442d5d955e0a0e2305a8f2f1228efa12a9a127b3f3a422366",
+    "basis": "Supervisor visually read the full selected asteroid HP ratio on the original native screenshot",
+    "scope": "Development regression only; no held-out accuracy or world identity claim"
+  }
+]

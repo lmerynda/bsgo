@@ -44,6 +44,15 @@ class SelectionEvidenceRecognizer:
         snapshot = Snapshot(sample.acquisition_sequence, sample.session_epoch,
             sample.acquisition_sequence, sample.acquired_at, time.monotonic(), sample.layout,
             result.frame_size, result.fields, result.healthy, result.reason, window_id=window)
+        from dataclasses import replace
+        from .stationary_scan import scanner_target_values
+        scanner = scanner_target_values(snapshot, time.monotonic())
+        if scanner:
+            local = dict(snapshot.fields)
+            for name in ('target_identity','target_max_hp'):
+                if name in scanner and (not local.get(name) or not local[name].valid):
+                    local[name] = FieldValue(scanner[name], sample.acquired_at)
+            snapshot = replace(snapshot, fields=local)
         track = self.tracker.update(snapshot, time.monotonic())
         with self._track_lock:
             self._tracks.append((snapshot.context,snapshot.acquired_at,snapshot.acquisition_sequence,track))

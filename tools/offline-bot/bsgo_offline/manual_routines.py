@@ -58,8 +58,8 @@ class PinnedRecognizer:
                 result.frame_size, fields, result.healthy, result.reason, window_id=window)
             scanner = stationary_scan_values(scanner_snapshot, time.monotonic())
             if scanner:
-                for name in ('hull_current','hull_max'):
-                    if not fields.get(name) or not fields[name].valid:
+                for name in ('hull_current','hull_max','target_identity','target_max_hp'):
+                    if name in scanner and (not fields.get(name) or not fields[name].valid):
                         fields[name] = FieldValue(scanner[name], sample.acquired_at)
         if (window != expected["window_id"] or sample.layout != expected["layout"]
                 or tuple(result.frame_size) != tuple(expected["frame_size"])):

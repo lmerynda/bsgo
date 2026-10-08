@@ -522,6 +522,14 @@ telemetry into action fields or enable Approach; target identity, portrait,
 range, pause, ownership and foreground guards remain required. Scan delivery
 still does not establish a visible scan result or resource composition.
 
+The same scanner evidence can read complete selected-asteroid HP ratios whose
+translucent separator rejects the strict navigation reader. It requires the
+independently recognized asteroid title, complete digit geometry and agreement
+across brightness thresholds. Two native Gemino/Exrun target crops are retained
+as development regressions. The passive selection tracker can use this ratio
+while the human flies; scanner input still needs a fresh zero-speed/full-hull
+proof. The cockpit labels these target readings **scanner only**.
+
 The dashboard now uses the [mode-centered cockpit](../../docs/design/cockpit-astra-20261007/selected-direction.md):
 Assist and Autopilot workspaces, acknowledged active mode and input authority,
 persistent Pause/Cancel, original game pixels, and a focused action panel.

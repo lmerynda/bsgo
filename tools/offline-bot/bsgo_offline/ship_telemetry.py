@@ -54,14 +54,14 @@ class ShipTelemetryReader:
             return False
         return True
 
-    def ratio(self, image, box):
+    def ratio(self, image, box, *, thresholds=(100, 120, 140, 160)):
         # Column runs retain complete native glyphs, without resizing.
         rgb = np.asarray(image.crop(box).convert('RGB'))
         candidates = []
         for x in range(48, 91):
             if not self._separator(rgb, x):
                 continue
-            for threshold in (100, 120, 140, 160):
+            for threshold in thresholds:
                 a = (rgb.min(2) >= threshold) & (rgb.max(2).astype(int)-rgb.min(2) < 65)
                 a[:, x:x+7] = False
                 if a[:2].any() or a[-2:].any():
