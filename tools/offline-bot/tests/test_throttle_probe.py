@@ -4,12 +4,13 @@ import math
 from threading import Event, Lock, Thread
 import time
 import unittest
+from unittest.mock import patch
 
 from bsgo_offline.native_input import DeliveryRecord
 from bsgo_offline.throttle_probe import run_throttle_probe
 from bsgo_offline.recognition import RecognitionResult
 from bsgo_offline.state import FieldValue
-from test_approach_probe import Ship, PixelSource, recognize, PROFILE
+from test_approach_probe import Ship, PixelSource, FixtureSnapshotStore, recognize, PROFILE
 from test_trace import scratch_directory
 
 
@@ -66,20 +67,23 @@ class ThrottleProbeTests(unittest.TestCase):
         ship = ship_factory(distance) if ship_factory else Ship(distance=distance)
         source = (source_factory(ship) if source_factory else
                   PixelSource(ship, **(source_options or {})))
+        source.consumer_paced = True
         dispatchers = []
         def factory(backend, journal):
             dispatcher = WheelDispatcher(backend, ship, wheel_speed=speed)
             dispatchers.append(dispatcher)
             return dispatcher
-        result = run_throttle_probe(directory / "run", source_factory=lambda: source,
-            recognizer_factory=lambda: recognizer, dispatcher_factory=factory,
-            configuration={"fixture": True}, profile=PROFILE,
-            expected_window_id="42:17", frame_size=(4, 3), wheel_point=(1, 1),
-            wheel_steps=1, clear_corridor_assessed=True,
-            aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
-            flight_point_assessed=True, scope="synthetic", baseline_seconds=1.,
-            stop_seconds=1., sample_interval=5., cancel_file=cancel_file,
-            brake_at=brake_at)
+        with patch("bsgo_offline.throttle_probe.SnapshotStore",
+                   side_effect=lambda: FixtureSnapshotStore(source)):
+            result = run_throttle_probe(directory / "run", source_factory=lambda: source,
+                recognizer_factory=lambda: recognizer, dispatcher_factory=factory,
+                configuration={"fixture": True}, profile=PROFILE,
+                expected_window_id="42:17", frame_size=(4, 3), wheel_point=(1, 1),
+                wheel_steps=1, clear_corridor_assessed=True,
+                aligned_heading_assessed=True, safe_stopped_scene_assessed=True,
+                flight_point_assessed=True, scope="synthetic", baseline_seconds=1.,
+                stop_seconds=1., sample_interval=5., cancel_file=cancel_file,
+                brake_at=brake_at)
         return result, ship, source, dispatchers
 
     def test_one_wheel_proves_partial_motion_and_observed_stop(self):
@@ -254,6 +258,24 @@ class ThrottleProbeTests(unittest.TestCase):
             self.assertEqual(len(result["wheel_requests"]), 1)
             self.assertTrue(result["final_stop_observed"])
             self.assertEqual(ship.speed, 0)
+
+    def test_fixture_consumer_pause_keeps_late_target_fault_as_first_rejection(self):
+        original = FixtureSnapshotStore.wait_for_sequence
+        def delayed_consumer(store, after, timeout):
+            snapshot = original(store, after, timeout)
+            if snapshot is not None and after == 40:
+                time.sleep(.08)
+            return snapshot
+        with scratch_directory() as directory, patch.object(
+                FixtureSnapshotStore, "wait_for_sequence", delayed_consumer):
+            result, ship, source, _ = self.run_fixture(directory, speed=5.,
+                brake_at=800., source_options={"change_at": 70})
+            self.assertEqual(result["state"], "blocked")
+            self.assertEqual(result["first_rejection"]["reason"],
+                             "invalid_target_speed_or_full_hull", result)
+            self.assertTrue(result["final_stop_observed"])
+            self.assertEqual(ship.speed, 0)
+            self.assertTrue(source.closed)
 
     def test_transit_final_range_below_700_blocks_proof(self):
         with scratch_directory() as directory:
