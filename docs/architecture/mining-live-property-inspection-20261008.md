@@ -130,3 +130,41 @@ and distinguishes a verified absent asteroid from an unknown target. The final
 running API publishes null scan/resource values while docked, with Human input
 ownership and actions paused. Fresh live asteroid validation is still pending
 the explicit Undock approval; no rejected Undock action was executed.
+
+## Authorized live validation
+
+The user subsequently explicitly authorized free playing. Undock succeeded
+after that authorization. The game opened in Vidofnir beside the Fortified
+Cylon Outpost. The ship stayed at 0 m/s while its initially damaged hull
+regenerated to 5210/5210 before scanning; energy was 827/827. No approach,
+weapon firing, resource reward, or spending was performed during this check.
+
+A selected asteroid showed 5128/5128 HP at 1497 m. One Z scan changed its
+visible texture to blue. A fresh API observation then reported both
+`selected_marker_scan_state = scanned` and `selected_scan_resource = Water`
+as usable, with reader reasons `measured_bright_scan_texture` and
+`measured_selected_resource_color`. Range, speed, target health, own hull and
+energy also matched the visible HUD. The cockpit displayed "Scanned appearance
+observed · Water color observed" with zero field issues. This is a new live
+Water check; the other resource classes retain corpus validation only.
+
+Cycling camera views placed the marker outside the bounded search region or
+behind the ship model. Those observations kept scan/resource values unknown.
+Camera sway also occasionally produced an unknown cockpit finding; no stable
+accuracy estimate or continuous recognition guarantee follows from this check.
+
+Switching to a planetoid verified usable `asteroid_selected = false`; the API
+cleared scan/resource values to null and the cockpit displayed "No asteroid
+selected" rather than retaining Water. Two clicks on the small blue texture
+did not restore selection; the planetoid remained selected with the ship
+stopped. Human ownership, paused app actions and disabled
+Auto-scan were preserved throughout.
+
+Local evidence is retained under
+`logs/mining/property-inspection-20261008/`: `live-water-api.json`,
+`live-water-current.jpg`, `live-water-cockpit.png`,
+`live-target-change-api.json`, and `live-target-change-cockpit.png`.
+These captures remain local artifacts and are excluded from this commit.
+The API reads are non-atomic and the screenshot/API evidence is sequential,
+not a simultaneous snapshot. Quantities, inventory, nearby discovery and
+automatic mining remain open features.
