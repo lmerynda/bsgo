@@ -123,3 +123,10 @@ the final geometry-guard edit and consequently ran the earlier scan UI harness
 against the updated script. The final selected-scan group was rerun separately
 and all 36 tests pass. The archived-preview mismatch is handled as a separate
 fix rather than changing the resource reader to satisfy an obsolete label.
+
+Final verification: all 676 offline-bot tests pass in the subsequent run. The
+archived preview now uses the same guarded scanner-only target-health fallback
+and distinguishes a verified absent asteroid from an unknown target. The final
+running API publishes null scan/resource values while docked, with Human input
+ownership and actions paused. Fresh live asteroid validation is still pending
+the explicit Undock approval; no rejected Undock action was executed.
