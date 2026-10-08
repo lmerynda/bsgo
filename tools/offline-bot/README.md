@@ -514,8 +514,23 @@ readings and rejection reasons. They do not promote the separately calibrated
 fields used by scan/approach routines. Unsupported, absent or incomplete text
 stays unknown; the station view does not contain flight instruments.
 
-The desktop cockpit design is available separately while the existing controls
-are being tested:
+The dashboard now uses the [mode-centered cockpit](../../docs/design/cockpit-astra-20261007/selected-direction.md):
+Assist and Autopilot workspaces, acknowledged active mode and input authority,
+persistent Pause/Cancel, original game pixels, and a focused action panel.
+Selecting a workspace never activates a controller. Assist exposes the existing
+selected-target scan and approach routines, with their assessment requirements.
+Visible/nearby discovery and full Autopilot remain explicitly unavailable with
+the current controller. Instruments distinguish calibrated action readings
+from display-only HUD readings; field failures remain visible.
+
+The image viewer preserves aspect ratio and colors without overlays. It keeps
+verified same-session pixels while a newer frame decodes, labels retained pixels
+as not current, and clears them when the capture session changes. Mutation
+requests have a bounded wait; Pause remains available during a pending request.
+[Implementation and validation](../../docs/architecture/mining-cockpit-ui-results.md)
+describe the checks and remaining live verification.
+
+The earlier read-only cockpit study remains available separately:
 
 ```powershell
 $env:PYTHONPATH = 'tools/offline-bot'

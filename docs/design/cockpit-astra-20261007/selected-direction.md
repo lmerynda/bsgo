@@ -32,6 +32,8 @@ Generated game scenes are placeholders, not proposals to redraw or annotate the 
 
 The existing prototype demonstrates the earlier routine-centered synthesis and local state transitions. It does not yet implement this mode-centered selection. [Astra's initial study](design-review.md) remains useful for observation, freshness, assessment, and control contracts; this decision takes precedence for product hierarchy.
 
+The production dashboard now implements the mode-centered layout using the existing controller contracts. See [implementation and validation](../../architecture/mining-cockpit-ui-results.md) for evidence and capability limits; the archived prototype remains a dated study.
+
 ## Adjustments after real verification
 
 Use the preserved proposals as references, not as fixed pixel specifications. For each adjustment, record:

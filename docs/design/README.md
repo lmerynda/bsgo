@@ -4,6 +4,8 @@
 
 [Mode-centered cockpit](cockpit-astra-20261007/selected-direction.md): **07 Signal first** as the foundation, with **01 Flight deck** for the original game-view layout. Assist and Autopilot are the primary operating modes; Pause is a separate action/state.
 
+The production dashboard implements this direction. [Implementation and validation](../architecture/mining-cockpit-ui-results.md) records the available controller capabilities, rendered checks, and remaining live verification.
+
 ## Preserved proposals
 
 All eight original Astra concept images are retained in Git under [cockpit-astra-20261007](cockpit-astra-20261007/README.md). Keep them as inspiration when real verification identifies a better arrangement; selecting a direction does not discard the alternatives.

@@ -1,6 +1,7 @@
 // Exercises the actual inline image viewer without a browser or native game input.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const scripts=[...fs.readFileSync(process.argv[2],'utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)];
+const retain=process.argv.includes('--retain');
 assert.equal(scripts.length,2);
 let now=0,nextTimer=0,rows=[],pendingImages=[],intervals=[];
 const timers=new Map(),elements={};
@@ -27,15 +28,17 @@ async function poll(row){rows.push(row);const entry=[...timers].find(([_,timer])
   assert.match(elements.capturestatus.textContent,/^CURRENT/);assert.match(elements.capturedetail.textContent,/HUD reading needs attention/);
   // Fresh pixels remain visible even if OCR reports a partial image.
   now=2200;intervals[0]();assert.match(elements.capturestatus.textContent,/^LAST KNOWN/);
-  await poll(frame(2));const late=pendingImages.at(-1);assert.equal(elements.livecapture.hidden,true);
-  await poll(frame(3));const latest=pendingImages.at(-1);late.onload();assert.equal(elements.livecapture.hidden,true);
+  await poll(frame(2));const late=pendingImages.at(-1);assert.equal(elements.livecapture.hidden,!retain);
+  if(retain){assert.match(elements.capturestatus.textContent,/Retained/);assert.match(elements.capturedetail.textContent,/Frame #1/);}
+  await poll(frame(3));const latest=pendingImages.at(-1);late.onload();assert.equal(elements.livecapture.hidden,!retain);
   latest.onload();assert.equal(elements.livecapture,latest);assert.equal(elements.livecapture.hidden,false);
   await poll(new Error('service unavailable'));assert.equal(elements.livecapture.hidden,false);assert.match(elements.capturestatus.textContent,/^LAST KNOWN/);
   await poll({...frame(3),connected:false});assert.match(elements.capturestatus.textContent,/^LAST KNOWN/);
   await poll({...frame(3),age_seconds:-1});assert.match(elements.capturestatus.textContent,/^LAST KNOWN/);
-  await poll({...frame(4),image_url:'https://wrong.example/frame.jpg'});assert.equal(elements.livecapture.hidden,true);
+  await poll({...frame(4),image_url:'https://wrong.example/frame.jpg'});assert.equal(elements.livecapture.hidden,!retain);
+  if(retain)assert.match(elements.capturestatus.textContent,/Retained/);
   // A mismatched URL cannot smuggle pixels from a different identity/version.
-  await poll({...frame(4),image_url:`/api/live-image?identity=${identity}&version=3`});assert.equal(elements.livecapture.hidden,true);
+  await poll({...frame(4),image_url:`/api/live-image?identity=${identity}&version=3`});assert.equal(elements.livecapture.hidden,!retain);
   const otherIdentity='b'.repeat(32);
   await poll({...frame(1),identity:otherIdentity,image_url:`/api/live-image?identity=${otherIdentity}&version=1`});
   const oldSession=pendingImages.at(-1);

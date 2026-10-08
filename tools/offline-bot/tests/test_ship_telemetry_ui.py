@@ -57,7 +57,9 @@ console.log(JSON.stringify({live,stale,wrongFrame,invalid,malformed}));
         self.assertEqual(values['live']['energy'],'671 / 800')
         self.assertEqual(values['live']['hp'],'UNKNOWN')
         self.assertTrue(values['live']['startDisabled'])
-        self.assertIn('0 field issues',values['live']['issues'])
+        # Display-only ship instruments do not hide rejected calibrated fields
+        # or unavailable asteroid identity/health from the field-health count.
+        self.assertIn(f'{getattr(self,"expected_issue_count",7)} field issues',values['live']['issues'])
         for name in ('stale','wrongFrame','invalid'):
             for field in ('speed','hull','energy'):
                 self.assertEqual(values[name][field],'UNKNOWN')

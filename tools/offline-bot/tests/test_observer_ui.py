@@ -805,7 +805,7 @@ class ObserverUiTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
     def test_cockpit_live_authority_fresh_fields_bound_assessment_and_recorded_history(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
-        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();", "  globalThis.setCockpit=(s,m,a)=>{startup=s;mode=m;actions=a;}; globalThis.cockpit={renderLive,captureAssessment,actionRequest,renderHistory};\n})();")
+        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();", "  globalThis.setCockpit=(s,m,a)=>{startup=s;mode=m;actions=a;}; globalThis.cockpit={renderLive,captureAssessment,actionRequest,renderHistory,selectAction};\n})();")
         harness = """
 const elements = {};
 globalThis.document = {getElementById(id) { return elements[id] ||= {
@@ -827,6 +827,7 @@ const actions={actual_mode:'manual',paused:false,server_monotonic:100,current_ob
   routines:{approach_current_target:{available:true,ready:true},scan_selected:{available:true,ready:true},
     auto_scan_selected:{available:true,ready:true,active:false}}};
 setCockpit(startup,mode,actions); cockpit.renderLive();
+cockpit.selectAction('approach_current_target');
 const normal={range:elements.range.textContent,speed:elements.speed.textContent,mode:elements.actualmode.textContent,
   owner:elements.inputowner.textContent,marker:elements.targetmarker.style.left,band:elements.workband.style.width,
   startDisabled:elements.startbutton.disabled,pointHidden:elements.flightdiagram.hidden};
@@ -874,7 +875,7 @@ console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,inva
         rendered = json.loads(result.stdout)
         self.assertEqual(rendered["normal"]["range"], "800 m")
         self.assertEqual(rendered["normal"]["speed"], "0 m/s")
-        self.assertEqual(rendered["normal"]["mode"], "Manual")
+        self.assertEqual(rendered["normal"]["mode"], "Assist")
         self.assertEqual(rendered["normal"]["owner"], "Human")
         self.assertAlmostEqual(float(rendered["normal"]["marker"].removesuffix("%")), 800/3000*100)
         self.assertAlmostEqual(float(rendered["normal"]["band"].removesuffix("%")), 800/3000*100)
