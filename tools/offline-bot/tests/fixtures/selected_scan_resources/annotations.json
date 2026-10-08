@@ -1,0 +1,55 @@
+{
+  "scope": "Selected native marker resource color only; display evidence, no quantities or world identity",
+  "fixtures": [
+    {
+      "file": "scan19-scanned.png",
+      "marker_fragment": "scan19-scanned-marker.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-019/frames/observation-00000021.png",
+      "source_sha256": "40bfaec0057f2a294c438beb489d8a4779e62ae948acaeb49643b5f2c5c30d64",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1243,
+        694,
+        1299,
+        738
+      ],
+      "marker_fragment_box": [
+        1217,
+        656,
+        1323,
+        758
+      ],
+      "reviewed_resource": "Tylium",
+      "annotation_basis": "October 8 visual review of retained native scan texture and continuous-operation.jsonl scan 019",
+      "privacy": "Only selected asteroid label and texture. No chat or account details."
+    },
+    {
+      "file": "scan25-scanned.png",
+      "marker_fragment": "scan25-scanned-marker.png",
+      "source_image": "logs/mining/live-20261003/continuous-scan-025/frames/observation-00000021.png",
+      "source_sha256": "f660c1bf9a475c22630af953bdb200bbeb031cd01834a4d4710703ec6a0cacd5",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        776,
+        393,
+        832,
+        437
+      ],
+      "marker_fragment_box": [
+        750,
+        355,
+        856,
+        457
+      ],
+      "reviewed_resource": "empty",
+      "annotation_basis": "October 8 visual review of retained native scan texture and continuous-operation.jsonl scan 025",
+      "privacy": "Only selected asteroid label and texture. No chat or account details."
+    }
+  ]
+}

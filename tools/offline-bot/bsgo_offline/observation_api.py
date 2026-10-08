@@ -32,6 +32,15 @@ def _number(value):
 
 
 def _semantic_reason(name, value, fields):
+    if name == "selected_scan_resource":
+        if value not in ("Water", "Titanium", "Tylium", "empty"):
+            return "unsupported_resource"
+        marker = fields.get("selected_marker_scan_state", {})
+        resource = fields.get(name, {})
+        if (marker.get("valid") is not True or marker.get("fresh") is not True
+                or marker.get("observed_at") != resource.get("observed_at")
+                or _semantic_reason("selected_marker_scan_state", marker.get("value"), fields)):
+            return "selected_scan_appearance_unverified"
     if name == "selected_marker_scan_state":
         if value != "scanned":
             return "unsupported_scan_state"
@@ -88,6 +97,8 @@ def observation_snapshot(startup, mode, actions, *, collected_at, started_at,
                   "recognition_rejected" if field.get("valid") is not True else
                   "field_stale" if field.get("fresh") is not True else
                   "not_from_current_image" if field.get("observed_at") != raw.get("acquired_at") else
+                  "unsupported_selected_marker_frame_geometry" if name in ("selected_marker_scan_state", "selected_scan_resource")
+                  and raw.get("frame_size") != [2560, 1440] else
                   _semantic_reason(name, field.get("value"), raw_fields))
         fields[name] = {"value": field.get("value") if reason is None else None,
                         "usable": reason is None, "reason": reason,

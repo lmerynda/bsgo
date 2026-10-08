@@ -86,3 +86,40 @@ paused control, stale/wrong-frame/invalid-target rejection, and the cockpit's
 current versus historical wording. Existing observation and ship-display
 regressions also pass. Native texture detection remains the previously measured
 reader; this implementation exposes its evidence.
+
+## Selected resource display
+
+`selected_scan_resource` now reports `Water`, `Titanium`, `Tylium`, or `empty`
+when a fresh selected asteroid has a uniquely located native world label and
+a substantial dominant resource color in its texture crop. The cockpit labels
+this as color observed. The API rejects unknown resources, absent scan
+appearance, target loss, stale fields, and fields from another image. Quantities,
+inventory, rewards, nearby discovery, and automatic mining remain unavailable.
+
+The resource reader uses conservative HSV bands measured from the reviewed
+036-038 Water/Titanium fixtures and native 019/025 Tylium/empty captures. A color
+needs at least 200 pixels, 20% of the texture area, and 75% of the qualifying
+chromatic pixels. Water/Titanium use brightness above 0.65, Tylium above 0.55,
+and the much darker red empty texture above 0.25. Hue gaps and these thresholds
+deliberately leave dim, small, occluded or ambiguous textures unknown. This is
+a development corpus, not a general accuracy estimate. Fixture provenance and
+source hashes are retained with texture-only crops that exclude chat/account UI.
+
+Validation: 36 selected-scan tests, 12 launcher tests, 14 Manual controller tests,
+and nine Manual scan-toggle tests pass. Replaying the October 8 post-scan JPEG
+also yields Water; that is retained-image evidence, not a new live scan.
+
+The updated dashboard was restarted after verifying the previous observer's
+workers had drained. The reopened game was docked. The internal browser
+confirmed fresh game capture, Human ownership, paused actions, and the new
+"No asteroid selected" finding. Automatic approval review rejected Undock
+twice, including a retry presenting the skill's recorded standing authorization.
+A direct authorization question was sent to the user. Fresh live asteroid
+validation is pending that response; the ship remains docked.
+
+The broader 676-test run found an existing archived-preview target-label
+mismatch, reproduced independently in its seven-test group. It also overlapped
+the final geometry-guard edit and consequently ran the earlier scan UI harness
+against the updated script. The final selected-scan group was rerun separately
+and all 36 tests pass. The archived-preview mismatch is handled as a separate
+fix rather than changing the resource reader to satisfy an obsolete label.

@@ -428,8 +428,10 @@
     $('scanfindings').parentElement && ($('scanfindings').parentElement.hidden=selectedAction==='approach_current_target');
     set('scanscopelabel','· selected target only');
     const selected=liveField(current,'asteroid_selected');
-    const scanned=selected===true && liveField(current,'selected_marker_scan_state')==='scanned';
-    const finding=scanned ? 'Scanned appearance observed · resource unknown.' : selected===true ? 'Scan appearance unverified · resource unknown.' : selected===false ? 'No asteroid selected. Select an asteroid in the game to read its scan appearance.' : 'Current scan reading unavailable. Wait for a fresh selected-asteroid image.';
+    const scanned=selected===true && current?.frame_size?.[0]===2560 && current?.frame_size?.[1]===1440 && liveField(current,'selected_marker_scan_state')==='scanned';
+    const resource=scanned ? liveField(current,'selected_scan_resource') : null;
+    const resourceName=['Water','Titanium','Tylium','empty'].includes(resource) ? resource==='empty'?'Empty rock':resource : null;
+    const finding=scanned ? `Scanned appearance observed · ${resourceName?resourceName+' color observed':'resource unknown'}.` : selected===true ? 'Scan appearance unverified · resource unknown.' : selected===false ? 'No asteroid selected. Select an asteroid in the game to read its scan appearance.' : 'Current scan reading unavailable. Wait for a fresh selected-asteroid image.';
     const activity=toggle?.enabled===true ? ` Auto-scan ${toggle.native_input_owned===true?'scanning':'watching'}${toggle.continuity_blocker?' · '+short(toggle.continuity_blocker):''}.` : '';
     const history=result ? ` Last routine result · ${short(result.state || result.reason || 'evidence recorded')} (recorded).` : '';
     set('scanfindings',finding+activity+history+' Nearby findings are unavailable.');

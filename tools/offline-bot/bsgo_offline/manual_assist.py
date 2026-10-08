@@ -243,7 +243,7 @@ class ManualAssistController:
                 "valid": field.valid, "reason": field.reason, "observed_at": field.observed_at,
                 "fresh": 0 <= now - field.observed_at < 2}
                 for name, field in snapshot.fields.items()
-                if name in TARGET_FIELDS or name in ("target_current_hp", "ship_telemetry", "stationary_scan_evidence", "selected_scan_result", "selected_marker_scan_state", "selection_track_id")}
+                if name in TARGET_FIELDS or name in ("target_current_hp", "ship_telemetry", "stationary_scan_evidence", "selected_scan_result", "selected_marker_scan_state", "selection_track_id", "selected_scan_resource")}
             observation = {"sequence": snapshot.sequence, "acquired_at": snapshot.acquired_at,
                 "age_seconds": now - snapshot.acquired_at, "healthy": snapshot.healthy,
                 "window_id": snapshot.window_id, "frame_size": list(snapshot.frame_size), "fields": fields,

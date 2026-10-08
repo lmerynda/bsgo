@@ -59,14 +59,17 @@ def discover_game_windows():
 def _marker_reader(sample,result):
     from .selected_scan_vision import locate_selected_marker,classify_selected_marker
     selected=result.fields.get("asteroid_selected")
-    if not selected or not selected.valid or selected.value is not True:
+    if (not selected or not selected.valid or selected.value is not True
+            or selected.observed_at != sample.acquired_at):
         return "unknown","selected_marker_not_verified"
     image=sample.to_image()
+    if image.size != result.frame_size:
+        return "unknown","selected_marker_image_geometry_mismatch"
     location=locate_selected_marker(image,selected_asteroid_verified=True)
     if location.box is None:
         return "unknown",location.reason
     classified=classify_selected_marker(image,location.box,marker_location_verified=True)
-    return classified.scan_state,classified.reason
+    return classified
 
 
 class EasyLauncher:

@@ -62,9 +62,19 @@ class SelectionEvidenceRecognizer:
             track.track_id if confirmed else None, sample.acquired_at, confirmed,
             None if confirmed else "local_selection_continuity_unverified")}
         if self.marker_reader:
-            state, reason = self.marker_reader(sample, result)
+            from .selected_scan_vision import MarkerClassification
+            marker = self.marker_reader(sample, result)
+            if isinstance(marker, MarkerClassification):
+                state, reason = marker.scan_state, marker.reason
+                resource, resource_reason = marker.resource, marker.resource_reason
+            else:
+                state, reason = marker
+                resource, resource_reason = None, "resource_color_unverified"
             fields["selected_marker_scan_state"] = FieldValue(state if state == "scanned" else None,
                 sample.acquired_at, state == "scanned", reason)
+            valid_resource = state == "scanned" and resource in ("Water", "Titanium", "Tylium", "empty")
+            fields["selected_scan_resource"] = FieldValue(resource if valid_resource else None,
+                sample.acquired_at, valid_resource, resource_reason)
         return RecognitionResult(result.frame_size, fields, result.healthy, result.reason)
 
 

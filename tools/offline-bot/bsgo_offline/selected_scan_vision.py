@@ -1,10 +1,11 @@
 """Conservative selected-marker scan evidence from annotated native textures.
 
-Only bright blue/purple scanned textures are supported by this corpus. Cursor
-glow, gray rocks, other mineral colors and missing/occluded markers stay unknown.
+Blue/purple scan appearance and bounded resource colors use reviewed native
+marker crops. Cursor glow, gray rocks and missing/occluded markers stay unknown.
 Absence of color NEVER proves unscanned. A transition needs a separately reviewed
 unscanned baseline and uninterrupted local selection-track evidence. This does
-not locate unselected rocks, identify world objects, or classify their resources.
+not locate unselected rocks or identify world objects. Resource observations
+are display-only; they do not prove a new scan, quantity, or mining reward.
 """
 from dataclasses import dataclass
 import colorsys
@@ -103,6 +104,8 @@ class MarkerClassification:
     reason: str
     bright_chromatic_pixels: int = 0
     bright_chromatic_fraction: float = 0.
+    resource: str | None = None
+    resource_reason: str = "resource_color_unverified"
 
 
 def classify_selected_marker(image, box, *, marker_location_verified=False):
@@ -120,12 +123,33 @@ def classify_selected_marker(image, box, *, marker_location_verified=False):
     # all but one have value <= .65. Post-scan textures contain 684-1,147
     # bright chromatic pixels in 2,200-2,970 pixels. Keep an explicit gap.
     pixels = 0
+    counts = dict.fromkeys(("Water", "Titanium", "Tylium", "empty"), 0)
+    chromatic = 0
     data = crop.tobytes()
     for red, green, blue in zip(data[::3], data[1::3], data[2::3]):
         hue, saturation, value = colorsys.rgb_to_hsv(red/255., green/255., blue/255.)
         if .5 < hue < .86 and saturation > .35 and value > .65:
             pixels += 1
+        # Native Water is cyan (.51-.59), Titanium violet-blue (.61-.69).
+        # Keep a hue gap so blended/ambiguous colors are not named. Yellow
+        # Tylium is dimmer; red barren textures are much darker still.
+        if saturation > .35:
+            resource = ("Water" if .50 < hue < .595 and value > .65 else
+                        "Titanium" if .605 < hue < .72 and value > .65 else
+                        "Tylium" if .10 < hue < .18 and value > .55 else
+                        "empty" if (hue < .025 or hue > .975) and value > .25 else None)
+            if resource:
+                counts[resource] += 1
+            if resource or value > .65:
+                chromatic += 1
     fraction = pixels / (crop.width * crop.height)
+    resource, count = max(counts.items(), key=lambda item: item[1])
+    # A substantial dominant texture is required. Tiny distant red rocks,
+    # health bars intruding at crop edges and mixed UI colors stay unknown.
+    if count >= 200 and count / (crop.width * crop.height) >= .20 and count / max(1, chromatic) >= .75:
+        return MarkerClassification("scanned", "measured_bright_scan_texture" if pixels >= 200 and fraction >= .20
+            else "measured_resource_scan_texture", pixels, fraction,
+            resource, "measured_selected_resource_color")
     if pixels >= 200 and fraction >= .20:
         return MarkerClassification("scanned", "measured_bright_scan_texture", pixels, fraction)
     return MarkerClassification("unknown", "scan_texture_unverified", pixels, fraction)

@@ -17,7 +17,7 @@ class SelectedScanDisplayTests(unittest.TestCase):
     def test_paused_http_publishes_marker_and_local_track_without_inputs(self):
         with cockpit() as (fixture, _):
             at = fixture.row.acquired_at
-            fixture.row = replace(fixture.row, fields={**fixture.row.fields,
+            fixture.row = replace(fixture.row, frame_size=(2560, 1440), fields={**fixture.row.fields,
                 "selected_marker_scan_state": FieldValue("scanned", at, True,
                     "measured_bright_scan_texture"),
                 "selection_track_id": FieldValue(3, at)})
@@ -38,6 +38,7 @@ class SelectedScanDisplayTests(unittest.TestCase):
     def test_projection_rejects_wrong_frame_target_and_unsupported_state(self):
         for change in ("wrong_frame", "non_asteroid", "invalid_target", "stale_target", "unsupported"):
             startup, mode, actions = providers()
+            actions["current_observation"]["frame_size"] = [2560, 1440]
             fields = actions["current_observation"]["fields"]
             fields["selected_marker_scan_state"] = {**fields["speed"], "value": "scanned"}
             if change == "wrong_frame":
@@ -66,7 +67,7 @@ globalThis.document={getElementById(id){return elements[id] ||= {
 };}};
 eval(SCRIPT);
 const field=value=>({value,valid:true,fresh:true,observed_at:1});
-const current={healthy:true,age_seconds:.2,acquired_at:1,fields:{
+const current={healthy:true,age_seconds:.2,acquired_at:1,frame_size:[2560,1440],fields:{
  asteroid_selected:field(true),selected_marker_scan_state:field('scanned')}};
 function render(row,extra={}){
  show({phase:'connected',action_control:{enabled:false}},{actual_mode:'manual'},
@@ -81,7 +82,17 @@ const wrong=render({...current,fields:{...current.fields,
  selected_marker_scan_state:{...field('scanned'),observed_at:2}}});
 const unknown=render({...current,fields:{asteroid_selected:field(true)}});
 const historical=render({...current,age_seconds:3},{selected_scan_toggle:{last_result:{state:'scanned'}}});
-console.log(JSON.stringify({live,stale,unhealthy,lost,wrong,unknown,historical}));
+const withResource={...current,fields:{...current.fields,selected_scan_resource:field('Water')}};
+const water=render(withResource);
+const empty=render({...withResource,fields:{...withResource.fields,selected_scan_resource:field('empty')}});
+const resourceStale=render({...withResource,age_seconds:3});
+const geometry=render({...withResource,frame_size:[1920,1080]});
+const resourceWrong=render({...withResource,fields:{...withResource.fields,
+ selected_scan_resource:{...field('Water'),observed_at:2}}});
+const resourceLost=render({...withResource,fields:{...withResource.fields,asteroid_selected:field(false)}});
+const unsupported=render({...withResource,fields:{...withResource.fields,selected_scan_resource:field('Copper')}});
+console.log(JSON.stringify({live,stale,unhealthy,lost,wrong,unknown,historical,
+ water,empty,resourceStale,resourceWrong,resourceLost,unsupported,geometry}));
 '''.replace("SCRIPT", json.dumps(script))
         with scratch_directory() as directory:
             path = directory / "scan-ui.js"
@@ -95,4 +106,9 @@ console.log(JSON.stringify({live,stale,unhealthy,lost,wrong,unknown,historical})
         for name in ("stale", "unhealthy", "lost", "wrong", "unknown", "historical"):
             self.assertNotIn("Scanned appearance observed", values[name]["finding"], name)
         self.assertIn("(recorded)", values["historical"]["finding"])
+        self.assertIn("Water color observed", values["water"]["finding"])
+        self.assertIn("Empty rock color observed", values["empty"]["finding"])
+        for name in ("resourceStale", "resourceWrong", "resourceLost", "unsupported", "geometry"):
+            self.assertNotIn("Water color observed", values[name]["finding"])
+            self.assertNotIn("Copper", values[name]["finding"])
         self.assertTrue(all(row["disabled"] for row in values.values()))

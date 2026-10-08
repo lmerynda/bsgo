@@ -763,6 +763,17 @@ Distance is the actual scalar reading, including values above 3000 m; this API
 does not interpret radar or infer a clear flight corridor. `recognition_valid`
 and `reader_reason` preserve the reader's result separately from API usability.
 
+In native 2560 × 1440 flight view, `selected_marker_scan_state` can report
+`scanned` and `selected_scan_resource` can report `Water`, `Titanium`, `Tylium`,
+or `empty`. These are current selected-texture observations, also displayed
+under Scan findings while actions are paused. They require a fresh selected
+asteroid, a uniquely located world label and sufficient color evidence. Unknown,
+occluded, small or ambiguous textures stay null; missing color does not mean
+unscanned. A finding does not prove that a particular Z press succeeded or give
+resource quantity, inventory, reward, nearby discovery or mining authority.
+`selection_track_id` is an ephemeral local continuity identifier, not a world
+object ID. Recorded routine results remain separate from current readings.
+
 Images become stale at two seconds. `valid_for_seconds` is the remaining usable
 lifetime **at response generation**, not permission to cache a value indefinitely.
 Clients should deduct time since receipt and their transport latency, then poll
