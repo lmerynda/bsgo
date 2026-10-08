@@ -183,15 +183,15 @@
   </div><div class="workspace" aria-label="Operating mode workspace">
     <div class="panelhead"><h2 id="workspacetitle">Assist</h2><span id="workspacestate" class="small">You control flight</span></div>
     <section id="assistworkspace" class="workbody" aria-label="Assist controls">
-      <p class="modeintro">You fly and choose targets. The app can scan the selected asteroid or approach it after your assessment.</p>
-      <div class="scope" aria-label="Scanning scope"><span>Selected target</span><span class="unavailable" title="Visible asteroid discovery is not implemented">Visible · unavailable</span><span class="unavailable" title="Nearby asteroid discovery is not implemented">Nearby · unavailable</span></div>
+      <p class="modeintro">Scan rocks in the current stopped view automatically, or choose a target yourself for scanning and approach.</p>
+      <div class="scope" aria-label="Scanning scope"><span>Visible rock candidates</span><span>Selected target</span><span class="unavailable" title="Nearby asteroid discovery is not implemented">Nearby · unavailable</span></div>
       <button id="activateassist" type="button" hidden disabled>Activate Assist</button>
-      <div class="tabs" role="tablist" aria-label="Select an action; selection never starts it"><button id="scanonce" type="button" role="tab" aria-selected="false">Scan once</button><button id="autoscan" type="button" role="tab" aria-selected="true">Auto-scan OFF</button><button id="approach" type="button" role="tab" aria-selected="false">Approach</button></div>
+      <button id="scanvisible" type="button" aria-selected="false">Auto-scan visible asteroids</button><p id="visiblehelp" class="small" hidden>Selects visible rock candidates, verifies each asteroid, and scans within 4,000 m. One pass per stopped view. Keep the camera still; start another pass after changing your view.</p><pre id="visibleresults" class="small" style="white-space:pre-wrap" hidden></pre><div class="tabs" role="tablist" aria-label="Select an action; selection never starts it"><button id="scanonce" type="button" role="tab" aria-selected="false">Scan once</button><button id="autoscan" type="button" role="tab" aria-selected="true">Auto-scan OFF</button><button id="approach" type="button" role="tab" aria-selected="false">Approach</button></div>
       <div class="phase"><span id="phasedot" class="dot warn"></span><span id="phasetext" role="status">Waiting for live state</span></div><p id="instruction"></p>
       <p id="autoscanhelp" class="small">Automatically scan each asteroid you select. Enable while stopped, then choose rocks in the game.</p>
       <section class="results" aria-label="Scan findings"><h2>Scan findings <span id="scanscopelabel" class="small">· selected target only</span></h2><p id="scanfindings">No verified scan result available.</p></section>
       <p id="autoscanprogress" class="small" hidden></p>
-      <div id="assessmenttray" class="assessment"><div class="assessmenthead"><strong>Your scene assessment</strong><span id="expiry">No fresh target token</span></div><div id="scanchecks" class="checks" hidden><label><input id="scanselectedsafe" type="checkbox">Safe stopped scene</label></div><div id="autochecks" class="checks"><label><input id="autoscansafe" type="checkbox">Safe stopped scene</label></div><div id="approachchecks" class="checks" hidden><label><input id="clearcorridor" type="checkbox">Clear corridor</label><label><input id="alignedheading" type="checkbox">Aligned heading</label><label><input id="safestopped" type="checkbox">Safe stopped scene</label><label><input id="flightpoint" type="checkbox">Flight point</label></div><button id="previewbutton" type="button" hidden>Inspect flight point</button></div>
+      <div id="assessmenttray" class="assessment"><div class="assessmenthead"><strong>Your scene assessment</strong><span id="expiry">No fresh target token</span></div><div id="visiblechecks" class="checks" hidden><label><input id="visiblesafe" type="checkbox">Safe stopped scene and clear game view</label></div><div id="scanchecks" class="checks" hidden><label><input id="scanselectedsafe" type="checkbox">Safe stopped scene</label></div><div id="autochecks" class="checks"><label><input id="autoscansafe" type="checkbox">Safe stopped scene</label></div><div id="approachchecks" class="checks" hidden><label><input id="clearcorridor" type="checkbox">Clear corridor</label><label><input id="alignedheading" type="checkbox">Aligned heading</label><label><input id="safestopped" type="checkbox">Safe stopped scene</label><label><input id="flightpoint" type="checkbox">Flight point</label></div><button id="previewbutton" type="button" hidden>Inspect flight point</button></div>
       <div class="execution"><div class="actionbuttons"><button id="startbutton" type="button" disabled>Start auto-scan</button><button id="cancelbutton" type="button" disabled>Cancel</button></div><p id="anomaly" class="anomaly" hidden></p></div>
     </section>
     <section id="autopilotworkspace" class="workbody autopilotbody" aria-label="Autopilot controls" hidden>
@@ -231,12 +231,12 @@
   const setOptional = (id,value) => { $(id).textContent = value == null ? '' : String(value); };
   const pretty = value => value == null ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value,null,2) : String(value);
   const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
-  const label = name => ({scan_selected:'Scan once',auto_scan_selected:'Auto-scan',approach_current_target:'Approach'})[name] || name;
-  let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='auto_scan_selected',selectedMode='assist';
+  const label = name => ({scan_nearby_unscanned:'Scan visible',scan_selected:'Scan once',auto_scan_selected:'Auto-scan',approach_current_target:'Approach'})[name] || name;
+  let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='scan_nearby_unscanned',selectedMode='assist';
   let inFlight=false,pauseInFlight=false,imagesVisible=false,connectionKey=null,contextKey=null,lastNotice=null,statusFault=null,lastKnownActive=false,lastKnownEnabled=false,lastActionReceivedAt=null;
-  const assessments={scan_selected:null,auto_scan_selected:null,approach_current_target:null};
-  const checks={scan_selected:['scanselectedsafe'],auto_scan_selected:['autoscansafe'],approach_current_target:['clearcorridor','alignedheading','safestopped','flightpoint']};
-  const priorActive={scan_selected:false,auto_scan_selected:false,approach_current_target:false};
+  const assessments={scan_nearby_unscanned:null,scan_selected:null,auto_scan_selected:null,approach_current_target:null};
+  const checks={scan_nearby_unscanned:['visiblesafe'],scan_selected:['scanselectedsafe'],auto_scan_selected:['autoscansafe'],approach_current_target:['clearcorridor','alignedheading','safestopped','flightpoint']};
+  const priorActive={scan_nearby_unscanned:false,scan_selected:false,auto_scan_selected:false,approach_current_target:false};
   const short = value => { const phrase=String(value || '').replaceAll('_',' ').replace(/\s+/g,' ').trim(); return phrase.length>105 ? `${phrase.slice(0,102)}…` : phrase; };
 
   function connectionMessage(state) {
@@ -428,7 +428,7 @@
     if (auto || actual!=='manual' || mode?.pending===true || pauseInFlight) $('startbutton').disabled=true;
     const toggle=actions?.selected_scan_toggle, result=toggle?.last_result || actions?.routines?.scan_selected?.result;
     $('scanfindings').parentElement && ($('scanfindings').parentElement.hidden=selectedAction==='approach_current_target');
-    set('scanscopelabel','· selected target only');
+    set('scanscopelabel','· current selected target');
     const selected=liveField(current,'asteroid_selected');
     const scanned=selected===true && current?.frame_size?.[0]===2560 && current?.frame_size?.[1]===1440 && liveField(current,'selected_marker_scan_state')==='scanned';
     const resource=scanned ? liveField(current,'selected_scan_resource') : null;
@@ -436,7 +436,7 @@
     const finding=scanned ? `Scanned appearance observed · ${resourceName?resourceName+' color observed':'resource unknown'}.` : selected===true ? 'Scan appearance unverified · resource unknown.' : selected===false ? 'No asteroid selected. Select an asteroid in the game to read its scan appearance.' : 'Current scan reading unavailable. Wait for a fresh selected-asteroid image.';
     const activity=toggle?.enabled===true ? ` Auto-scan ${actions?.ownership?.owner==='auto_scan_selected'?'scanning':'watching'}.` : '';
     const history=result ? ` Last routine result · ${short(result.state || result.reason || 'evidence recorded')} (recorded).` : '';
-    set('scanfindings',finding+activity+history+' Nearby findings are unavailable.');
+    set('scanfindings',finding+activity+history+(selectedAction==='scan_nearby_unscanned'?' Visible pass results are listed above.':' Nearby findings are unavailable.'));
   }
   async function requestMode(target) {
     if (inFlight || pauseInFlight || !mode || mode.pending===true || (target==='autopilot' && mode.autopilot_available!==true)) return;
@@ -501,7 +501,7 @@
     return ['Auto-scan unavailable','Wait for a fresh stopped ship and selected-target reading. Details are in Diagnostics.'];
   }
   function renderAction(current,control,ownership,routines) {
-    const context=actions?.assessment_context || {}, nextKey=context.context_key || null;
+    const context=assessmentContext(selectedAction) || {}, nextKey=context.context_key || null;
     const nextConnection=startup?.instance_id ? `${startup.instance_id}:${startup.game?.connection_id || ''}` : null;
     if (nextConnection!==connectionKey || nextKey!==contextKey) {
       connectionKey=nextConnection; contextKey=nextKey;
@@ -510,7 +510,7 @@
     const serverTime=number(actions?.server_monotonic), now=serverTime===null ? null : serverTime+elapsedSinceAction();
     for (const name of Object.keys(assessments)) {
       const bound=assessments[name];
-      if (bound && (now===null || now>=bound.expires_at || bound.context_key!==nextKey)) clearAssessment(name);
+      if (bound && (now===null || now>=bound.expires_at || bound.context_key!==assessmentContext(name)?.context_key)) clearAssessment(name);
       const active=routines[name]?.active===true || ownership.owner===name;
       if (priorActive[name] && !active) clearAssessment(name);
       priorActive[name]=active;
@@ -519,7 +519,7 @@
     const activeToggle=routines.auto_scan_selected?.active===true ? 'auto_scan_selected' : null;
     const name=owner || activeToggle || selectedAction;
     if (owner || activeToggle) selectedAction=name;
-    for (const [id,routine] of [['scanonce','scan_selected'],['autoscan','auto_scan_selected'],['approach','approach_current_target']]) {
+    for (const [id,routine] of [['scanvisible','scan_nearby_unscanned'],['scanonce','scan_selected'],['autoscan','auto_scan_selected'],['approach','approach_current_target']]) {
       $(id).setAttribute('aria-selected',String(name===routine));
       $(id).disabled=(!actions && lastKnownActive) || Boolean(owner || activeToggle) && name!==routine;
     }
@@ -531,6 +531,17 @@
     const instruction=!actions ? lastKnownActive ? 'Routine state unknown. Use Pause actions to request cancellation; verify cleanup when status returns.' : 'Wait for current routine status.' : owned ? (routine.waiting_for || routine.expected_next_step || routine.error) : startup?.phase!=='connected' ? 'Connect a game window before starting.' : control.enabled!==true ? `Enable Assist actions when ready · ${short(control.pause_reason || 'session paused')}` : routine.reason || (routine.ready===true ? 'Confirm the assessment below' : 'Waiting for current target and image');
     const concise=short(instruction || '');
     setOptional('instruction',concise && concise.toLowerCase()!==short(phase).toLowerCase() ? concise : '');
+    const isVisible=name==='scan_nearby_unscanned';
+    $('visiblehelp').hidden=!isVisible; $('visibleresults').hidden=!isVisible; $('visiblechecks').hidden=!isVisible;
+    if (isVisible) {
+      const pass=routine.visible_scan;
+      const statuses={selecting:'Selecting',scanning:'Scanning',already_scanned:'Already scanned',selection_unverified:'Selection could not be verified',outside_scanner_range:'Outside scanner range',scan_sent_result_unverified:'Scan sent; result unreadable',scan_color_observed:'Scan color observed'};
+      set('visibleresults',pass ? `${pass.clicks_sent} selections · ${pass.scan_inputs_sent} scan inputs sent\n`+(pass.rows || []).map((row,i)=>`${i+1}. ${row.resource || statuses[row.status] || row.status}${row.distance ? ' · '+row.distance+' m' : ''}`).join('\n') : 'Results will appear here during the pass.');
+      if (!owned && routine.result) {
+        set('phasetext',routine.state==='recorded'?'Pass complete':routine.state==='canceled'?'Pass stopped':'Pass stopped for a check');
+        set('instruction',short(routine.result.reason || routine.error || 'Confirm a fresh stopped scene to start another pass.'));
+      }
+    }
     const isAuto=name==='auto_scan_selected';
     $('autoscanhelp').hidden=!isAuto;
     $('autoscanprogress').hidden=!isAuto;
@@ -555,26 +566,29 @@
     const checksPass=checks[name].every(id=>$(id).checked) && Boolean(bound && bound.context_key===nextKey && now!==null && now<bound.expires_at);
     const ready=actions?.actual_mode==='manual' && actions?.mode_pending!==true && startup?.phase==='connected' && control.enabled===true && actions?.paused===false && routine.available===true && routine.ready===true && !owner && noOther && checksPass && (name!=='approach_current_target' || pointKnown) && !inFlight;
     $('startbutton').disabled=!ready || owned;
-    set('startbutton',name==='auto_scan_selected'?'Enable auto-scan':name==='scan_selected'?'Scan once':'Start approach');
+    set('startbutton',name==='scan_nearby_unscanned'?'Start visible scan':name==='auto_scan_selected'?'Enable auto-scan':name==='scan_selected'?'Scan once':'Start approach');
     $('cancelbutton').disabled=!owned || ownership.state==='stopping' || routine.state==='stopping' || inFlight;
-    set('cancelbutton',name==='auto_scan_selected'?'Stop auto-scan':name==='scan_selected'?'Cancel scan':'Cancel approach');
+    set('cancelbutton',name==='scan_nearby_unscanned'?'Stop visible scan':name==='auto_scan_selected'?'Stop auto-scan':name==='scan_selected'?'Cancel scan':'Cancel approach');
     $('cancelbutton').title=owned ? `Stop ${label(name)}; available even while new starts are blocked` : actions ? 'No active routine' : 'Current routine ownership unverified; use Pause actions if status is unavailable';
   }
   function captureAssessment(name) {
     const ids=checks[name];
     if (!ids.some(id=>$(id).checked)) assessments[name]=null;
     else if (!assessments[name]) {
-      const context=actions?.assessment_context, now=number(actions?.server_monotonic);
+      const context=assessmentContext(name), now=number(actions?.server_monotonic);
       if (context?.token && context.context_key && number(context.expires_at)!==null && now!==null && now<context.expires_at) assessments[name]={token:context.token,context_key:context.context_key,expires_at:context.expires_at,observation_sequence:context.observation_sequence};
       else for (const id of ids) $(id).checked=false;
     }
     renderLive();
   }
+  function assessmentContext(name) {
+    return name==='scan_nearby_unscanned' ? actions?.visible_assessment_context : actions?.assessment_context;
+  }
   function actionRequest(name,action) {
     if (action!=='start') return {};
     const token=assessments[name]?.token;
     if (name==='approach_current_target') return {assessment_token:token,supervisor_assessment:{clear_corridor:$('clearcorridor').checked,aligned_heading:$('alignedheading').checked,safe_stopped_scene:$('safestopped').checked,flight_point:$('flightpoint').checked}};
-    return {assessment_token:token,supervisor_assessment:{safe_stopped_scene:$(name==='auto_scan_selected'?'autoscansafe':'scanselectedsafe').checked}};
+    return {assessment_token:token,supervisor_assessment:{safe_stopped_scene:$(name==='scan_nearby_unscanned'?'visiblesafe':name==='auto_scan_selected'?'autoscansafe':'scanselectedsafe').checked}};
   }
   async function requestAction(action) {
     if (inFlight || !actions || (action==='start' && (pauseInFlight || selectedMode!=='assist' || mode?.actual_mode!=='manual' || mode?.pending===true))) return;
@@ -693,6 +707,7 @@
   $('retrybutton').addEventListener('click',()=>requestStartup('retry_connection'));
   $('powerbutton').addEventListener('click',()=>requestStartup(startup?.action_control?.enabled===true || lastKnownEnabled || lastKnownActive?'pause_manual_actions':'enable_manual_actions'));
   $('scanonce').addEventListener('click',()=>selectAction('scan_selected'));
+  $('scanvisible').addEventListener('click',()=>selectAction('scan_nearby_unscanned'));
   $('autoscan').addEventListener('click',()=>selectAction('auto_scan_selected'));
   $('approach').addEventListener('click',()=>selectAction('approach_current_target'));
   $('startbutton').addEventListener('click',()=>requestAction('start'));

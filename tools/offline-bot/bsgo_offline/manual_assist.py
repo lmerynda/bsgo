@@ -22,13 +22,13 @@ TARGET_FIELDS = ("speed", "distance", "asteroid_selected", "target_identity",
                  "target_portrait", "target_max_hp", "hull_current", "hull_max")
 
 
-def scan_scene_reading(snapshot, now):
-    """Arm an input-free watcher without a target; never admit a Z press."""
+def scan_scene_reading(snapshot, now, *, allow_selected=False):
+    """Read a fresh stopped, full-hull scene; target verification is separate."""
     if snapshot is None or not snapshot.healthy or not 0 <= now - snapshot.acquired_at < 2:
         return None
     selected = snapshot.fields.get("asteroid_selected")
     if (not selected or not selected.valid or selected.observed_at != snapshot.acquired_at
-            or selected.value is not False):
+            or (selected.value is not False and not (allow_selected and selected.value is True))):
         return None
     from .stationary_scan import stationary_scan_values
     scanner = stationary_scan_values(snapshot, now) or {}
@@ -254,14 +254,15 @@ class ManualAssistController:
         return {"accepted":reason is None,"reason":reason or "focus_handover_setting_updated",
                 "state":self.focus_handover_snapshot()}
 
-    def _current(self, *, for_scan=False):
+    def _current(self, *, for_scan=False, for_visible=False):
         try:
             snapshot = self.snapshot_provider()
         except Exception as exc:
             return None, None, f"snapshot_provider_failure: {type(exc).__name__}: {exc}", None
         now = self.clock()
         reading, reason = target_reading(snapshot, now, for_scan=for_scan)
-        token_reading = reading or (scan_scene_reading(snapshot, now) if for_scan else None)
+        token_reading = (scan_scene_reading(snapshot, now, allow_selected=True) if for_visible else
+            reading or (scan_scene_reading(snapshot, now) if for_scan else None))
         observation = None
         token = None
         if snapshot is not None:
@@ -303,6 +304,7 @@ class ManualAssistController:
 
     def actions_snapshot(self):
         observation, reading, reason, token = self._current(for_scan=True)
+        visible_token = self._current(for_scan=True, for_visible=True)[3] if getattr(self.runner, 'supports_visible_scan', False) else None
         scan_reading, scan_reason = reading, reason
         if reading and reading.get('scanner_only'):
             reason = 'calibrated_navigation_evidence_required'
@@ -346,9 +348,15 @@ class ManualAssistController:
             if toggle_draining:
                 blocked = blocked or "selected_scan_toggle_stopping"
             if name == "scan_nearby_unscanned":
-                blocked = blocked or "nearby_target_discovery_not_available"
-                waiting = blocked
-                active = False
+                capable = getattr(self.runner, "supports_visible_scan", False)
+                try:
+                    scene = scan_scene_reading(self.snapshot_provider(), self.clock(), allow_selected=True)
+                except Exception:
+                    scene = None
+                blocked = blocked or (None if capable else "nearby_target_discovery_not_available")
+                blocked = blocked or (None if scene and visible_token else "fresh_stopped_scene_required")
+                waiting = None
+                active = owner == name
             elif name == "auto_scan_selected":
                 blocked = blocked or ("selected_scan_continuity_provider_not_attached"
                     if self.selection_track_provider is None else None)
@@ -367,7 +375,7 @@ class ManualAssistController:
                 active = owner == name
             item = last.get(name, {})
             routines[name] = {"kind": kind, "input_scope": scope,
-                "available": self.runner is not None and name != "scan_nearby_unscanned"
+                "available": self.runner is not None and (name != "scan_nearby_unscanned" or getattr(self.runner, "supports_visible_scan", False))
                     and (name != "auto_scan_selected" or self.selection_track_provider is not None), "ready": blocked is None,
                 "start_allowed": not pause and not closed and self.runner is not None
                     and owner is None and blocked is None and not toggle_enabled,
@@ -378,7 +386,8 @@ class ManualAssistController:
                 "waiting_for": execution.get("waiting_for") if owner == name else waiting,
                 "expected_next_step": execution.get("expected_next_step") if owner == name else
                     "wait for fresh stationary selected target; do not move or retarget the ship" if active else None,
-                "result": item.get("result"), "error": item.get("error")}
+                "result": item.get("result"), "error": item.get("error"),
+                "visible_scan": execution.get("visible_scan") if owner == name else (item.get("result") or {}).get("probe_evidence", {}).get("visible_scan")}
             if name == "auto_scan_selected" and active and owner != name:
                 routines[name].update(phase="waiting", processing="observing the human-selected target",
                     state="waiting",waiting_for=waiting,
@@ -406,6 +415,7 @@ class ManualAssistController:
             "ownership": {"owner": owner, "state": state, "run_id": job["id"] if job else None,
                           "input_scope": ROUTINES[owner][1] if owner else None},
             "routines": routines, "current_observation": observation, "assessment_context": token,
+            "visible_assessment_context": visible_token,
             "selected_scan_toggle": toggle_status,
             "action_artifacts": {"status": str(status_path), "directory": str(Path(status_path).parent)} if status_path else None,
             "focus_handover": job.get("focus_handover") if job else toggle_focus if toggle_enabled else None,
@@ -432,7 +442,8 @@ class ManualAssistController:
         request = request or {}
         if not isinstance(request, dict):
             return {"accepted": False, "reason": "invalid_action_request", "state": self.actions_snapshot()}
-        observation, reading, reason, token = self._current(for_scan=name in ('scan_selected','auto_scan_selected'))
+        observation, reading, reason, token = self._current(for_scan=name in ('scan_selected','auto_scan_selected','scan_nearby_unscanned'),
+            for_visible=name=='scan_nearby_unscanned')
         rejection = self._pause_reason()
         with self._lock:
             if self._closed:
@@ -446,8 +457,11 @@ class ManualAssistController:
             if self.runner is None:
                 rejection = rejection or "controller_not_attached"
             issued = next((row for row in self._tokens if row["token"]["token"] == request.get("assessment_token")), None)
-        if name != "scan_nearby_unscanned":
+        if name != "scan_nearby_unscanned" or getattr(self.runner, "supports_visible_scan", False):
             scene_watch = name == "auto_scan_selected" and token and token.get("scan_scope") == "stopped_scene"
+            if name == "scan_nearby_unscanned":
+                reading = scan_scene_reading(self.snapshot_provider(), self.clock(), allow_selected=True)
+                scene_watch = reading is not None
             rejection = rejection or (None if scene_watch else reason)
             if name == "auto_scan_selected" and self.selection_track_provider is None:
                 rejection = rejection or "selected_scan_continuity_provider_not_attached"
@@ -521,9 +535,14 @@ class ManualAssistController:
             while True:
                 if job["stop"].is_set() or self._pause_reason():
                     raise RuntimeError("action_canceled_before_input")
-                _, current, reason, _ = self._current(for_scan=job['name'] in ('scan_selected','auto_scan_selected'))
-                if reason or not same_target(job["pin"], current) or abs(current["distance"] - job["pin"]["distance"]) > 5:
-                    raise RuntimeError(reason or "requested_target_or_context_changed")
+                if job['name'] == 'scan_nearby_unscanned':
+                    current = scan_scene_reading(self.snapshot_provider(), self.clock(), allow_selected=True)
+                    if not current or current['context'] != job['pin']['context']:
+                        raise RuntimeError('requested_stopped_scene_changed')
+                else:
+                    _, current, reason, _ = self._current(for_scan=job['name'] in ('scan_selected','auto_scan_selected'))
+                    if reason or not same_target(job["pin"], current) or abs(current["distance"] - job["pin"]["distance"]) > 5:
+                        raise RuntimeError(reason or "requested_target_or_context_changed")
                 if self.clock() >= job["deadline"]:
                     raise RuntimeError("arming_expired_before_input")
                 if self.focus_handover is not None and not handed_over and job.get("focus_requested", True):

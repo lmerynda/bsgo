@@ -195,3 +195,54 @@ connection abort in the archived preview write-method rejection check; its
 seven-test group passes on recheck. All other checks in that run passed.
 This increment covers human-selected targets; automatic visible-target
 selection is the next requested feature.
+
+## Automatic visible asteroid selection and scanning
+
+The requested visible-target pass is now implemented in Assist. It proposes
+small brown textured objects from the stopped native 2560 x 1440 flight view,
+excluding HUD, chat, sidebar and the own-ship area. Proposals are not asteroid
+identities or evidence that a rock is unscanned. After a click, two fresh
+consistent asteroid HUD images and a nearby selected world marker must agree
+before the routine can send Z. Unverified selections and targets beyond
+4,000 m are skipped. Known scanned markers are recorded without Z. A fresh
+readable energy reserve of at least 100 is required before a scan.
+
+The pass checks fresh zero speed, full hull, capture identity and a coarse
+stationary-view fingerprint before input. View changes or unreadable ship
+state stop the routine. Spatially attempted candidates are suppressed within
+one pass; this is not a world-object or cross-view cache. The pass is bounded
+to 32 candidates or four minutes, with no flight or camera inputs. Stop and
+Pause use the existing cancellation/lease cleanup. Model checks cover stop
+after selection, non-asteroids, out-of-range targets, low energy, changed
+view, known scanned selection, and temporary post-scan label occlusion.
+
+Visible scanning now has its own stopped-scene assessment token. This prevents
+the animated selected-target portrait from repeatedly clearing its Start
+assessment. Selected-target scan and approach retain their target-specific
+tokens. The default Assist workspace shows the visible pass, its counts,
+resource observations, skipped/unreadable results and Stop control.
+
+The first live attempt selected HP5299 at 2590 m and delivered Z, but a
+temporarily hidden marker stopped the post-scan check. The subsequent complete
+pass selected 15 candidates and delivered seven scans, including a readable
+Titanium observation at 2941 m. Its input workers drained cleanly, but its
+128-image diagnostic budget omitted 22 frames. Retention was increased to a
+bounded 640 frames for the four-minute pass; incomplete packages still report
+a blocker rather than success.
+
+The final live pass completed with six delivered selections and two delivered
+scans, producing Water observations at 3008 m and 2528 m. Four selections
+remained unverified and received no scan input. The run reports
+`visible_pass_complete`, complete diagnostics, and drained dispatcher,
+recognition, source and input state. Pause then left actions paused and Human
+ownership, with speed 0 and hull 5210/5210. No manual Z, thrust, firing or paid
+action was used. Several small/dark targets in the earlier pass remained
+resource-unknown; candidate recognition is deliberately incomplete.
+
+The 689-test regression run passed. All 65 focused checks pass after the final
+retention fix, including the new animation and known-scanned regressions.
+Local evidence is retained under `logs/mining/property-inspection-20261008/`:
+`visible-pass-v3.json`, `visible-pass-final.json`,
+`visible-full-tests.txt`, `visible-final-focused-tests.txt`, and
+`auto-scan-visible-live.png`. Native screenshots, game chat and generated
+diagnostic packages remain local and are excluded from the feature commit.

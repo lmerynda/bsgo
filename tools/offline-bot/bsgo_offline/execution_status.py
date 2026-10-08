@@ -21,7 +21,7 @@ class ExecutionStatus:
 
     def update(self, *, phase=None, processing=None, waiting_for=None,
                expected_next_step=None, reason=None, blocker=None, progress=None,
-               confirmed_effect=None, terminal=False, warnings=None):
+               confirmed_effect=None, terminal=False, warnings=None, visible_scan=None):
         now, utc = time.monotonic(), datetime.now(timezone.utc).isoformat()
         effect = plain(freeze(confirmed_effect)) if confirmed_effect is not None else None
         with self._lock:
@@ -42,6 +42,8 @@ class ExecutionStatus:
                 self._value["last_confirmed_effect"] = effect
             if warnings is not None:
                 self._value["warnings"] = list(warnings)
+            if visible_scan is not None:
+                self._value['visible_scan'] = plain(freeze(visible_scan))
 
     def read(self, *, intent=None, delivery=None):
         with self._lock:

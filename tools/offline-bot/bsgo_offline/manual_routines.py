@@ -94,6 +94,10 @@ class PinnedRecognizer:
 
 
 class GuardedManualRoutines:
+    @property
+    def supports_visible_scan(self):
+        return self.frame_size == (2560, 1440)
+
     def __init__(self, *, source_factory, recognizer_factory, dispatcher_factory,
                  profile, window_id, frame_size, configuration=None, scope="native",
                  wheel_point=None, flight_point_assessed=False, sample_seconds=5.,
@@ -113,6 +117,14 @@ class GuardedManualRoutines:
         legs = []
         def dispatcher(backend, journal):
             return self.dispatcher_factory(DeliveryGatedBackend(backend, may_deliver, on_delivery), journal)
+        if name == "scan_nearby_unscanned":
+            from .visible_scan_probe import run_visible_scan_pass
+            on_progress(output)
+            return run_visible_scan_pass(output, source_factory=lambda: self.source_factory(.5),
+                recognizer_factory=self.recognizer_factory, dispatcher_factory=dispatcher,
+                profile=self.profile, expected_window_id=self.window_id, frame_size=self.frame_size,
+                expected_scene=expected_target, configuration=self.configuration, scope=self.scope,
+                safe_scene_assessed=assessment.get('safe_stopped_scene') is True, cancel_file=cancel_file)
         def common(directory, interval, baseline_distance):
             on_progress(directory)
             return {"source_factory": lambda: self.source_factory(interval),

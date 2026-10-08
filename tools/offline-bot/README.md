@@ -650,13 +650,30 @@ its explicit, readiness-checked Start requests can launch a bounded routine.
 The mode indicator never launches a probe, and selecting a historical
 run never changes which live target a Manual action addresses.
 
-Manual actions expose a nearby-unscanned scan toggle, an auto-scan toggle for
+Manual actions expose a visible-asteroid scan pass, an auto-scan toggle for
 the human-selected target, a one-shot selected-target scan, and a one-shot
 approach of the current target.
-The contextual action tray shows readiness and runtime progress. Nearby discovery
-requires a verified target provider and remains unavailable without one; an
-input delivery by either selected-target scan is not a verified resource
-classification. The auto-scan toggle requires a fresh stopped-scene assessment
+The default Assist action selects visible brown rock candidates in the native
+2560 x 1440 stopped flight view. Each click must yield two fresh matching
+selected-asteroid HUD images and a world marker near that candidate before Z
+is permitted. It skips unverified selections, targets beyond 4,000 m, and known
+scanned markers. It keeps at least 100 readable energy before requesting a
+scan. Fresh zero speed, full hull, capture identity and a stable coarse view
+are checked at delivery. A camera/view change or unreadable ship state stops
+the pass; it never turns the camera or requests movement. Stop and Pause drain
+the scanner/input lease before another action can start.
+
+One pass checks at most 32 spatial candidates or four minutes. The UI shows
+selection/scan counts, resource colors when readable, skipped selections and
+unverified effects. Candidate detection is a bounded color/texture proposal,
+not complete scene recognition, a world identity, or proof of an unscanned
+asteroid. Small, dark, occluded and HUD-covered rocks can be missed or unreadable.
+Change the view manually and assess a new pass to inspect another region.
+The legacy API routine name `scan_nearby_unscanned` now runs this bounded visible
+pass when its native runner is attached; complete nearby/radar discovery stays
+unavailable. Input delivery alone does not verify a resource classification.
+
+The human-selected auto-scan toggle requires a fresh stopped-scene assessment
 when enabled, then waits without braking or retargeting while the human moves.
 It can be enabled before an asteroid is selected when a fresh healthy image
 verifies no selected asteroid, zero speed and full hull. This scene token arms
