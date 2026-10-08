@@ -427,7 +427,12 @@
     const toggle=actions?.selected_scan_toggle, result=toggle?.last_result || actions?.routines?.scan_selected?.result;
     $('scanfindings').parentElement && ($('scanfindings').parentElement.hidden=selectedAction==='approach_current_target');
     set('scanscopelabel','· selected target only');
-    set('scanfindings',toggle?.enabled===true ? `Auto-scan ${toggle.native_input_owned===true?'scanning':'watching'} the human-selected target${toggle.continuity_blocker?' · '+short(toggle.continuity_blocker):''}. Resource composition and nearby findings are not available.` : result ? `Last scan result · ${short(result.state || result.reason || 'evidence recorded')}. Recorded result; current resource composition is not verified.` : 'No verified resource findings. Select an asteroid in the game to use selected-target scanning.');
+    const selected=liveField(current,'asteroid_selected');
+    const scanned=selected===true && liveField(current,'selected_marker_scan_state')==='scanned';
+    const finding=scanned ? 'Scanned appearance observed · resource unknown.' : selected===true ? 'Scan appearance unverified · resource unknown.' : selected===false ? 'No asteroid selected. Select an asteroid in the game to read its scan appearance.' : 'Current scan reading unavailable. Wait for a fresh selected-asteroid image.';
+    const activity=toggle?.enabled===true ? ` Auto-scan ${toggle.native_input_owned===true?'scanning':'watching'}${toggle.continuity_blocker?' · '+short(toggle.continuity_blocker):''}.` : '';
+    const history=result ? ` Last routine result · ${short(result.state || result.reason || 'evidence recorded')} (recorded).` : '';
+    set('scanfindings',finding+activity+history+' Nearby findings are unavailable.');
   }
   async function requestMode(target) {
     if (inFlight || pauseInFlight || !mode || mode.pending===true || (target==='autopilot' && mode.autopilot_available!==true)) return;

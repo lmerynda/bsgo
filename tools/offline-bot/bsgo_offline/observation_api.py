@@ -32,6 +32,15 @@ def _number(value):
 
 
 def _semantic_reason(name, value, fields):
+    if name == "selected_marker_scan_state":
+        if value != "scanned":
+            return "unsupported_scan_state"
+        selected = fields.get("asteroid_selected", {})
+        marker = fields.get(name, {})
+        if (selected.get("value") is not True or selected.get("valid") is not True
+                or selected.get("fresh") is not True
+                or selected.get("observed_at") != marker.get("observed_at")):
+            return "selected_asteroid_unverified"
     if name in UNITS:
         numeric = _number(value)
         if numeric is None or numeric < 0:

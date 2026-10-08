@@ -68,3 +68,21 @@ the observation API and distinguish it from verified resource findings in the
 cockpit. Resource composition needs separate image evidence and validation.
 The game remains open, the ship stopped, and app actions paused. No approach,
 weapon firing, docking, loadout change or spending was tested.
+# Scan display implementation
+
+The Manual observation now publishes `selected_marker_scan_state` and
+`selection_track_id` from the same captured frame. The read-only API preserves
+their freshness checks and rejects a scan state without a fresh selected
+asteroid from that image. The local track is continuity evidence, not a world
+object identifier.
+
+The cockpit shows current scanned appearance while actions are paused. Missing
+color means unverified, not unscanned. Stale images and target loss clear the
+current finding; retained routine results are labeled recorded. This change
+does not attribute a texture to a particular Z press or supply resource identity.
+
+Validation: three scan-display regressions cover the real loopback HTTP path,
+paused control, stale/wrong-frame/invalid-target rejection, and the cockpit's
+current versus historical wording. Existing observation and ship-display
+regressions also pass. Native texture detection remains the previously measured
+reader; this implementation exposes its evidence.
