@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astra · Eight mining cockpit concepts</title>
+<style>
+  :root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;background:#0b1018;color:#e8edf5}
+  *{box-sizing:border-box}body{margin:0;padding:32px;max-width:1800px;margin:auto}
+  [hidden]{display:none!important}
+  h1{font-size:32px;line-height:1.2;margin:0 0 12px}p{color:#aab7c8;max-width:850px}
+  a{color:#8ce6d4;text-underline-offset:4px}a:focus-visible{outline:3px solid #8ce6d4;outline-offset:4px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:28px}
+  article{background:#131c29;border:1px solid #334155;border-radius:14px;overflow:hidden}
+  article a{display:block}img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;background:#080c13}
+  .description{padding:18px 20px}h2{font-size:20px;margin:0 0 6px}.description p{margin:0}
+  .pending{display:grid;place-items:center;aspect-ratio:3/2;background:#080c13;color:#aab7c8}
+  nav{display:flex;gap:24px;flex-wrap:wrap;margin:20px 0}
+  @media(max-width:800px){body{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:26px}}
+</style>
+<h1>Eight ways to build a clearer cockpit</h1>
+<p>Astra's image-generated design explorations use illustrative sample data. Compare the feed area, reading order, task controls, and space for operational feedback. The browser prototype demonstrates the recommended synthesis with live read-only data and separate simulated states.</p>
+<p><strong>Game image boundary:</strong> the game scenes in these artworks are placeholders. The actual app shows the original game capture, preserving its HUD and aspect ratio. All app instruments, controls, and warnings belong outside the image; the proposed app does not redraw or annotate the game.</p>
+<nav><a href="/">Open recommended prototype</a><a href="http://127.0.0.1:8874/">Current cockpit preview</a><a href="http://127.0.0.1:8765/">Current mining dashboard</a></nav>
+<p id="arrival" aria-live="polite">Checking concept images…</p>
+<main class="grid">
+<article><a href="/assets/01-flight-deck.png"><img src="/assets/01-flight-deck.png" alt="Concept 1: Flight deck, large forward view with a clear task rail"></a><div class="description"><h2>01 · Flight deck</h2><p>A large forward view with an adjacent command rail.</p></div></article>
+<article><a href="/assets/02-mission-stepper.png"><img src="/assets/02-mission-stepper.png" alt="Concept 2: Mission stepper, a guided assessment and action workflow"></a><div class="description"><h2>02 · Mission stepper</h2><p>Guided task steps make prerequisites and the next action explicit.</p></div></article>
+<article><a href="/assets/03-instrument-bridge.png"><img src="/assets/03-instrument-bridge.png" alt="Concept 3: Instrument bridge, separate instrument, game, and control areas"></a><div class="description"><h2>03 · Instrument bridge</h2><p>Three zones separate instrument readings, game imagery, and controls.</p></div></article>
+<article><a href="/assets/04-daylight-operations.png"><img src="/assets/04-daylight-operations.png" alt="Concept 4: Daylight operations, a light interface for a bright workspace"></a><div class="description"><h2>04 · Daylight operations</h2><p>A light workspace explores readability in bright rooms.</p></div></article>
+<article><a href="/assets/05-cinematic-focus.png"><img src="/assets/05-cinematic-focus.png" alt="Concept 5: Cinematic focus, an expansive game view with compact controls"></a><div class="description"><h2>05 · Cinematic focus</h2><p>An expansive feed places compact instruments and commands nearby.</p></div></article>
+<article><a href="/assets/06-dual-workspace.png"><img src="/assets/06-dual-workspace.png" alt="Concept 6: Dual workspace, balanced live view and operational workspace"></a><div class="description"><h2>06 · Dual workspace</h2><p>Balances live observation with a dedicated operational workspace.</p></div></article>
+<article><a href="/assets/07-signal-first.png"><img src="/assets/07-signal-first.png" alt="Concept 7: Signal first, prominent readings and readiness information"></a><div class="description"><h2>07 · Signal first</h2><p>Prominent readings and readiness information support fast decisions.</p></div></article>
+<article><a href="/assets/08-adaptive-command.png"><img src="/assets/08-adaptive-command.png" alt="Concept 8: Adaptive command, controls arranged for changing window sizes"></a><div class="description"><h2>08 · Adaptive command</h2><p>Controls and instruments adapt to the available screen space.</p></div></article>
+</main>
+<script>
+  const images = [...document.querySelectorAll('article img')];
+  function countArrivals() {
+    const ready = images.filter(image => image.dataset.arrived === 'true').length;
+    document.getElementById('arrival').textContent = `${ready} of ${images.length} concepts ready${ready < images.length ? ' · this gallery updates as images arrive' : ' · all images available'}`;
+  }
+  for (const image of images) {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'pending';
+    placeholder.textContent = 'Concept rendering…';
+    image.after(placeholder);
+    const loaded = () => { image.dataset.arrived = 'true'; image.hidden = false; placeholder.hidden = true; countArrivals(); };
+    const pending = () => { image.hidden = true; placeholder.hidden = false; countArrivals(); };
+    image.addEventListener('load', loaded);
+    image.addEventListener('error', pending);
+    if (image.complete && image.naturalWidth > 0) loaded(); else pending();
+  }
+  setInterval(() => { for (const image of images) if (image.dataset.arrived !== 'true') image.src = `${image.getAttribute('src').split('?')[0]}`; }, 15000);
+</script>
+</html>
