@@ -308,6 +308,19 @@
     if (!field || !current?.healthy || age===null || age<0 || age>=2 || field.valid!==true || field.fresh!==true || field.observed_at!==current.acquired_at) return null;
     return field.value;
   }
+  function targetField(current,name) {
+    const calibrated=liveField(current,name);
+    if (calibrated!==null) return calibrated;
+    const evidence=liveField(current,'stationary_scan_evidence');
+    if (liveField(current,'asteroid_selected')!==true || evidence?.profile!=='native-stationary-scanner-v1' || evidence.input_scope!=='scanner_only' || evidence.target_ratio_verified!==true || !Array.isArray(current.frame_size) || current.frame_size[0]!==2560 || current.frame_size[1]!==1440 || !Array.isArray(evidence.frame_size) || evidence.frame_size[0]!==2560 || evidence.frame_size[1]!==1440) return null;
+    const value=evidence.target_current_hp, maximum=evidence.target_max_hp;
+    if (!Number.isInteger(value) || !Number.isInteger(maximum) || value<0 || maximum<=0 || value>maximum || evidence.target_identity!==`asteroid:hp:${maximum}`) return null;
+    for (const key of ['target_max_hp','target_identity']) {
+      const original=liveField(current,key);
+      if (original!==null && original!==evidence[key]) return null;
+    }
+    return ['target_identity','target_current_hp','target_max_hp'].includes(name) ? evidence[name] : null;
+  }
   function displayField(current,name) {
     const calibrated=liveField(current,name);
     if (calibrated!==null) return calibrated;
@@ -378,11 +391,11 @@
     $('powerbutton').disabled=inFlight || (!pauseChoice && (startup?.phase!=='connected' || !control.acknowledgment_token || game.startup_layout?.control_supported===false));
     $('powerbutton').title=pauseChoice ? 'Request Manual action pause; current routine state may be unavailable' : control.pause_reason || 'Acknowledge the current pause for this session';
 
-    const identity=liveField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
+    const identity=targetField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
     const distance=rawDistance!==null && rawDistance>=0 ? rawDistance : null;
     const rawSpeed=number(displayField(current,'speed'));
     const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
-    set('targetname',typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true ? 'Asteroid' : 'UNKNOWN');
+    set('targetname',typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true ? 'Asteroid' : noAsteroid ? 'No asteroid selected' : 'UNKNOWN');
     set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
     set('speed',speed===null ? 'UNKNOWN' : `${speed.toFixed(1).replace(/\.0$/,'')} m/s`);
     const marker=$('targetmarker');
@@ -392,7 +405,7 @@
     $('rangetape').setAttribute('aria-label',distance===null ? 'Range UNKNOWN on scalar zero to 3000 meter scale; working boundary 800 meters' : `Target ${distance} meters on scalar zero to 3000 meter scale; working boundary 800 meters${distance>3000?', target beyond scale':''}`);
     $('workband').style.width=`${800/3000*100}%`;
     function bar(prefix,currentName,maxName) {
-      const read=prefix==='hp' ? name=>liveField(current,name) : name=>displayField(current,name);
+      const read=prefix==='hp' ? name=>targetField(current,name) : name=>displayField(current,name);
       const value=number(read(currentName)), maximum=number(read(maxName));
       const valid=maximum!==null && maximum>0 && value!==null && value>=0 && value<=maximum;
       $(`${prefix}bar`).className=`bar${valid?'':' unknown'}`;
