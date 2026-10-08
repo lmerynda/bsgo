@@ -2,7 +2,9 @@
 
 Design study, 2026-10-07. Eight original concept images, an interactive read-only prototype, and the implementation specification below. This directory does not modify the production mining app or permit game input.
 
-## Recommendation
+## Initial recommendation
+
+The subsequent accepted [mode-centered direction](selected-direction.md) uses **07 Signal first** as the foundation and **01 Flight deck** for the original game-view arrangement, with Assist / Autopilot central. That decision takes precedence for product hierarchy. The recommendation below and prototype are preserved as the initial study and inspiration; their observation and control contracts remain applicable.
 
 Use **01 Flight Deck** as the layout foundation, **07 Signal First** for typography and operational clarity, and **02 Mission Stepper** for the Select → Assess → Start sequence. Adopt **08 Adaptive Command** for narrow screens. The functional synthesis is `prototype.html`; the images explore visual directions rather than defining execution semantics.
 
