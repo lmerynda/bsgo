@@ -168,3 +168,30 @@ These captures remain local artifacts and are excluded from this commit.
 The API reads are non-atomic and the screenshot/API evidence is sequential,
 not a simultaneous snapshot. Quantities, inventory, nearby discovery and
 automatic mining remain open features.
+
+## Selected-target auto-scan usability
+
+The watcher can now be armed from a fresh stopped/full-hull scene before an
+asteroid is selected. Its scene token cannot start a one-shot scan or approach;
+later Z input still uses the guarded selected-target probe. The cockpit explains
+watching, scanning, already attempted, out-of-range and restart states and
+displays attempt/input counts separately from observed resource appearance.
+Input ownership reflects the active scan lease, and stopping disables repeat
+stop clicks until cleanup finishes.
+
+Live validation enabled the watcher with no target, selected HP5790 at 1026 m,
+and observed one automatic Z delivery and dark red scan texture (resource
+reading unknown). A friendly ship briefly overlapped the next intended click;
+the actual non-asteroid selection produced no scan. Selecting HP5498 at 1040 m
+produced the second automatic Z without restarting the toggle. The texture
+turned yellow and the API subsequently reported fresh scanned/Tylium evidence.
+No manual Z, movement or firing was performed. Stop and Pause returned the
+app to Human ownership with actions paused. Proof remains local in
+`auto-scan-first.json`, `auto-scan-second.json` and
+`auto-scan-selected-live.png` under the existing evidence directory.
+
+The 42 focused checks pass. The broader 680-test run had one local HTTP
+connection abort in the archived preview write-method rejection check; its
+seven-test group passes on recheck. All other checks in that run passed.
+This increment covers human-selected targets; automatic visible-target
+selection is the next requested feature.

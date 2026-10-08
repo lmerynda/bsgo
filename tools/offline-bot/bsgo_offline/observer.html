@@ -187,8 +187,10 @@
       <div class="scope" aria-label="Scanning scope"><span>Selected target</span><span class="unavailable" title="Visible asteroid discovery is not implemented">Visible · unavailable</span><span class="unavailable" title="Nearby asteroid discovery is not implemented">Nearby · unavailable</span></div>
       <button id="activateassist" type="button" hidden disabled>Activate Assist</button>
       <div class="tabs" role="tablist" aria-label="Select an action; selection never starts it"><button id="scanonce" type="button" role="tab" aria-selected="false">Scan once</button><button id="autoscan" type="button" role="tab" aria-selected="true">Auto-scan OFF</button><button id="approach" type="button" role="tab" aria-selected="false">Approach</button></div>
-      <div class="phase"><span id="phasedot" class="dot warn"></span><span id="phasetext">Waiting for live state</span></div><p id="instruction"></p>
+      <div class="phase"><span id="phasedot" class="dot warn"></span><span id="phasetext" role="status">Waiting for live state</span></div><p id="instruction"></p>
+      <p id="autoscanhelp" class="small">Automatically scan each asteroid you select. Enable while stopped, then choose rocks in the game.</p>
       <section class="results" aria-label="Scan findings"><h2>Scan findings <span id="scanscopelabel" class="small">· selected target only</span></h2><p id="scanfindings">No verified scan result available.</p></section>
+      <p id="autoscanprogress" class="small" hidden></p>
       <div id="assessmenttray" class="assessment"><div class="assessmenthead"><strong>Your scene assessment</strong><span id="expiry">No fresh target token</span></div><div id="scanchecks" class="checks" hidden><label><input id="scanselectedsafe" type="checkbox">Safe stopped scene</label></div><div id="autochecks" class="checks"><label><input id="autoscansafe" type="checkbox">Safe stopped scene</label></div><div id="approachchecks" class="checks" hidden><label><input id="clearcorridor" type="checkbox">Clear corridor</label><label><input id="alignedheading" type="checkbox">Aligned heading</label><label><input id="safestopped" type="checkbox">Safe stopped scene</label><label><input id="flightpoint" type="checkbox">Flight point</label></div><button id="previewbutton" type="button" hidden>Inspect flight point</button></div>
       <div class="execution"><div class="actionbuttons"><button id="startbutton" type="button" disabled>Start auto-scan</button><button id="cancelbutton" type="button" disabled>Cancel</button></div><p id="anomaly" class="anomaly" hidden></p></div>
     </section>
@@ -432,7 +434,7 @@
     const resource=scanned ? liveField(current,'selected_scan_resource') : null;
     const resourceName=['Water','Titanium','Tylium','empty'].includes(resource) ? resource==='empty'?'Empty rock':resource : null;
     const finding=scanned ? `Scanned appearance observed · ${resourceName?resourceName+' color observed':'resource unknown'}.` : selected===true ? 'Scan appearance unverified · resource unknown.' : selected===false ? 'No asteroid selected. Select an asteroid in the game to read its scan appearance.' : 'Current scan reading unavailable. Wait for a fresh selected-asteroid image.';
-    const activity=toggle?.enabled===true ? ` Auto-scan ${toggle.native_input_owned===true?'scanning':'watching'}${toggle.continuity_blocker?' · '+short(toggle.continuity_blocker):''}.` : '';
+    const activity=toggle?.enabled===true ? ` Auto-scan ${actions?.ownership?.owner==='auto_scan_selected'?'scanning':'watching'}.` : '';
     const history=result ? ` Last routine result · ${short(result.state || result.reason || 'evidence recorded')} (recorded).` : '';
     set('scanfindings',finding+activity+history+' Nearby findings are unavailable.');
   }
@@ -473,6 +475,31 @@
   function compactIntent(value) { return value ? `${value.kind || 'command'} ${value.key || value.button || (value.wheel_steps==null?'':`wheel ${value.wheel_steps}`)} · request #${value.sequence ?? 'UNKNOWN'}` : 'UNKNOWN'; }
   function compactDelivery(value) { return value ? `${value.outcome || 'UNKNOWN'} · request #${value.request_sequence ?? 'UNKNOWN'} · inserted ${value.inserted_count ?? 'UNKNOWN'}/${value.requested_count ?? 'UNKNOWN'}` : 'UNKNOWN'; }
   function compactEffect(value) { return value ? `${value.effect || 'UNKNOWN'} · latest image #${Array.isArray(value.observation_sequences)&&value.observation_sequences.length?value.observation_sequences.at(-1):'UNKNOWN'}` : 'UNKNOWN'; }
+  function autoScanState(current,routine,ownership,control) {
+    if (!actions) return ['Status unavailable','Wait for auto-scan status. Use Pause if a scan may still be active.'];
+    if (routine.state==='stopping') return ['Stopping auto-scan','Waiting for the current scan to finish cleanup.'];
+    if (routine.state==='faulted') return ['Scan cleanup needs attention','Pause actions and inspect Diagnostics before starting again.'];
+    if (startup?.phase!=='connected') return ['Waiting for game','Connect the game to use auto-scan.'];
+    if (control.enabled!==true) return ['Auto-scan paused','Enable actions, confirm the stopped scene, then start auto-scan.'];
+    if (routine.active && ownership.owner==='auto_scan_selected') return routine.state==='arming'
+      ? ['Preparing scan','Return to the game window. The target is checked again before scanning.']
+      : ['Scanning selected asteroid','Keep the ship stopped and this target selected until the scan finishes.'];
+    const reason=routine.waiting_for || routine.reason || '';
+    if (/continuity|context_changed|new_track_without/.test(reason)) return ['Auto-scan needs restart','Stop auto-scan, confirm a fresh stopped scene, then start again.'];
+    if (reason==='stationary_ship_required') return ['Waiting for ship to stop','Auto-scan will wait until speed is zero. Stop the ship in the game.'];
+    if (reason==='full_hull_required') return ['Waiting for full hull','Let the ship regenerate before scanning.'];
+    if (reason==='selected_target_outside_scanner_range') return ['Target beyond scan limit','Choose a closer asteroid. Current configured limit: 4,000 m.'];
+    if (liveField(current,'asteroid_selected')===false) return routine.active
+      ? ['Auto-scan watching','Select an asteroid in the game. It will be scanned once while the ship is stopped.']
+      : ['Ready to watch targets','Confirm the stopped scene and start auto-scan. Then select an asteroid in the game.'];
+    if (routine.active && ['selected_marker_image_known_scanned','selected_track_already_attempted_or_image_scanned'].includes(reason)) return [
+      liveField(current,'selected_marker_scan_state')==='scanned'?'Selected asteroid already scanned':'Scan attempted for this target',
+      'Select the next asteroid in the game. Auto-scan stays on and avoids repeating this target.'];
+    if (routine.active && reason==='scanner_action_pending_cleanup') return ['Finishing scan','Waiting for the scanner to release control.'];
+    if (routine.active && /fresh|invalid|unverified|healthy/.test(reason)) return ['Waiting for a clear reading','Keep the selected asteroid HUD visible. If readings remain unknown, stop and restart auto-scan.'];
+    if (routine.ready) return ['Ready for auto-scan','Confirm the stopped scene and start. Each newly selected asteroid gets one scan attempt.'];
+    return ['Auto-scan unavailable','Wait for a fresh stopped ship and selected-target reading. Details are in Diagnostics.'];
+  }
   function renderAction(current,control,ownership,routines) {
     const context=actions?.assessment_context || {}, nextKey=context.context_key || null;
     const nextConnection=startup?.instance_id ? `${startup.instance_id}:${startup.game?.connection_id || ''}` : null;
@@ -504,6 +531,17 @@
     const instruction=!actions ? lastKnownActive ? 'Routine state unknown. Use Pause actions to request cancellation; verify cleanup when status returns.' : 'Wait for current routine status.' : owned ? (routine.waiting_for || routine.expected_next_step || routine.error) : startup?.phase!=='connected' ? 'Connect a game window before starting.' : control.enabled!==true ? `Enable Assist actions when ready · ${short(control.pause_reason || 'session paused')}` : routine.reason || (routine.ready===true ? 'Confirm the assessment below' : 'Waiting for current target and image');
     const concise=short(instruction || '');
     setOptional('instruction',concise && concise.toLowerCase()!==short(phase).toLowerCase() ? concise : '');
+    const isAuto=name==='auto_scan_selected';
+    $('autoscanhelp').hidden=!isAuto;
+    $('autoscanprogress').hidden=!isAuto;
+    if (isAuto) {
+      const [state,hint]=autoScanState(current,routine,ownership,control);
+      set('phasetext',state); set('instruction',hint);
+      const toggle=actions?.selected_scan_toggle;
+      set('autoscanprogress',toggle && Number.isInteger(toggle.attempts) && Number.isInteger(toggle.delivered)
+        ? `This auto-scan run · ${toggle.attempts} scan attempts · ${toggle.delivered} scan inputs sent. Read the current resource above.`
+        : 'Scan progress unavailable.');
+    }
     set('diagaction',`Selected ${label(name)} · phase ${routine.phase || 'none'} · processing ${routine.processing || 'none'} · waiting ${routine.waiting_for || 'none'} · next ${routine.expected_next_step || 'none'} · reason ${routine.reason || 'none'} · result ${pretty(routine.result)} · error ${routine.error || 'none'}`);
     $('assessmenttray').hidden=owned;
     $('scanchecks').hidden=name!=='scan_selected'; $('autochecks').hidden=name!=='auto_scan_selected'; $('approachchecks').hidden=name!=='approach_current_target';
@@ -518,7 +556,7 @@
     const ready=actions?.actual_mode==='manual' && actions?.mode_pending!==true && startup?.phase==='connected' && control.enabled===true && actions?.paused===false && routine.available===true && routine.ready===true && !owner && noOther && checksPass && (name!=='approach_current_target' || pointKnown) && !inFlight;
     $('startbutton').disabled=!ready || owned;
     set('startbutton',name==='auto_scan_selected'?'Enable auto-scan':name==='scan_selected'?'Scan once':'Start approach');
-    $('cancelbutton').disabled=!owned || ownership.state==='stopping' || inFlight;
+    $('cancelbutton').disabled=!owned || ownership.state==='stopping' || routine.state==='stopping' || inFlight;
     set('cancelbutton',name==='auto_scan_selected'?'Stop auto-scan':name==='scan_selected'?'Cancel scan':'Cancel approach');
     $('cancelbutton').title=owned ? `Stop ${label(name)}; available even while new starts are blocked` : actions ? 'No active routine' : 'Current routine ownership unverified; use Pause actions if status is unavailable';
   }

@@ -31,6 +31,78 @@ def wait_for(predicate):
 
 
 class ManualSelectedToggleTests(unittest.TestCase):
+    def test_watch_stopped_scene_without_target_then_scan_new_selection_once(self):
+        with scratch_directory() as directory:
+            row = snapshot()
+            current = [replace(row, fields={**row.fields,
+                "asteroid_selected": FieldValue(False, row.acquired_at),
+                "target_identity": FieldValue(None, row.acquired_at, False, "no_target")})]
+            calls = []
+            def runner(name, **args):
+                calls.append(name)
+                args["on_delivery"](None, "injected")
+                return drained()
+            controller = self.controller(directory, current, runner)
+            state = controller.actions_snapshot()
+            self.assertTrue(state["routines"]["auto_scan_selected"]["ready"])
+            self.assertFalse(state["routines"]["scan_selected"]["ready"])
+            self.assertFalse(state["routines"]["approach_current_target"]["ready"])
+            self.assertEqual(state["assessment_context"]["scan_scope"], "stopped_scene")
+            body = request(controller)
+            self.assertFalse(controller.start_action("scan_selected", body)["accepted"])
+            self.assertTrue(controller.start_action("auto_scan_selected", body)["accepted"])
+            wait_for(lambda: controller.actions_snapshot()["routines"]["auto_scan_selected"]["waiting_for"]
+                == "observed_selected_target_loss")
+            self.assertEqual(calls, [])
+            current[0] = snapshot(sequence=2)
+            wait_for(lambda: controller.actions_snapshot()["selected_scan_toggle"]["last_result"])
+            state = controller.actions_snapshot()
+            self.assertEqual(calls, ["scan_selected"])
+            self.assertEqual(state["selected_scan_toggle"]["attempts"], 1)
+            self.assertEqual(state["selected_scan_toggle"]["delivered"], 1)
+            current[0] = snapshot(sequence=3)
+            wait_for(lambda: controller.actions_snapshot()["routines"]["auto_scan_selected"]["waiting_for"]
+                == "selected_track_already_attempted_or_image_scanned")
+            self.assertEqual(calls, ["scan_selected"])
+            self.assertTrue(controller.close())
+
+    def test_target_free_watch_requires_fresh_stopped_full_hull_and_current_scene_token(self):
+        for change in ("moving", "injured", "stale", "wrong_image", "unknown_selection", "changed_context"):
+            with self.subTest(change=change), scratch_directory() as directory:
+                row = snapshot()
+                fields = {**row.fields, "asteroid_selected": FieldValue(False, row.acquired_at)}
+                current = [replace(row, fields=fields)]
+                controller = self.controller(directory, current, lambda name, **args: drained())
+                body = request(controller)
+                if change == "moving": fields["speed"] = FieldValue(1, row.acquired_at)
+                elif change == "injured": fields["hull_current"] = FieldValue(4999, row.acquired_at)
+                elif change == "wrong_image": fields["hull_max"] = FieldValue(5005, row.acquired_at-.1)
+                elif change == "unknown_selection": fields["asteroid_selected"] = FieldValue(None, row.acquired_at, False)
+                current[0] = replace(row, fields=fields,
+                    acquired_at=row.acquired_at-3 if change == "stale" else row.acquired_at,
+                    session_epoch=2 if change == "changed_context" else row.session_epoch)
+                self.assertFalse(controller.start_action("auto_scan_selected", body)["accepted"])
+                self.assertIsNone(controller.actions_snapshot()["ownership"]["owner"])
+                self.assertTrue(controller.close())
+
+    def test_toggle_reports_input_ownership_only_during_delivered_scan(self):
+        with scratch_directory() as directory:
+            current = [snapshot()]
+            entered, finish = Event(), Event()
+            def runner(name, **args):
+                args["on_delivery"](None, "injected")
+                entered.set()
+                finish.wait(1)
+                return drained()
+            controller = self.controller(directory, current, runner)
+            controller.start_action("auto_scan_selected", request(controller))
+            self.assertTrue(entered.wait(1))
+            self.assertTrue(controller.actions_snapshot()["selected_scan_toggle"]["native_input_owned"])
+            finish.set()
+            wait_for(lambda: controller.actions_snapshot()["ownership"]["owner"] is None)
+            self.assertFalse(controller.actions_snapshot()["selected_scan_toggle"]["native_input_owned"])
+            self.assertTrue(controller.close())
+
     def test_off_snapshot_clears_current_wait_and_keeps_completed_result(self):
         with scratch_directory() as directory:
             current=[snapshot()]

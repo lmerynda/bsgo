@@ -658,6 +658,12 @@ requires a verified target provider and remains unavailable without one; an
 input delivery by either selected-target scan is not a verified resource
 classification. The auto-scan toggle requires a fresh stopped-scene assessment
 when enabled, then waits without braking or retargeting while the human moves.
+It can be enabled before an asteroid is selected when a fresh healthy image
+verifies no selected asteroid, zero speed and full hull. This scene token arms
+only the input-free watcher; each later scan still requires a freshly verified
+selected target, continuous selection track, range and stopped/full-hull guards.
+The cockpit explains waiting, scanning, already attempted, and restart states,
+and shows session attempt/input counts separately from observed resource color.
 It attempts at most one scan per continuous selected-target track. The last
 routine input evidence remains visible after it finishes; View saved run pins
 the historical selector only when that diagnostic package is indexed by the

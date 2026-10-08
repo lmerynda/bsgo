@@ -22,6 +22,33 @@ TARGET_FIELDS = ("speed", "distance", "asteroid_selected", "target_identity",
                  "target_portrait", "target_max_hp", "hull_current", "hull_max")
 
 
+def scan_scene_reading(snapshot, now):
+    """Arm an input-free watcher without a target; never admit a Z press."""
+    if snapshot is None or not snapshot.healthy or not 0 <= now - snapshot.acquired_at < 2:
+        return None
+    selected = snapshot.fields.get("asteroid_selected")
+    if (not selected or not selected.valid or selected.observed_at != snapshot.acquired_at
+            or selected.value is not False):
+        return None
+    from .stationary_scan import stationary_scan_values
+    scanner = stationary_scan_values(snapshot, now) or {}
+    values = {}
+    for name in ("speed", "hull_current", "hull_max"):
+        field = snapshot.fields.get(name)
+        if field and field.valid and field.observed_at == snapshot.acquired_at:
+            values[name] = field.value
+        elif name in scanner:
+            values[name] = scanner[name]
+        else:
+            return None
+    if (any(type(value) not in (int, float) or not math.isfinite(value) for value in values.values())
+            or values["speed"] != 0 or values["hull_current"] <= 0
+            or values["hull_current"] != values["hull_max"]):
+        return None
+    return {**values, "context": plain(snapshot.context), "sequence": snapshot.sequence,
+            "acquired_at": snapshot.acquired_at, "scan_scope": "stopped_scene"}
+
+
 def target_reading(snapshot, now, *, require_stopped=True, require_full_hull=True, for_scan=False):
     if snapshot is None:
         return None, "no_current_image"
@@ -234,7 +261,7 @@ class ManualAssistController:
             return None, None, f"snapshot_provider_failure: {type(exc).__name__}: {exc}", None
         now = self.clock()
         reading, reason = target_reading(snapshot, now, for_scan=for_scan)
-        token_reading = reading
+        token_reading = reading or (scan_scene_reading(snapshot, now) if for_scan else None)
         observation = None
         token = None
         if snapshot is not None:
@@ -254,17 +281,20 @@ class ManualAssistController:
                 if isinstance(calibration, Mapping):
                     observation["layout_calibration"] = plain(calibration)
         if token_reading:
-            stable = {name: token_reading[name] for name in ("context", "target_identity", "target_max_hp",
-                "target_portrait", "hull_max", "view_revision", "selection_revision", "selection_track_id")}
+            scene = token_reading.get("scan_scope") == "stopped_scene"
+            names = ("context", "hull_max", "scan_scope") if scene else ("context", "target_identity", "target_max_hp",
+                "target_portrait", "hull_max", "view_revision", "selection_revision", "selection_track_id")
+            stable = {name: token_reading[name] for name in names}
             key = hashlib.sha256(json.dumps(stable, sort_keys=True).encode()).hexdigest()
             token_id = hashlib.sha256((key + str(snapshot.sequence) + str(snapshot.acquired_at)).encode()).hexdigest()
             token = {"token": token_id, "context_key": key, "observation_sequence": snapshot.sequence,
                 "acquired_at": snapshot.acquired_at, "expires_at": snapshot.acquired_at + self.arming_seconds,
-                "window_id": snapshot.window_id, "target_identity": token_reading["target_identity"],
+                "window_id": snapshot.window_id, "target_identity": token_reading.get("target_identity"),
+                "scan_scope": "stopped_scene" if scene else "selected_target",
                 "wheel_point": self.wheel_point,
                 "flight_point_description":self.wheel_point_description,
                 "flight_point_assessed":False,
-                "view_assurance": "image_view_revision" if stable["view_revision"] is not None
+                "view_assurance": "image_view_revision" if stable.get("view_revision") is not None
                     else "supervisor_assessment_only"}
             with self._lock:
                 if not any(row["token"]["token"] == token_id for row in self._tokens):
@@ -285,6 +315,8 @@ class ManualAssistController:
             toggle_draining = bool(self._toggle_thread and self._toggle_thread.is_alive() and not toggle_enabled)
             toggle_progress = self._toggle_progress
             toggle_status = self._toggle.status()
+            toggle_status["native_input_owned"] = bool(job and job["name"] == "auto_scan_selected"
+                and job["input_acknowledged"])
             toggle_status["observation_worker_running"] = bool(self._toggle_thread and self._toggle_thread.is_alive())
             toggle_focus = self._toggle_focus
             status_path = job.get("status_path") if job and job.get("status_path") else self._last_status_path
@@ -322,7 +354,7 @@ class ManualAssistController:
                     if self.selection_track_provider is None else None)
                 # Enable on a stopped image; once ON the toggle waits during
                 # human flight without ever requesting braking or thrust.
-                blocked = blocked or scan_reason
+                blocked = blocked or (None if token and token.get("scan_scope") == "stopped_scene" else scan_reason)
                 if token is None:
                     blocked = blocked or "fresh_selected_image_context_required"
                 active = toggle_enabled or toggle_draining or owner == name
@@ -415,7 +447,8 @@ class ManualAssistController:
                 rejection = rejection or "controller_not_attached"
             issued = next((row for row in self._tokens if row["token"]["token"] == request.get("assessment_token")), None)
         if name != "scan_nearby_unscanned":
-            rejection = rejection or reason
+            scene_watch = name == "auto_scan_selected" and token and token.get("scan_scope") == "stopped_scene"
+            rejection = rejection or (None if scene_watch else reason)
             if name == "auto_scan_selected" and self.selection_track_provider is None:
                 rejection = rejection or "selected_scan_continuity_provider_not_attached"
             if (issued is None or not token or issued["token"]["context_key"] != token["context_key"]

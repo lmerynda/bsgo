@@ -38,6 +38,7 @@ class SelectedScanToggle:
         self._context_gap = False
         self._pending = None
         self._last_result = None
+        self._attempts = self._delivered = 0
 
     def start(self):
         if not self.enabled:
@@ -52,6 +53,8 @@ class SelectedScanToggle:
         self._last_acquired_at = None
         self._gap = None
         self._context_gap = False
+        self._attempts = self._delivered = 0
+        self._last_result = None
 
     def stop(self):
         # A native executor must still cancel/drain its outstanding scanner job.
@@ -160,6 +163,7 @@ class SelectedScanToggle:
             return ScanToggleDecision("wait", "selected_track_already_attempted_or_image_scanned",
                                       selection_track.track_id, scan_state=marker_scan_state)
         self._serial += 1
+        self._attempts += 1
         request_id = f"selected-scan-{self._generation}-{self._serial}"
         self._suppressed_track = selection_track.track_id
         self._pending = {"track_id": selection_track.track_id, "request_id": request_id}
@@ -176,6 +180,7 @@ class SelectedScanToggle:
         self._last_result = {**self._pending, "delivered": delivered,
                              "scan_effect_verified": False,
                              "reason": "scan_delivery_recorded_effect_unverified"}
+        self._delivered += int(delivered)
         self._pending = None
 
     def status(self):
@@ -183,4 +188,5 @@ class SelectedScanToggle:
                 "nearby_discovery_supported": False, "native_input_owned": False,
                 "continuity_blocker": self._gap, "pending": dict(self._pending) if self._pending else None,
                 "suppressed_track_id": self._suppressed_track,
+                "attempts": self._attempts, "delivered": self._delivered,
                 "last_result": dict(self._last_result) if self._last_result else None}
