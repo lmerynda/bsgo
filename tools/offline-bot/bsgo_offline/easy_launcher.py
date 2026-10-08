@@ -393,6 +393,8 @@ def main():
     parser.add_argument("--workspace",type=Path,default=Path(__file__).resolve().parents[3])
     parser.add_argument("--runs-root",type=Path)
     parser.add_argument("--port",type=int,default=8765)
+    parser.add_argument("--no-browser",action="store_true",
+        help="Start or reuse the observer without opening a browser or taking desktop focus")
     args=parser.parse_args()
     if not 0 <= args.port <= 65535:
         parser.error("port must be0..65535")
@@ -403,14 +405,16 @@ def main():
     metadata=local/"listener.json"
     existing=compatible_listener(metadata,workspace,runs_root)
     if existing:
-        webbrowser.open(existing)
+        if not args.no_browser:
+            webbrowser.open(existing)
         return 0
     lease=WorkspaceLease(local/"workspace.lock")
     if not lease.acquire():
         for _ in range(20):
             existing=compatible_listener(metadata,workspace,runs_root)
             if existing:
-                webbrowser.open(existing)
+                if not args.no_browser:
+                    webbrowser.open(existing)
                 return 0
             time.sleep(.1)
         print("Another dashboard startup owns this workspace. Retry shortly; no process was stopped.",flush=True)
@@ -433,7 +437,8 @@ def main():
         thread=Thread(target=lambda:server.serve_forever(poll_interval=.2),daemon=True,name="manual-dashboard-http")
         thread.start()
         print(f"Mining dashboard: {url}",flush=True)
-        webbrowser.open(url)
+        if not args.no_browser:
+            webbrowser.open(url)
         launcher.retry_connection()
         while thread.is_alive():
             thread.join(.5)

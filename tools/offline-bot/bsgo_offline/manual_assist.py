@@ -246,7 +246,7 @@ class ManualAssistController:
                 if name in TARGET_FIELDS or name in ("target_current_hp", "ship_telemetry", "stationary_scan_evidence", "selected_scan_result")}
             observation = {"sequence": snapshot.sequence, "acquired_at": snapshot.acquired_at,
                 "age_seconds": now - snapshot.acquired_at, "healthy": snapshot.healthy,
-                "window_id": snapshot.window_id, "fields": fields,
+                "window_id": snapshot.window_id, "frame_size": list(snapshot.frame_size), "fields": fields,
                 **{name: fields.get(name, {}).get("value") for name in ("target_identity", "distance", "speed")}}
             evidence = snapshot.fields.get("ocr_evidence")
             if evidence and evidence.valid and isinstance(evidence.value, Mapping):

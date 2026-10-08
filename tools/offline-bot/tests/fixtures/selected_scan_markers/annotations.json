@@ -175,5 +175,31 @@
     ],
     "text": "ASTEROID world-marker label; excludes target-panel title",
     "privacy": "Only102x16 glyphs, no account/chat."
-  }
+  },
+  "development_labels": [
+    {
+      "file": "exrun-dim-marker.png",
+      "source_image": "logs/mining/scan-development-20261007/exrun-selected-hud.png",
+      "source_sha256": "78da61ec0e62b4f25cef30f99558300189f2b1e51fe148c670353ab8f3affe10",
+      "native_frame_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1385,
+        700,
+        1510,
+        810
+      ],
+      "label_box": [
+        1396,
+        711,
+        1498,
+        727
+      ],
+      "annotation_basis": "Visually inspected complete ASTEROID world label from native Exrun selection; development regression, not held-out accuracy evidence.",
+      "reviewed_scan_state": "unknown",
+      "privacy": "Only world label and nearby asteroid marker; no chat or account details."
+    }
+  ]
 }

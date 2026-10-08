@@ -25,10 +25,10 @@ class SelectedMarkerLocation:
     label_matches: int = 0
 
 
-def _neutral_text_mask(image):
+def _neutral_text_mask(image, *, minimum=110):
     rgb = np.asarray(image.convert("RGB"))
     low, high = rgb.min(axis=2), rgb.max(axis=2)
-    return (low > 110) & ((high.astype(np.int16)-low) < 35)
+    return (low > minimum) & ((high.astype(np.int16)-low) < 35)
 
 
 @lru_cache(maxsize=1)
@@ -51,7 +51,10 @@ def locate_selected_marker(image, *, selected_asteroid_verified=False):
     template = _label_template()
     height, width = template.shape
     # Exclude target-panel title, sidebar, chat and own lower control HUD.
-    area = _neutral_text_mask(image.crop((0, 200, 2010, 1040)))
+    # The reviewed Exrun label is translucent: its complete native glyphs
+    # agree at 100, while 110 erases a quarter of the template ink. Retain
+    # the same precision, completeness and bounded-search requirements.
+    area = _neutral_text_mask(image.crop((0, 200, 2010, 1040)), minimum=100)
     shape = (area.shape[0]-height+1, area.shape[1]-width+1)
     positive = list(zip(*np.where(template)))
     negative = list(zip(*np.where(~template)))

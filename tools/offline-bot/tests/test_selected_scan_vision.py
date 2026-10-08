@@ -122,6 +122,19 @@ class SelectedScanVisionTests(unittest.TestCase):
         self.assertIsNone(locate_selected_marker(Image.new("RGB", (2560, 1440)),
             selected_asteroid_verified=True).box)
 
+    def test_reviewed_dim_exrun_label_and_clipped_letters(self):
+        with Image.open(FIXTURES / "exrun-dim-marker.png") as source:
+            fragment = source.copy()
+        image = Image.new("RGB", (2560, 1440))
+        image.paste(fragment, (300, 300))
+        found = locate_selected_marker(image, selected_asteroid_verified=True)
+        self.assertEqual(found.label_matches, 1)
+        self.assertEqual(found.box, (335, 347, 391, 391))
+        # A dim partial word is still insufficient evidence.
+        fragment.paste((0, 0, 0), (103, 11, 114, 27))
+        image.paste(fragment, (300, 300))
+        self.assertIsNone(locate_selected_marker(image, selected_asteroid_verified=True).box)
+
     def test_locator_requires_selected_hud_and_native_geometry(self):
         image = Image.new("RGB", (2560, 1440))
         self.assertEqual(locate_selected_marker(image).reason, "selected_asteroid_unverified")

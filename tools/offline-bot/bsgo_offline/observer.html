@@ -268,7 +268,7 @@
     const calibrated=liveField(current,name);
     if (calibrated!==null) return calibrated;
     const evidence=liveField(current,'stationary_scan_evidence');
-    if (liveField(current,'asteroid_selected')!==true || evidence?.profile!=='native-stationary-scanner-v1' || evidence.input_scope!=='scanner_only' || evidence.target_ratio_verified!==true || !Array.isArray(evidence.frame_size) || evidence.frame_size[0]!==2560 || evidence.frame_size[1]!==1440) return null;
+    if (liveField(current,'asteroid_selected')!==true || evidence?.profile!=='native-stationary-scanner-v1' || evidence.input_scope!=='scanner_only' || evidence.target_ratio_verified!==true || !Array.isArray(current.frame_size) || current.frame_size[0]!==2560 || current.frame_size[1]!==1440 || !Array.isArray(evidence.frame_size) || evidence.frame_size[0]!==2560 || evidence.frame_size[1]!==1440) return null;
     const value=evidence.target_current_hp, maximum=evidence.target_max_hp;
     if (!Number.isInteger(value) || !Number.isInteger(maximum) || value<0 || maximum<=0 || value>maximum || evidence.target_identity!==`asteroid:hp:${maximum}`) return null;
     for (const key of ['target_max_hp','target_identity']) {
@@ -356,7 +356,7 @@
     const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
     const verifiedAsteroid=typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true;
     set('rangelabel',verifiedAsteroid ? 'Selected asteroid range' : 'HUD range');
-    set('targetname',verifiedAsteroid ? 'Verified selected asteroid' : 'Target type unverified');
+    set('targetname',verifiedAsteroid ? 'Verified selected asteroid' : noAsteroid ? 'No asteroid selected' : 'Target type unverified');
     set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
     set('speed',speed===null ? 'UNKNOWN' : `${speed.toFixed(1).replace(/\.0$/,'')} m/s`);
     const marker=$('targetmarker');

@@ -500,6 +500,11 @@ paused**. If the game is missing, duplicated, or unavailable, the
 connection card explains the issue and offers **Retry game connection**.
 Opening the dashboard or retrying never focuses the game or sends an input.
 
+For a background restart while the human is playing, pass `--no-browser` to
+`python -m bsgo_offline.easy_launcher --workspace C:\Projects\bsgo --port 8765`.
+This starts or reuses the observer without opening a browser window. Actions
+still start paused; the app remains the owner of passive game capture.
+
 Passive observation now uses exact-HWND Windows Graphics Capture, with the
 Windows packages pinned in `requirements.txt`. An overlapping cockpit window
 does not replace the game's pixels with desktop content. HWND/PID, physical
@@ -538,6 +543,11 @@ selected-target scan and approach routines, with their assessment requirements.
 Visible/nearby discovery and full Autopilot remain explicitly unavailable with
 the current controller. Instruments distinguish calibrated action readings
 from display-only HUD readings; field failures remain visible.
+
+The selected world-marker locator also accepts the reviewed dim Exrun label at
+native brightness 100, with the original template precision and complete-letter
+requirements. Missing, clipped and multiple labels remain unknown. Its retained
+label crop is a development regression, not evidence of general scene discovery.
 
 The image viewer preserves aspect ratio and colors without overlays. It keeps
 verified same-session pixels while a newer frame decodes, labels retained pixels
