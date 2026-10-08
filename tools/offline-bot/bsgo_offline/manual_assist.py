@@ -22,16 +22,23 @@ TARGET_FIELDS = ("speed", "distance", "asteroid_selected", "target_identity",
                  "target_portrait", "target_max_hp", "hull_current", "hull_max")
 
 
-def target_reading(snapshot, now, *, require_stopped=True, require_full_hull=True):
+def target_reading(snapshot, now, *, require_stopped=True, require_full_hull=True, for_scan=False):
     if snapshot is None:
         return None, "no_current_image"
     if not snapshot.healthy or not 0 <= now - snapshot.acquired_at < 2:
         return None, "unhealthy_or_stale_current_image"
     values = {}
+    scanner_only = False
+    from .stationary_scan import stationary_scan_values
+    scanner = stationary_scan_values(snapshot, now) if for_scan else None
     for name in TARGET_FIELDS:
         field = snapshot.fields.get(name)
         if (field is None or not field.valid or field.observed_at != snapshot.acquired_at
                 or not 0 <= now - field.observed_at < 2):
+            if scanner is not None and name in scanner:
+                values[name] = scanner[name]
+                scanner_only = True
+                continue
             return None, "invalid_or_stale_" + name
         values[name] = field.value
     if (type(values["speed"]) not in (int, float) or not math.isfinite(values["speed"])
@@ -58,7 +65,7 @@ def target_reading(snapshot, now, *, require_stopped=True, require_full_hull=Tru
         if revision and (not revision.valid or revision.observed_at != snapshot.acquired_at
                 or type(revision.value) is not int or revision.value < 0):
             return None, "invalid_or_stale_" + name
-    return {**values, "context": plain(snapshot.context), "sequence": snapshot.sequence,
+    return {**values, **({'scanner_only': True} if scanner_only else {}), "context": plain(snapshot.context), "sequence": snapshot.sequence,
         "acquired_at": snapshot.acquired_at,
         **{name: snapshot.fields[name].value if snapshot.fields.get(name)
             and snapshot.fields[name].valid and snapshot.fields[name].observed_at == snapshot.acquired_at
@@ -220,13 +227,13 @@ class ManualAssistController:
         return {"accepted":reason is None,"reason":reason or "focus_handover_setting_updated",
                 "state":self.focus_handover_snapshot()}
 
-    def _current(self):
+    def _current(self, *, for_scan=False):
         try:
             snapshot = self.snapshot_provider()
         except Exception as exc:
             return None, None, f"snapshot_provider_failure: {type(exc).__name__}: {exc}", None
         now = self.clock()
-        reading, reason = target_reading(snapshot, now)
+        reading, reason = target_reading(snapshot, now, for_scan=for_scan)
         token_reading = reading
         observation = None
         token = None
@@ -236,7 +243,7 @@ class ManualAssistController:
                 "valid": field.valid, "reason": field.reason, "observed_at": field.observed_at,
                 "fresh": 0 <= now - field.observed_at < 2}
                 for name, field in snapshot.fields.items()
-                if name in TARGET_FIELDS or name in ("target_current_hp", "ship_telemetry")}
+                if name in TARGET_FIELDS or name in ("target_current_hp", "ship_telemetry", "stationary_scan_evidence", "selected_scan_result")}
             observation = {"sequence": snapshot.sequence, "acquired_at": snapshot.acquired_at,
                 "age_seconds": now - snapshot.acquired_at, "healthy": snapshot.healthy,
                 "window_id": snapshot.window_id, "fields": fields,
@@ -265,7 +272,10 @@ class ManualAssistController:
         return observation, reading, reason, token
 
     def actions_snapshot(self):
-        observation, reading, reason, token = self._current()
+        observation, reading, reason, token = self._current(for_scan=True)
+        scan_reading, scan_reason = reading, reason
+        if reading and reading.get('scanner_only'):
+            reason = 'calibrated_navigation_evidence_required'
         pause = self._pause_reason()
         with self._lock:
             job = dict(self._job) if self._job else None
@@ -312,14 +322,14 @@ class ManualAssistController:
                     if self.selection_track_provider is None else None)
                 # Enable on a stopped image; once ON the toggle waits during
                 # human flight without ever requesting braking or thrust.
-                blocked = blocked or reason
+                blocked = blocked or scan_reason
                 if token is None:
                     blocked = blocked or "fresh_selected_image_context_required"
                 active = toggle_enabled or toggle_draining or owner == name
                 waiting = toggle_progress.reason if active and toggle_progress else None
             else:
-                blocked = blocked or reason
-                if name == "scan_selected" and reading and reading["distance"] > 4000:
+                blocked = blocked or (scan_reason if name == "scan_selected" else reason)
+                if name == "scan_selected" and scan_reading and scan_reading["distance"] > 4000:
                     blocked = blocked or "selected_target_outside_scanner_range"
                 waiting = None
                 active = owner == name
@@ -390,7 +400,7 @@ class ManualAssistController:
         request = request or {}
         if not isinstance(request, dict):
             return {"accepted": False, "reason": "invalid_action_request", "state": self.actions_snapshot()}
-        observation, reading, reason, token = self._current()
+        observation, reading, reason, token = self._current(for_scan=name in ('scan_selected','auto_scan_selected'))
         rejection = self._pause_reason()
         with self._lock:
             if self._closed:
@@ -478,7 +488,7 @@ class ManualAssistController:
             while True:
                 if job["stop"].is_set() or self._pause_reason():
                     raise RuntimeError("action_canceled_before_input")
-                _, current, reason, _ = self._current()
+                _, current, reason, _ = self._current(for_scan=job['name'] in ('scan_selected','auto_scan_selected'))
                 if reason or not same_target(job["pin"], current) or abs(current["distance"] - job["pin"]["distance"]) > 5:
                     raise RuntimeError(reason or "requested_target_or_context_changed")
                 if self.clock() >= job["deadline"]:
@@ -591,7 +601,7 @@ class ManualAssistController:
                 if pause or self._job is not None or not snapshot or plain(snapshot.context) != context:
                     self._toggle.record_result(decision.request_id,delivered=False)
                     continue
-                pin, invalid = target_reading(snapshot,self.clock())
+                pin, invalid = target_reading(snapshot,self.clock(),for_scan=True)
                 if invalid:
                     self._toggle.record_result(decision.request_id,delivered=False)
                     continue

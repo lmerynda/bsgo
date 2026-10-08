@@ -514,6 +514,14 @@ readings and rejection reasons. They do not promote the separately calibrated
 fields used by scan/approach routines. Unsupported, absent or incomplete text
 stays unknown; the station view does not contain flight instruments.
 
+Selected-target scanning also has an independent `stationary_scan_evidence`
+reader at native 2560 × 1440. It requires complete measured zero-speed text,
+full own hull, a fresh matching frame, and no contradictory calibrated reading.
+This evidence authorizes scanner input only. It does not promote display-only
+telemetry into action fields or enable Approach; target identity, portrait,
+range, pause, ownership and foreground guards remain required. Scan delivery
+still does not establish a visible scan result or resource composition.
+
 The dashboard now uses the [mode-centered cockpit](../../docs/design/cockpit-astra-20261007/selected-direction.md):
 Assist and Autopilot workspaces, acknowledged active mode and input authority,
 persistent Pause/Cancel, original game pixels, and a focused action panel.

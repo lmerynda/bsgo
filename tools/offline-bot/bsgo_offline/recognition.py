@@ -201,9 +201,12 @@ class HudRecognizer:
         self.profile = profile
         self.source_frame_size = source_frame_size
         self._ship_telemetry = None
+        self._stationary_scan = None
         if profile == 'largehud-20261003':
             from .ship_telemetry import ShipTelemetryReader
             self._ship_telemetry = ShipTelemetryReader(self._reader._large)
+            from .stationary_scan import StationaryScanReader
+            self._stationary_scan = StationaryScanReader(self._reader._large)
 
     def __call__(self, sample: FrameSample) -> RecognitionResult:
         from PIL import Image
@@ -260,5 +263,8 @@ class HudRecognizer:
         if self._ship_telemetry is not None:
             fields["ship_telemetry"] = FieldValue(
                 self._ship_telemetry.read(image), sample.acquired_at)
+        if self._stationary_scan is not None and not converted:
+            fields['stationary_scan_evidence'] = FieldValue(
+                self._stationary_scan.read(image), sample.acquired_at)
         return RecognitionResult(source_size, fields, size_ok,
                                  None if size_ok else "layout_size_mismatch")

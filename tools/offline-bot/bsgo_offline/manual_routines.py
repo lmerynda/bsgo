@@ -37,18 +37,30 @@ class PinnedRecognizer:
     externally; identity, portrait, HP and optional stopped range are checked on
     every new image, without pretending the HP signature is a world identity.
     """
-    def __init__(self, recognizer, target, *, baseline_distance=None):
+    def __init__(self, recognizer, target, *, baseline_distance=None, for_scan=False):
         self.recognizer, self.target = recognizer, target
         self.baseline_distance = baseline_distance
         self.images = 0
+        self.for_scan = for_scan
 
     def __call__(self, sample):
         result = self.recognizer(sample)
-        fields = result.fields
+        fields = dict(result.fields)
         reason = None
         geometry = getattr(sample, "geometry", None)
         window = f"{geometry.pid}:{geometry.hwnd}" if geometry else getattr(sample, "window_id", None)
         expected = self.target["context"]
+        if self.for_scan:
+            from .state import Snapshot
+            from .stationary_scan import stationary_scan_values
+            scanner_snapshot = Snapshot(sample.acquisition_sequence, sample.session_epoch,
+                sample.acquisition_sequence, sample.acquired_at, time.monotonic(), sample.layout,
+                result.frame_size, fields, result.healthy, result.reason, window_id=window)
+            scanner = stationary_scan_values(scanner_snapshot, time.monotonic())
+            if scanner:
+                for name in ('hull_current','hull_max'):
+                    if not fields.get(name) or not fields[name].valid:
+                        fields[name] = FieldValue(scanner[name], sample.acquired_at)
         if (window != expected["window_id"] or sample.layout != expected["layout"]
                 or tuple(result.frame_size) != tuple(expected["frame_size"])):
             return RecognitionResult(result.frame_size,
@@ -105,7 +117,7 @@ class GuardedManualRoutines:
             on_progress(directory)
             return {"source_factory": lambda: self.source_factory(interval),
                 "recognizer_factory": lambda: PinnedRecognizer(self.recognizer_factory(), expected_target,
-                                                               baseline_distance=baseline_distance),
+                                                               baseline_distance=baseline_distance, for_scan=name=='scan_selected'),
                 "dispatcher_factory": dispatcher,
                 "configuration": {**self.configuration, "manual_assist": True,
                     "selected_target_pin": {key: plain(expected_target[key]) for key in

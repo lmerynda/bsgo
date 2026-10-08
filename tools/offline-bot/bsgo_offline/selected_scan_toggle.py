@@ -88,6 +88,10 @@ class SelectedScanToggle:
             value = snapshot.fields.get(name)
             if (value is None or not value.valid or value.observed_at != snapshot.acquired_at
                     or not 0 <= now-value.observed_at < 2):
+                from .stationary_scan import stationary_scan_values
+                scanner = stationary_scan_values(snapshot, now)
+                if scanner is not None and name in scanner:
+                    return scanner[name]
                 raise ValueError("invalid_or_stale_" + name)
             return value.value
 

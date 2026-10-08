@@ -34,6 +34,11 @@ def _reading(snapshot, *, now, expected_window_id, frame_size, context=None,
     for name in FIELDS:
         field = snapshot.fields.get(name)
         if not field or not field.valid or not 0 <= now - field.observed_at < 2:
+            from .stationary_scan import stationary_scan_values
+            scanner = stationary_scan_values(snapshot, now)
+            if scanner is not None and name in scanner:
+                values[name] = scanner[name]
+                continue
             return None, "invalid_or_stale_" + name
         values[name] = field.value
     if (values["speed"] != 0 or values["asteroid_selected"] is not True
