@@ -519,7 +519,7 @@ readings and rejection reasons. They do not promote the separately calibrated
 fields used by scan/approach routines. Unsupported, absent or incomplete text
 stays unknown; the station view does not contain flight instruments.
 
-General game observation runs independently of asteroid recognition. The
+General instrument readings do not depend on asteroid recognition succeeding. The
 `GameStateReader` reads the original captured image before any target-panel
 registration. At other window sizes it registers own-ship instrument geometry
 across three newer images without requiring an asteroid selection. Ship bars
@@ -528,12 +528,41 @@ unreadable instrument cannot erase unrelated verified ship readings. A valid
 capture remains healthy when only asteroid calibration fails. Wrong profiles,
 changed capture geometry and source failures still invalidate the image.
 
-The cockpit uses this independent display telemetry while actions are paused.
+The control panel uses this independent observation telemetry while actions are paused.
 `GET /api/observation` exposes each instrument under `game_state.ship`, with
 `value`, `usable`, `reason`, `unit` and `display_only`. The existing
 `observation.fields` retain their calibrated action semantics, and routine
 readiness never falls back to display telemetry. This separation does not
 validate new HUD fonts or authorize input at new window sizes.
+
+The application is a game control panel with optional features. `GameObservationFeed`
+owns the immutable `SnapshotStore` and original live-frame store. The observation
+worker publishes once; indicators, decision code, and mining routines consume that
+state. Mining no longer owns the public game-state projection. `GET /api/game-state`
+reads the shared feed directly, even if action-status callbacks fail. The browser
+polls it independently of the slower control/status requests.
+
+The **Asteroid mining** switch enables or disables mining recognition and its
+controls while capture, own-ship instruments, and the shared state remain active.
+`GET /api/features` reports feature availability; same-origin
+`POST /api/features` with `{"feature":"mining","enabled":false}` changes it.
+Feature changes leave actions paused and discard prior assessment tokens. An
+active routine must be stopped before switching. Re-enabling the feature never
+resumes input. The switch is session-local and defaults on for compatibility.
+
+In-process decision code reads `observation_feed.latest()` or the store's
+`read(event_cursor)`; `game_state_view(snapshot, now)` supplies the same validated
+instrument projection as the UI. HTTP consumers use `/api/game-state`, whose
+`observation` includes source sequence, epoch, time, geometry, and per-field
+rejection reasons. `ship` contains currently usable speed, hull, and energy.
+Freshness and input authorization are separate: legacy `display_only` remains a
+compatibility flag, and these observations grant no input authority. No autonomous
+planner is attached to the current live session.
+
+This establishes the core state boundary, not complete game understanding. General
+target, weapon, and radar readers remain future work. Enabled mining recognition
+still runs as an extension in the observation worker; exceptions are isolated,
+but separate worker budgets would be needed to isolate a slow extension's latency.
 
 Selected-target scanning also has an independent `stationary_scan_evidence`
 reader at native 2560 × 1440. It requires complete measured zero-speed text,

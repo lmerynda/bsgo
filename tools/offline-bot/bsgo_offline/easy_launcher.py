@@ -18,6 +18,7 @@ from .manual_assist_session import (native_binding,run_manual_assist_session,
 from .manual_routines import GuardedManualRoutines
 from .observer_ui import UnattachedManualActions,make_server
 from .startup_layout import PROFILE,StartupLayout
+from .game_observation import game_state_view
 
 
 PROTOCOL="bsgo-manual-assist-launcher-v1"
@@ -88,6 +89,8 @@ class EasyLauncher:
         self._candidates=[]
         self._game=None
         self._controller=None
+        self._observation_feed=None
+        self._mining_enabled=True
         self._thread=None
         self._cancel=None
         self._closed=False
@@ -99,11 +102,43 @@ class EasyLauncher:
         with self._lock:
             return self._controller
 
+    def mining_enabled(self):
+        with self._lock:
+            return self._mining_enabled
+
+    def game_state_snapshot(self):
+        with self._lock:
+            feed = self._observation_feed
+        state = feed.game_state_snapshot() if feed else game_state_view(None, time.monotonic())
+        return {**state, 'features': self.features_snapshot()}
+
+    def features_snapshot(self):
+        return {'mining': {'enabled': self.mining_enabled(), 'switchable': True},
+                'game_observation': {'enabled': True, 'switchable': False}}
+
+    def set_feature(self, name, enabled):
+        if name != 'mining' or type(enabled) is not bool:
+            return {'accepted': False, 'reason': 'invalid_feature_setting', 'state': self.features_snapshot()}
+        controller = self._current_controller()
+        if controller:
+            state = controller.actions_snapshot()
+            if state.get('ownership', {}).get('owner') is not None:
+                return {'accepted': False, 'reason': 'stop_active_routine_before_feature_change',
+                        'state': self.features_snapshot()}
+            # Enabling a feature only makes its UI/recognition available. Every
+            # change clears assessments and leaves input explicitly paused.
+            controller.pause_actions()
+        with self._lock:
+            self._mining_enabled = enabled
+        return {'accepted': True, 'reason': 'feature_enabled_actions_paused' if enabled else 'feature_disabled',
+                'state': self.features_snapshot()}
+
     def live_frame_snapshot(self):
         with self._lock:
             controller, phase, reason = self._controller, self._phase, self._reason
+            feed = self._observation_feed
             game = self._game
-        provider = getattr(controller, "live_frame_snapshot", None)
+        provider = feed.frames.snapshot if feed else getattr(controller, "live_frame_snapshot", None)
         if not callable(provider):
             return {"available": False, "identity": None, "version": None, "image_url": None,
                 "status": "waiting", "fresh": False, "connected": False, "reason": reason,
@@ -118,6 +153,10 @@ class EasyLauncher:
             "launcher_instance_id": self.instance_id}
 
     def live_frame_image(self, identity, version):
+        with self._lock:
+            feed = self._observation_feed
+        if feed:
+            return feed.frames.image(identity, version)
         controller = self._current_controller()
         provider = getattr(controller, "live_frame_image", None)
         if not callable(provider):
@@ -135,6 +174,8 @@ class EasyLauncher:
             layout=self._game.get("startup_layout") if self._game else None
         if layout and not layout["control_supported"]:
             state={**state,"enabled":False,"paused":True,"pause_reason":layout["control_reason"]}
+        if not self.mining_enabled():
+            state={**state,"enabled":False,"paused":True,"pause_reason":"mining_feature_disabled"}
         return state
 
     def startup_snapshot(self):
@@ -144,7 +185,10 @@ class EasyLauncher:
             cleanup_unresolved=self._cleanup_unresolved
             session_running=bool(self._thread and self._thread.is_alive())
         controller=self._current_controller()
-        observation=controller.actions_snapshot().get("current_observation") if controller else None
+        with self._lock:
+            feed = self._observation_feed
+        observation=(feed.snapshot() if feed else
+            controller.actions_snapshot().get("current_observation") if controller else None)
         if game:
             calibration=observation.get("layout_calibration") if observation else None
             if calibration:
@@ -163,6 +207,7 @@ class EasyLauncher:
             "phase":phase,"reason":reason,"game":plain(game),"candidates":plain(candidates),
             "retry_available":not closed and not session_running and not cleanup_unresolved,
             "cleanup_unresolved":cleanup_unresolved,
+            "features":self.features_snapshot(),
             "action_control":self.action_control_snapshot(),
             "focus_handover":controller.focus_handover_snapshot() if controller else
                 {"enabled":False,"available":False,"reason":"game_connection_not_attached"}}
@@ -176,9 +221,16 @@ class EasyLauncher:
             state={**state,"paused":True,"pause_reason":layout["control_reason"],"assessment_context":None,
                 "routines":{name:{**item,"ready":False,"start_allowed":False,"reason":layout["control_reason"]}
                             for name,item in state.get("routines",{}).items()}}
+        if not self.mining_enabled():
+            state={**state,"paused":True,"pause_reason":"mining_feature_disabled",
+                "assessment_context":None,"visible_assessment_context":None,
+                "routines":{name:{**item,"available":False,"ready":False,"start_allowed":False,
+                    "reason":"mining_feature_disabled"} for name,item in state.get("routines",{}).items()}}
         return {**state,"action_control":self.action_control_snapshot()}
 
     def start_action(self,name,request=None):
+        if not self.mining_enabled():
+            return {"accepted":False,"reason":"mining_feature_disabled","state":self.actions_snapshot()}
         with self._lock:
             layout=self._game.get("startup_layout") if self._game else None
         if layout and not layout["control_supported"]:
@@ -195,6 +247,8 @@ class EasyLauncher:
         return controller.stop_action(name)
 
     def resume_actions(self,*,acknowledgment_token=None):
+        if not self.mining_enabled():
+            return {"accepted":False,"reason":"mining_feature_disabled","state":self.startup_snapshot()}
         with self._lock:
             layout=self._game.get("startup_layout") if self._game else None
         if layout and not layout["control_supported"]:
@@ -269,7 +323,9 @@ class EasyLauncher:
                 "wheel_point":wheel_point,"flight_point_assessed":False,
                 "flight_point_description":FLIGHT_DESCRIPTION,"focus_handover_enabled":False}
             configuration["startup_layout"]=layout.metadata()
-            reader=SelectionEvidenceRecognizer(recognizer(),marker_reader=_marker_reader)
+            general_reader=recognizer()
+            general_reader.mining_enabled_provider=self.mining_enabled
+            reader=SelectionEvidenceRecognizer(general_reader,marker_reader=_marker_reader)
             runner=GuardedManualRoutines(source_factory=source,recognizer_factory=recognizer,
                 dispatcher_factory=dispatcher,profile=PROFILE,window_id=f"{geometry.pid}:{geometry.hwnd}",
                 frame_size=geometry.client_size,configuration=configuration,
@@ -278,6 +334,7 @@ class EasyLauncher:
             def connected(controller,server):
                 with self._lock:
                     self._controller=controller
+                    self._observation_feed=getattr(controller,'observation_feed',None)
                     self._game={**plain(geometry),"connection_id":connection_id,"output":str(output),
                         "cancel_file":str(cancel),"profile":PROFILE,"startup_layout":layout.metadata()}
                     self._phase="connected"

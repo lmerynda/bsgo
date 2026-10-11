@@ -80,7 +80,7 @@ class StartupLayoutTests(unittest.TestCase):
                 self.assertEqual(result.healthy,reason=='selected_panel_anchor_missing_or_ambiguous')
                 self.assertEqual(result.reason,reason)
                 self.assertTrue(all(not field.valid and field.value is None
-                    for name,field in result.fields.items() if name not in ("ocr_evidence", "ship_telemetry")))
+                    for name,field in result.fields.items() if name not in ("ocr_evidence", "ship_telemetry", "features")))
 
     def test_ship_observation_does_not_depend_on_an_asteroid_or_target_registration(self):
         from test_ship_telemetry import fixture

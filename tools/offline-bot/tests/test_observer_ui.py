@@ -805,7 +805,7 @@ class ObserverUiTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
     def test_cockpit_live_authority_fresh_fields_bound_assessment_and_recorded_history(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
-        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();", "  globalThis.setCockpit=(s,m,a)=>{startup=s;mode=m;actions=a;}; globalThis.cockpit={renderLive,captureAssessment,actionRequest,renderHistory,selectAction};\n})();")
+        script = script.replace("  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();", "  globalThis.setCockpit=(s,m,a)=>{startup=s;mode=m;actions=a;}; globalThis.cockpit={renderLive,captureAssessment,actionRequest,renderHistory,selectAction};\n})();")
         harness = """
 const elements = {};
 globalThis.document = {getElementById(id) { return elements[id] ||= {
@@ -871,7 +871,7 @@ console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,inva
             path = Path(directory) / "cockpit-render-smoke.js"
             path.write_text(harness, encoding="utf-8")
             result = subprocess.run(["node", str(path)], capture_output=True,
-                                    text=True, encoding="utf-8", check=True)
+                                    text=True, encoding="utf-8", check=True, timeout=10)
         rendered = json.loads(result.stdout)
         self.assertEqual(rendered["normal"]["range"], "800 m")
         self.assertEqual(rendered["normal"]["speed"], "0 m/s")
@@ -912,7 +912,7 @@ console.log(JSON.stringify({normal,assessed,original,expired,stale,offscale,inva
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
     def test_active_owner_can_request_generic_pause_when_live_gets_fail(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
-        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();", "  globalThis.cockpit={refreshLive,requestAction,requestStartup};\n})();")
+        script = script.replace("  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();", "  globalThis.cockpit={refreshLive,requestAction,requestStartup};\n})();")
         harness = """
 const elements={};let failGets=false;const posts=[];
 globalThis.document={getElementById(id){return elements[id] ||= {
@@ -945,7 +945,7 @@ eval(SCRIPT);
             path = Path(directory) / "cockpit-get-failure.js"
             path.write_text(harness, encoding="utf-8")
             result = subprocess.run(["node", str(path)], capture_output=True,
-                                    text=True, encoding="utf-8", check=True)
+                                    text=True, encoding="utf-8", check=True, timeout=10)
         rendered = json.loads(result.stdout)
         self.assertEqual(rendered["unavailable"]["range"], "UNKNOWN")
         self.assertEqual(rendered["unavailable"]["owner"], "UNKNOWN")
@@ -960,7 +960,7 @@ eval(SCRIPT);
     @unittest.skipUnless(shutil.which("node"), "Node unavailable for inline UI render smoke")
     def test_stalled_poll_ages_image_and_original_assessment_without_renewal(self):
         script = re.search(r"(?s)<script>(.*?)</script>", HTML.read_text(encoding="utf-8")).group(1)
-        script = script.replace("  refreshLive();\n  setInterval(renderLive,250);\n})();",
+        script = script.replace("  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();",
                                 "  globalThis.cockpit={refreshLive,captureAssessment}; setInterval(renderLive,250);\n})();")
         harness = """
 const elements={};let clock=0,stuck=false,watchdog=null;const timers=[];
@@ -999,7 +999,7 @@ eval(SCRIPT);
             path = Path(directory) / "cockpit-stalled-poll.js"
             path.write_text(harness, encoding="utf-8")
             result = subprocess.run(["node", str(path)], capture_output=True,
-                                    text=True, encoding="utf-8", check=True)
+                                    text=True, encoding="utf-8", check=True, timeout=10)
         rendered = json.loads(result.stdout)
         self.assertEqual(rendered["first"], "700 m")
         self.assertEqual(rendered["stale"]["range"], "UNKNOWN")

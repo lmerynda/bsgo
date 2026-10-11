@@ -14,8 +14,7 @@ ASSESSMENTS = {"scan_selected": ["safe_stopped_scene"],
                                            "safe_stopped_scene", "flight_point"]}
 DISPLAY_FIELDS = ("distance", "speed", "asteroid_selected", "target_identity",
                   "hull_current", "hull_max", "target_current_hp", "target_max_hp")
-SHIP_UNITS = {"speed": "m/s", "hull_current": "hp", "hull_max": "hp",
-              "energy_current": "energy", "energy_max": "energy"}
+from .game_observation import SHIP_UNITS, _game_state_ship
 
 
 def safe_json(value):
@@ -64,65 +63,6 @@ def _semantic_reason(name, value, fields):
         if maximum.get("valid") is True and limit is not None and numeric > limit:
             return "current_exceeds_maximum"
     return None
-
-
-def _ship_reading_reason(name, telemetry):
-    """Reject one instrument without discarding unrelated ship instruments."""
-    reasons = telemetry.get("reasons")
-    reasons = reasons if isinstance(reasons, dict) else {}
-    instrument = name.split("_", 1)[0]
-    reader_reason = reasons.get("layout") or reasons.get(instrument)
-    if reader_reason:
-        return reader_reason
-    if name == "speed":
-        numeric = _number(telemetry.get(name))
-        return None if numeric is not None and numeric >= 0 else "invalid_numeric_value"
-    current, maximum = (telemetry.get(instrument + suffix) for suffix in ("_current", "_max"))
-    if current is None or maximum is None:
-        return "complete_ratio_not_verified"
-    current, maximum = _number(current), _number(maximum)
-    if current is None or maximum is None or current < 0 or maximum < 0:
-        return "invalid_numeric_value"
-    if maximum == 0:
-        return "nonpositive_maximum"
-    if current > maximum:
-        return "current_exceeds_maximum"
-    return None
-
-
-def _game_state_ship(raw, age, errors):
-    """Display projection only; never supplies the action-calibrated fields.
-
-    The aggregate reader's validity belongs to this image. Individual ship
-    instruments may still be unknown, and ratios must have both sides.
-    """
-    raw_fields = raw.get("fields")
-    raw_fields = raw_fields if isinstance(raw_fields, dict) else {}
-    field = raw_fields.get("ship_telemetry")
-    missing = not isinstance(field, dict)
-    field = field if isinstance(field, dict) else {}
-    telemetry = field.get("value")
-    telemetry = telemetry if isinstance(telemetry, dict) else {}
-    common_reason = (
-        "startup_status_unavailable" if "startup" in errors else
-        "actions_status_unavailable" if "actions" in errors else
-        "current_image_unavailable" if not raw else
-        "field_missing" if missing else
-        "image_unhealthy" if raw.get("healthy") is not True else
-        "image_age_unknown" if age is None else
-        "image_stale" if not 0 <= age < MAX_IMAGE_AGE_SECONDS else
-        "recognition_rejected" if field.get("valid") is not True else
-        "field_stale" if field.get("fresh") is not True else
-        "not_from_current_image" if _number(raw.get("acquired_at")) is None
-            or _number(field.get("observed_at")) != raw.get("acquired_at") else
-        "display_telemetry_required" if telemetry.get("display_only") is not True else None)
-    ship = {}
-    for name, unit in SHIP_UNITS.items():
-        reason = common_reason or _ship_reading_reason(name, telemetry)
-        ship[name] = {"value": telemetry.get(name) if reason is None else None,
-                      "usable": reason is None, "reason": reason,
-                      "unit": unit, "display_only": True}
-    return ship
 
 
 def observation_snapshot(startup, mode, actions, *, collected_at, started_at,

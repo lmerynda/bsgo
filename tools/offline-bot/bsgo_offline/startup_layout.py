@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from PIL import Image
 
 from .mining_recognition import MiningHudRecognizer, MINING_FIELDS
-from .recognition import HUD_FIELDS, RecognitionResult
+from .recognition import HUD_FIELDS, RecognitionResult, load_hud_reader
 from .state import FieldValue
 from .hud_calibration import HudAnchorCalibrator
 from .game_state import GameStateReader
@@ -55,14 +55,26 @@ class StartupHudRecognizer:
     Ship instruments read the original image before target registration. Their
     display readings never replace the validated fields consumed by routines.
     """
-    def __init__(self, client_size, *, profile=PROFILE):
+    def __init__(self, client_size, *, profile=PROFILE, mining_enabled_provider=lambda: True):
         if profile != PROFILE:
             raise ValueError("startup_requires_explicit_large_hud_profile")
         self.layout = StartupLayout(client_size)
-        self.reader = MiningHudRecognizer(profile)
+        self._mining_reader = None
+        self.mining_enabled_provider = mining_enabled_provider
         self.profile = profile
-        self.calibrator = HudAnchorCalibrator(self.reader.hud._reader._large)
-        self.game_state = GameStateReader(self.reader.hud._reader._large)
+        fonts = load_hud_reader(profile)._large
+        self.calibrator = HudAnchorCalibrator(fonts)
+        self.game_state = GameStateReader(fonts)
+
+    @property
+    def reader(self):
+        if self._mining_reader is None:
+            self._mining_reader = MiningHudRecognizer(self.profile)
+        return self._mining_reader
+
+    @reader.setter
+    def reader(self, value):
+        self._mining_reader = value
 
     def __call__(self, sample):
         if callable(getattr(sample, "to_image", None)):
@@ -85,35 +97,43 @@ class StartupHudRecognizer:
         else:
             ship_field = FieldValue(self.game_state.read(source_image,
                 context=context, sequence=sequence, observed_at=sample.acquired_at), sample.acquired_at)
-        if reason:
+        mining_enabled = self.mining_enabled_provider() is True
+        if not mining_enabled:
+            reason = reason or 'mining_feature_disabled'
+        fields = None
+        try:
+            if reason:
+                self.calibrator.reset(reason)
+            elif not self.layout.control_supported:
+                if sequence is None:
+                    self.calibrator.reset("capture_identity_required_for_calibration")
+                    image = None
+                else:
+                    image = self.calibrator.update(image, context=context, sequence=sequence,
+                                                   observed_at=sample.acquired_at)
+                if image is None:
+                    reason = self.calibrator.reason
+            if not reason:
+                normalized = SimpleNamespace(layout=sample.layout, acquired_at=sample.acquired_at,
+                                             to_image=lambda: image)
+                result = self.reader(normalized)
+                fields = dict(result.fields)
+                evidence = dict(fields["ocr_evidence"].value)
+                reason = result.reason
+        except Exception as exc:
+            reason = 'mining_recognition_failed: ' + type(exc).__name__
             self.calibrator.reset(reason)
-        elif not self.layout.control_supported:
-            if sequence is None:
-                self.calibrator.reset("capture_identity_required_for_calibration")
-                image = None
-            else:
-                image = self.calibrator.update(image, context=context, sequence=sequence,
-                                               observed_at=sample.acquired_at)
-            if image is None:
-                reason = self.calibrator.reason
-        if reason:
+            fields = None
+        if fields is None:
             fields = {name: FieldValue(None, sample.acquired_at, False, reason)
                       for name in (*HUD_FIELDS, *MINING_FIELDS)}
             evidence = {"reasons": [reason]}
             # Missing target anchors are field-level recognition failures;
             # they do not make the independently captured game image unhealthy.
-            healthy = source_reason is None
-        else:
-            # This proxy is private to the reader. Capture/snapshot publication
-            # continues to use the original sample, epoch, sequence and bytes.
-            normalized = SimpleNamespace(layout=sample.layout, acquired_at=sample.acquired_at,
-                                         to_image=lambda: image)
-            result = self.reader(normalized)
-            fields = dict(result.fields)
-            evidence = dict(fields["ocr_evidence"].value)
-            healthy = result.healthy
-            reason = result.reason
+        healthy = source_reason is None
         fields["ship_telemetry"] = ship_field
+        fields['features'] = FieldValue({'mining': {'enabled': mining_enabled,
+            'reason': reason}}, sample.acquired_at)
         evidence.update(source_frame_size=source_size,
             recognition_frame_size=CALIBRATED_SIZE if image is not None and not reason else source_size,
             startup_layout=self.layout.metadata(),

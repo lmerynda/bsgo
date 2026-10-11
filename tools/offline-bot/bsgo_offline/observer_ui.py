@@ -362,9 +362,10 @@ class ObserverIndex:
 
 
 def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
-                action_adapter=None, startup_adapter=None):
+                action_adapter=None, startup_adapter=None, observation_adapter=None):
     index = ObserverIndex(runs_root)
     actions = action_adapter or UnattachedManualActions()
+    observations = observation_adapter if observation_adapter is not None else actions
     controller = mode_controller or UnattachedModeController(actions)
     startup = (startup_adapter if startup_adapter is not None else
                AttachedSessionStartup(actions) if all(hasattr(actions, name) for name in
@@ -425,6 +426,17 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
         payload = observation_snapshot(sources.get("startup"), sources.get("mode"),
             sources.get("actions"), collected_at=time.monotonic(), started_at=started,
             actions_collected_at=actions_at, source_errors=errors)
+        provider = getattr(observations, 'game_state_snapshot', None)
+        if callable(provider):
+            try:
+                state = provider()
+                payload['game_state'] = {'ship': state['ship'],
+                    'observation': state['observation'], 'source': state['source']}
+            except Exception as exc:
+                from .game_observation import game_state_view
+                payload['game_state'] = {'ship': game_state_view(None, time.monotonic())['ship']}
+                errors['game_state'] = {'error': 'game_state_unavailable', 'cause': type(exc).__name__}
+                payload['source_errors'] = errors
         return (503 if errors else 200), payload
 
     class Handler(BaseHTTPRequestHandler):
@@ -492,6 +504,24 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                     self._json(503, {"error": "live_image_unavailable", "cause": type(exc).__name__})
                     return
                 self._send(200, data, mime)
+                return
+            if request.path == '/api/game-state':
+                if request.query:
+                    self._json(400, {'error': 'game_state_does_not_accept_query_parameters'})
+                    return
+                provider = getattr(observations, 'game_state_snapshot', None)
+                if not callable(provider):
+                    self._json(503, {'error': 'game_observation_not_attached'})
+                    return
+                try:
+                    self._json(200, provider())
+                except Exception as exc:
+                    self._json(503, {'error': 'game_state_unavailable', 'cause': type(exc).__name__})
+                return
+            if request.path == '/api/features':
+                provider = getattr(startup, 'features_snapshot', None)
+                self._json(200 if callable(provider) else 503,
+                    provider() if callable(provider) else {'error': 'features_not_attached'})
                 return
             if request.path in ("/api/observation", "/api/observation/schema"):
                 if query:
@@ -582,7 +612,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 self._json(403, {"error": "invalid_origin"})
                 return
             path = urlsplit(self.path).path
-            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup"):
+            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup", "/api/features"):
                 self._json(404, {"error": "not_found"})
                 return
             if self.headers.get("Content-Type") != "application/json":
@@ -597,7 +627,18 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 self._json(400, {"error": "invalid_mode_request"})
                 return
             try:
-                if path == "/api/control-mode":
+                if path == '/api/features':
+                    if (not isinstance(data, dict) or set(data) != {'feature', 'enabled'}
+                            or data['feature'] != 'mining' or type(data['enabled']) is not bool):
+                        self._json(400, {'error': 'invalid_feature_setting'})
+                        return
+                    provider = getattr(startup, 'set_feature', None)
+                    if not callable(provider):
+                        self._json(503, {'error': 'features_not_attached'})
+                        return
+                    with actions_lock:
+                        decision = provider(data['feature'], data['enabled'])
+                elif path == "/api/control-mode":
                     mode = data.get("mode") if isinstance(data, dict) else None
                     if mode not in ("manual", "autopilot"):
                         self._json(400, {"error": "invalid_mode"})

@@ -180,6 +180,19 @@ class RecognitionWorker:
             self._set_stage("ended")
 
 
+def load_hud_reader(profile, reader_path=None, *, source_frame_size=None):
+    """Load shared measured fonts without constructing a feature recognizer."""
+    path = Path(reader_path) if reader_path else Path(__file__).resolve().parents[2] / "hud-reader" / "hud_reader.py"
+    spec = importlib.util.spec_from_file_location("bsgo_offline_hud_reader", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load HUD reader from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.HudReader(profile=profile,
+        speed_raster=("box_3840_to_2560" if profile == "restart-20261001"
+            and source_frame_size == (3840, 2160) else "native"))
+
+
 class HudRecognizer:
     """Read the configured HUD profile; never infer profile from successful OCR."""
 
@@ -189,15 +202,7 @@ class HudRecognizer:
             raise ValueError("unsupported_source_frame_size")
         if profile == 'largehud-20261003' and source_frame_size is not None:
             raise ValueError('large_hud_requires_native_pixels')
-        path = Path(reader_path) if reader_path else Path(__file__).resolve().parents[2] / "hud-reader" / "hud_reader.py"
-        spec = importlib.util.spec_from_file_location("bsgo_offline_hud_reader", path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot load HUD reader from {path}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        self._reader = module.HudReader(profile=profile,
-            speed_raster=("box_3840_to_2560" if profile == "restart-20261001"
-                and source_frame_size == (3840, 2160) else "native"))
+        self._reader = load_hud_reader(profile, reader_path, source_frame_size=source_frame_size)
         self.profile = profile
         self.source_frame_size = source_frame_size
         self._ship_telemetry = None

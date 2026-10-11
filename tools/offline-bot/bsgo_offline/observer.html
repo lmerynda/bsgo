@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mining cockpit</title><style>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Game control panel</title><style>
     :root { color-scheme:dark; --bg:#091321; --panel:#102034; --panel2:#0c192b; --line:#294158; --text:#f0f5fa; --muted:#a6b8ca; --cyan:#75d9eb; --green:#8bddac; --amber:#ffd178; --red:#ff9ea6; }
     * { box-sizing:border-box; }
     body { margin:0; background:#07111e; color:var(--text); font:14px/1.38 system-ui,Segoe UI,sans-serif; }
@@ -163,7 +163,8 @@
 </style></head><body>
 
 <main class="shell">
-  <header><div class="brand"><span class="brandmark" aria-hidden="true">◇</span><h1>Mining cockpit</h1><span id="syntheticchip" class="synthetic" hidden>SYNTHETIC DEMO</span></div>
+  <header><div class="brand"><span class="brandmark" aria-hidden="true">◇</span><h1>Game control panel</h1><span id="syntheticchip" class="synthetic" hidden>SYNTHETIC DEMO</span></div>
+    <label><input id="miningfeature" type="checkbox" disabled> Asteroid mining</label>
     <div class="modechooser" role="group" aria-label="Choose operating workspace; selection does not activate it"><button id="assistmode" type="button" aria-pressed="true">Assist</button><button id="autopilotmode" type="button" aria-pressed="false">Autopilot <span id="autopilotavailability" class="small">Unavailable</span></button></div>
   </header>
   <section class="strip" aria-label="Connection and control authority">
@@ -173,14 +174,16 @@
   </section>
   <div class="deck"><div class="visual">
     <section class="instrument" aria-label="Current instruments">
-      <div class="readout"><div id="rangelabel" class="eyebrow">HUD range</div><div id="range" class="range">UNKNOWN</div><div id="targetname" class="targetname small">Target type unverified</div></div>
+      <div id="miningrange" class="readout"><div id="rangelabel" class="eyebrow">HUD range</div><div id="range" class="range">UNKNOWN</div><div id="targetname" class="targetname small">Target type unverified</div></div>
       <div class="readout"><div class="eyebrow">Speed</div><div id="speed" class="value">UNKNOWN</div><div id="speedprovenance" class="small">Reading unavailable</div></div>
-      <div class="readout"><div class="eyebrow">Target health</div><div id="hpvalue" class="pair">UNKNOWN</div><div id="hpbar" class="bar unknown"><div id="hpfill" class="fill"></div></div><div id="targetprovenance" class="small">No verified asteroid</div></div>
+      <div id="mininghealth" class="readout"><div class="eyebrow">Target health</div><div id="hpvalue" class="pair">UNKNOWN</div><div id="hpbar" class="bar unknown"><div id="hpfill" class="fill"></div></div><div id="targetprovenance" class="small">No verified asteroid</div></div>
       <div class="readout"><div class="eyebrow">Hull integrity</div><div id="hullvalue" class="pair">UNKNOWN</div><div id="hullbar" class="bar unknown"><div id="hullfill" class="fill"></div></div><div id="hullprovenance" class="small">Reading unavailable</div></div>
       <div class="readout"><div class="eyebrow">Energy reserve</div><div id="energyvalue" class="pair">UNKNOWN</div><div id="energybar" class="bar unknown"><div id="energyfill" class="fill"></div></div><div id="energyprovenance" class="small">Reading unavailable</div></div>
     </section>
     <section class="capture" aria-label="Original game capture"><div class="panelhead"><h2>Game view</h2><span id="capturestatus" class="capturestatus">Waiting for capture</span></div><div class="captureviewport"><img id="livecapture" alt="Original captured game window, with its own HUD unchanged" hidden><div id="captureplaceholder" class="captureplaceholder">Waiting for the original game capture.</div></div><div class="capturefoot"><span id="capturedetail">No captured frame available</span><span>Original pixels · full frame</span></div></section>
   </div><div class="workspace" aria-label="Operating mode workspace">
+    <p id="miningoff" class="modeintro" hidden>Asteroid mining is off. Its controls remain here; enable the feature to use them.</p>
+    <div id="miningcontrols">
     <div class="panelhead"><h2 id="workspacetitle">Assist</h2><span id="workspacestate" class="small">You control flight</span></div>
     <section id="assistworkspace" class="workbody" aria-label="Assist controls">
       <p class="modeintro">Scan rocks in the current stopped view automatically, or choose a target yourself for scanning and approach.</p>
@@ -199,6 +202,7 @@
       <div class="missionrow"><strong>Objective</strong><span id="missionobjective">Automatic mining cycle · unavailable</span></div><div class="missionrow"><strong>Current target</strong><span id="missiontarget">UNKNOWN</span></div><div class="missionrow"><strong>Cycle phase / next step</strong><span id="missionphase">No active automatic mining cycle</span></div>
       <p class="small">Choosing this workspace does not enable actions or start flying.</p><div class="execution"><button id="activateautopilot" type="button" disabled>Activate Autopilot</button><p id="modeack" class="small" role="status"></p><button id="returnassist" type="button">Back to Assist</button></div>
     </section>
+    </div>
   </div></div>
   <div class="drawers">
     <details id="diagnostics" class="drawer"><summary>Diagnostics</summary><div class="drawerbody">
@@ -233,6 +237,7 @@
   const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
   const label = name => ({scan_nearby_unscanned:'Scan visible',scan_selected:'Scan once',auto_scan_selected:'Auto-scan',approach_current_target:'Approach'})[name] || name;
   let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='scan_nearby_unscanned',selectedMode='assist';
+  let gameState=null,lastGameReceivedAt=null,featureInFlight=false;
   let inFlight=false,pauseInFlight=false,imagesVisible=false,connectionKey=null,contextKey=null,lastNotice=null,statusFault=null,lastKnownActive=false,lastKnownEnabled=false,lastActionReceivedAt=null;
   const assessments={scan_nearby_unscanned:null,scan_selected:null,auto_scan_selected:null,approach_current_target:null};
   const checks={scan_nearby_unscanned:['visiblesafe'],scan_selected:['scanselectedsafe'],auto_scan_selected:['autoscansafe'],approach_current_target:['clearcorridor','alignedheading','safestopped','flightpoint']};
@@ -242,6 +247,7 @@
   function connectionMessage(state) {
     const reason=String(state?.reason || '').toLowerCase();
     if (state?.phase==='connected') {
+      if (state?.features?.mining?.enabled===false) return ['Game attached','Game observation active'];
       const layout=state?.game?.startup_layout;
       if (layout?.control_supported===false) return ['Game attached',
         layout?.calibration?.status==='registered' ? 'Calibrated observation only' :
@@ -259,7 +265,11 @@
   }
   const clientNow = () => performance.now();
   function elapsedSinceAction() { return lastActionReceivedAt===null ? 0 : Math.max(0,(clientNow()-lastActionReceivedAt)/1000); }
-  function imageAge(current) { const age=number(current?.age_seconds); return age===null ? null : age+elapsedSinceAction(); }
+  function imageAge(current) {
+    const age=number(current?.age_seconds);
+    const elapsed=current===gameState?.observation && lastGameReceivedAt!==null ? Math.max(0,(clientNow()-lastGameReceivedAt)/1000) : elapsedSinceAction();
+    return age===null ? null : age+elapsed;
+  }
   function liveField(current,name) {
     const field=current?.fields?.[name];
     const age=imageAge(current);
@@ -280,6 +290,10 @@
     return ['target_identity','target_current_hp','target_max_hp'].includes(name) ? evidence[name] : null;
   }
   function displayField(current,name) {
+    if (gameState && Object.hasOwn(gameState.ship || {},name)) {
+      const field=gameState.ship[name], age=imageAge(gameState.observation);
+      return field.usable===true && age!==null && age>=0 && age<2 ? field.value : null;
+    }
     const calibrated=liveField(current,name);
     if (calibrated!==null) return calibrated;
     const telemetry=liveField(current,'ship_telemetry');
@@ -306,7 +320,15 @@
     const game=startup?.game || {}, control=startup?.action_control || {}, ownership=actions?.ownership || {}, routines=actions?.routines || {};
     if (actions) lastKnownActive=Boolean(ownership.owner || routines.auto_scan_selected?.active===true);
     if (startup?.action_control) lastKnownEnabled=startup.action_control.enabled===true;
-    const current=startup?.phase==='connected' ? actions?.current_observation : null;
+    const current=gameState ? gameState.observation : startup?.phase==='connected' ? actions?.current_observation : null;
+    const mining=gameState?.features?.mining || startup?.features?.mining;
+    const miningEnabled=mining?.enabled!==false;
+    $('miningfeature').checked=miningEnabled;
+    $('miningfeature').disabled=featureInFlight || !mining || Boolean(ownership.owner);
+    $('miningcontrols').hidden=false;
+    $('miningoff').hidden=miningEnabled;
+    $('miningrange').hidden=false;
+    $('mininghealth').hidden=false;
     const [connection,cause]=connectionMessage(startup);
     set('connectionlabel',connection); set('connectioncause',cause); $('connectioncause').hidden=!cause;
     $('connectionlabel').title=cause || 'Current game connection';
@@ -327,6 +349,9 @@
     const fields=current?.fields || {};
     const noAsteroid=liveField(current,'asteroid_selected')===false;
     const issues=Object.entries(fields).filter(([name,field]) => {
+      if (!['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp','asteroid_selected','target_identity','selected_marker_scan_state','selected_scan_resource'].includes(name)) return false;
+      if (['speed','hull_current','hull_max'].includes(name) && displayField(current,name)!==null) return false;
+      if (!miningEnabled && !['speed','hull_current','hull_max'].includes(name)) return false;
       return liveField(current,name)===null || semanticReason(name,field?.value,fields);
     });
     const telemetry=liveField(current,'ship_telemetry');
@@ -378,7 +403,7 @@
     }
     bar('hull','hull_current','hull_max'); bar('hp','target_current_hp','target_max_hp'); bar('energy','energy_current','energy_max');
     for (const [id,name] of [['speedprovenance','speed'],['hullprovenance','hull_current'],['energyprovenance','energy_current']]) {
-      set(id,liveField(current,name)!==null ? 'Calibrated current reading' : displayField(current,name)!==null ? 'Display-only HUD reading' : age!==null && age>=2 ? 'Stale · reading unavailable' : 'Reading unavailable');
+      set(id,displayField(current,name)!==null ? 'Observed game state' : age!==null && age>=2 ? 'Stale · reading unavailable' : 'Reading unavailable');
     }
     set('targetprovenance',verifiedAsteroid ? liveField(current,'target_identity')!==null ? 'Current target reading' : 'Measured target ratio · scanner only' : 'No verified asteroid');
     const delivery=actions?.last_input_delivery, effect=actions?.last_confirmed_effect;
@@ -697,13 +722,41 @@
     const values=responses.map(row=>row.status==='fulfilled' ? row.value : null);
     [startup,mode,actions]=values;
     if (actions) lastActionReceivedAt=actionReceivedAt;
-    statusFault=values.every(Boolean) ? null : 'Live status unavailable; current telemetry and routine state may be unknown';
+    statusFault=values.slice(0,3).every(Boolean) ? null : 'Feature control status unavailable; shared game state continues independently';
     if (!startup) startup={phase:'blocked',reason:'Startup status unavailable'};
     renderLive();
     if ($('history').open) await refreshHistory();
     setTimeout(refreshLive,1000);
   }
+  async function refreshGameState() {
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),3000);
+    try {
+      const response=await fetch('/api/game-state',{cache:'no-store',signal:controller.signal});
+      if (!response.ok) throw new Error('Game state unavailable');
+      const state=await response.json();
+      if (state.schema_version==='bsgo-game-state-v1') {
+        gameState=state; lastGameReceivedAt=clientNow(); renderLive();
+      }
+    } catch(error) { /* Existing values expire by source age; never renew them. */ }
+    finally { clearTimeout(timer); setTimeout(refreshGameState,500); }
+  }
   $('issuebutton').addEventListener('click',()=>{ $('diagnostics').open=true; $('diagnostics').scrollIntoView({block:'nearest'}); });
+  $('miningfeature').addEventListener('change',async event=>{
+    if (featureInFlight) return;
+    featureInFlight=true;
+    const enabled=event.target.checked;
+    renderLive();
+    try {
+      const decision=await post('/api/features',{feature:'mining',enabled});
+      if (decision.accepted) {
+        if (startup) startup.features=decision.state;
+        if (gameState) gameState.features=decision.state;
+      }
+      lastNotice=decision.accepted ? null : `Feature change rejected: ${short(decision.reason)}`;
+    } catch(error) { lastNotice=`Feature change unavailable: ${short(error)}`; }
+    finally { featureInFlight=false; renderLive(); }
+  });
   $('retrybutton').addEventListener('click',()=>requestStartup('retry_connection'));
   $('powerbutton').addEventListener('click',()=>requestStartup(startup?.action_control?.enabled===true || lastKnownEnabled || lastKnownActive?'pause_manual_actions':'enable_manual_actions'));
   $('scanonce').addEventListener('click',()=>selectAction('scan_selected'));
@@ -728,6 +781,7 @@
     selectedRun=run; $('runs').value=run; await refreshHistory();
   });
   refreshLive();
+  refreshGameState();
   setInterval(renderLive,250);
 })();
 </script>

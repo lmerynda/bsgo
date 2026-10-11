@@ -19,6 +19,7 @@ from .manual_routines import GuardedManualRoutines
 from .recognition import RecognitionResult, RecognitionWorker
 from .state import FieldValue, Snapshot, SnapshotStore
 from .tracking import SelectionTracker
+from .game_observation import GameObservationFeed
 
 
 class SelectionEvidenceRecognizer:
@@ -39,6 +40,18 @@ class SelectionEvidenceRecognizer:
 
     def __call__(self, sample):
         result = self.recognizer(sample)
+        features = result.fields.get('features')
+        if features and features.valid and features.value.get('mining', {}).get('enabled') is False:
+            return result
+        try:
+            return self._selection_evidence(sample, result)
+        except Exception as exc:
+            reason = 'mining_selection_recognition_failed: ' + type(exc).__name__
+            fields = {**result.fields, **{name: FieldValue(None, sample.acquired_at, False, reason)
+                for name in ('selection_track_id', 'selected_marker_scan_state', 'selected_scan_resource')}}
+            return RecognitionResult(result.frame_size, fields, result.healthy, result.reason or reason)
+
+    def _selection_evidence(self, sample, result):
         geometry = getattr(sample, "geometry", None)
         window = f"{geometry.pid}:{geometry.hwnd}" if geometry else sample.window_id
         snapshot = Snapshot(sample.acquisition_sequence, sample.session_epoch,
@@ -126,7 +139,8 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
     if not 0 < shutdown_timeout <= 45:
         raise ValueError("shutdown_timeout")
     cancel = Path(cancel_file).resolve() if cancel_file else None
-    store = SnapshotStore()
+    observation_feed = GameObservationFeed()
+    store = observation_feed.store
     diagnostic = DiagnosticRun(output,
         mode="synthetic_manual_assist_passive_observer" if synthetic else "native_manual_assist_passive_observer",
         configuration={**configuration, "synthetic": synthetic, "capture_interval_real_seconds": .5,
@@ -136,13 +150,14 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
             "pause_file": str(Path(pause_file).resolve()) if pause_file else None,
             "actions_paused_at_start":actions_paused,
             "cancel_file": str(cancel) if cancel else None}, max_frames=64)
-    controller = ManualAssistController(Path(output)/"actions", snapshot_provider=store.latest,
+    controller = ManualAssistController(Path(output)/"actions", snapshot_provider=observation_feed.latest,
         runner=runner, pause_file=pause_file, activation_ready=activation_ready,
         paused=actions_paused, focus_handover_capability=focus_handover_capability,
         wheel_point_description=wheel_point_description,
         focus_handover=focus_handover, wheel_point=wheel_point,
         selection_track_provider=selection_track_provider, action_output_root=action_output_root)
-    live_frames = LiveFrameStore()
+    live_frames = observation_feed.frames
+    controller.observation_feed = observation_feed
     controller.live_frame_snapshot = live_frames.snapshot
     controller.live_frame_image = live_frames.image
     source = worker = server = server_thread = None
@@ -205,6 +220,7 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
         # Keep recognition available while the canceled action verifies its
         # actual stop. Shutdown never automatically takes game focus.
         shutdown["manual_actions"] = controller.close(shutdown_timeout)
+        observation_feed.connected = False
         result["manual_actions"] = controller.actions_snapshot()
         if not shutdown["manual_actions"]:
             error = error or "manual_action_ownership_unresolved; human intervention required"

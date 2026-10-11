@@ -231,6 +231,7 @@ class ManualAssistController:
         with self._lock:
             self.paused = True
             self._pause_revision += 1
+            self._tokens.clear()
             self._toggle.stop()
             self._toggle_stop.set()
             owner = self._job["name"] if self._job else None
