@@ -377,13 +377,17 @@
     $('globalcancel').disabled=inFlight || !actions || !lastKnownActive;
     $('powerbutton').title=pauseChoice ? 'Request Manual action pause; current routine state may be unavailable' : control.pause_reason || 'Acknowledge the current pause for this session';
 
-    const identity=targetField(current,'target_identity'), rawDistance=number(liveField(current,'distance'));
+    const observedTarget=gameState?.target;
+    const observedTargetFresh=observedTarget?.present===true && age!==null && age>=0 && age<2;
+    const observedTargetValue=name=>observedTargetFresh && observedTarget[name]?.usable===true ? observedTarget[name].value : null;
+    const identity=targetField(current,'target_identity'), rawDistance=number(observedTarget ? observedTargetValue('distance') : liveField(current,'distance'));
     const distance=rawDistance!==null && rawDistance>=0 ? rawDistance : null;
     const rawSpeed=number(displayField(current,'speed'));
     const speed=rawSpeed!==null && rawSpeed>=0 ? rawSpeed : null;
     const verifiedAsteroid=typeof identity==='string' && identity && liveField(current,'asteroid_selected')===true;
-    set('rangelabel',verifiedAsteroid ? 'Selected asteroid range' : 'HUD range');
-    set('targetname',verifiedAsteroid ? 'Verified selected asteroid' : noAsteroid ? 'No asteroid selected' : 'Target type unverified');
+    const observedAsteroid=observedTargetValue('kind')==='asteroid';
+    set('rangelabel',observedTargetFresh ? 'Selected target range' : verifiedAsteroid ? 'Selected asteroid range' : 'HUD range');
+    set('targetname',observedTargetFresh ? observedAsteroid ? 'Selected asteroid' : 'Selected target · type unknown' : observedTarget ? 'Target card unverified' : verifiedAsteroid ? 'Verified selected asteroid' : noAsteroid ? 'No asteroid selected' : 'Target type unverified');
     set('range',distance===null ? 'UNKNOWN' : `${Math.round(distance).toLocaleString()} m`);
     set('speed',speed===null ? 'UNKNOWN' : `${speed.toFixed(1).replace(/\.0$/,'')} m/s`);
     const marker=$('targetmarker');
@@ -393,7 +397,7 @@
     $('rangetape').setAttribute('aria-label',distance===null ? 'Range UNKNOWN on scalar zero to 3000 meter scale; working boundary 800 meters' : `Target ${distance} meters on scalar zero to 3000 meter scale; working boundary 800 meters${distance>3000?', target beyond scale':''}`);
     $('workband').style.width=`${800/3000*100}%`;
     function bar(prefix,currentName,maxName) {
-      const read=prefix==='hp' ? name=>targetField(current,name) : name=>displayField(current,name);
+      const read=prefix==='hp' ? name=>observedTarget ? observedTargetValue(name==='target_current_hp'?'current_hp':'max_hp') : targetField(current,name) : name=>displayField(current,name);
       const value=number(read(currentName)), maximum=number(read(maxName));
       const valid=maximum!==null && maximum>0 && value!==null && value>=0 && value<=maximum;
       $(`${prefix}bar`).className=`bar${valid?'':' unknown'}`;
@@ -405,7 +409,7 @@
     for (const [id,name] of [['speedprovenance','speed'],['hullprovenance','hull_current'],['energyprovenance','energy_current']]) {
       set(id,displayField(current,name)!==null ? 'Observed game state' : age!==null && age>=2 ? 'Stale · reading unavailable' : 'Reading unavailable');
     }
-    set('targetprovenance',verifiedAsteroid ? liveField(current,'target_identity')!==null ? 'Current target reading' : 'Measured target ratio · scanner only' : 'No verified asteroid');
+    set('targetprovenance',observedTargetFresh ? 'Observed game state' : observedTarget ? 'Target card unreadable or absent' : verifiedAsteroid ? liveField(current,'target_identity')!==null ? 'Current target reading' : 'Measured target ratio · scanner only' : 'No verified asteroid');
     const delivery=actions?.last_input_delivery, effect=actions?.last_confirmed_effect;
     const anomaly=lastNotice || statusFault || (delivery?.outcome==='injected' && !effect ? 'Input delivered; image effect unverified' : null);
     set('anomaly',anomaly); $('anomaly').hidden=!anomaly;

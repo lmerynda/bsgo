@@ -107,9 +107,34 @@ def game_state_view(snapshot, now):
     ship = _game_state_ship(observation or {}, age, {})
     return {"schema_version": "bsgo-game-state-v1", "server_monotonic": now,
         "source": "shared_snapshot_store", "read_only": True, "input_authorized": False,
-        "observation": observation, "ship": ship,
+        "observation": observation, "ship": ship, "target": _game_state_target(observation, age),
         "status": "current" if observation and observation["healthy"]
             and 0 <= age < MAX_IMAGE_AGE_SECONDS else "unavailable"}
+
+
+def _game_state_target(observation, age):
+    raw = observation or {}
+    field = raw.get('fields', {}).get('selected_target') or {}
+    target = field.get('value') or {}
+    reason = ('current_image_unavailable' if not raw else
+        'image_unhealthy' if raw.get('healthy') is not True else
+        'image_stale' if age is None or not 0 <= age < MAX_IMAGE_AGE_SECONDS else
+        'target_reading_unverified' if field.get('valid') is not True or field.get('fresh') is not True
+            or field.get('observed_at') != raw.get('acquired_at') else
+        target.get('reason') or ('selected_target_card_unverified' if target.get('present') is not True else None))
+    result = {'present': True if reason is None else None, 'reason': reason,
+              'input_authorized': False}
+    for name, unit in (('current_hp', 'hp'), ('max_hp', 'hp'), ('distance', 'm'), ('kind', None)):
+        value = target.get(name)
+        invalid = (value not in ('asteroid',) if name == 'kind' else
+                   _number(value) is None or value < 0 or name == 'max_hp' and value == 0)
+        if name in ('current_hp', 'max_hp'):
+            current, maximum = _number(target.get('current_hp')), _number(target.get('max_hp'))
+            invalid = invalid or current is None or maximum is None or not 0 <= current <= maximum or maximum <= 0
+        field_reason = reason or ('target_field_unverified' if invalid else None)
+        result[name] = {'value': value if field_reason is None else None,
+            'usable': field_reason is None, 'reason': field_reason, 'unit': unit, 'display_only': True}
+    return result
 
 
 class GameObservationFeed:

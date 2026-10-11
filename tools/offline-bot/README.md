@@ -555,12 +555,17 @@ In-process decision code reads `observation_feed.latest()` or the store's
 instrument projection as the UI. HTTP consumers use `/api/game-state`, whose
 `observation` includes source sequence, epoch, time, geometry, and per-field
 rejection reasons. `ship` contains currently usable speed, hull, and energy.
+`target` independently reports selected-card HP and range at the measured
+3096 × 1704 / 120% HUD profile, including when mining is off. Asteroid title
+recognition supplies its kind; other names remain unknown while readable numbers
+remain available. Missing or unreadable cards report unknown, never a fabricated
+no-selection state. Readings expire with their source image and grant no input.
 Freshness and input authorization are separate: legacy `display_only` remains a
 compatibility flag, and these observations grant no input authority. No autonomous
 planner is attached to the current live session.
 
 This establishes the core state boundary, not complete game understanding. General
-target, weapon, and radar readers remain future work. Enabled mining recognition
+target names and other layouts, weapon, and radar readers remain future work. Enabled mining recognition
 still runs as an extension in the observation worker; exceptions are isolated,
 but separate worker budgets would be needed to isolate a slow extension's latency.
 

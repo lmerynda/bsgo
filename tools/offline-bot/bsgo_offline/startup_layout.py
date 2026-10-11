@@ -14,6 +14,7 @@ from .recognition import HUD_FIELDS, RecognitionResult, load_hud_reader
 from .state import FieldValue
 from .hud_calibration import HudAnchorCalibrator
 from .game_state import GameStateReader
+from .selected_target import SelectedTargetReader
 
 
 PROFILE = "largehud-20261003"
@@ -65,6 +66,7 @@ class StartupHudRecognizer:
         fonts = load_hud_reader(profile)._large
         self.calibrator = HudAnchorCalibrator(fonts)
         self.game_state = GameStateReader(fonts)
+        self.selected_target = SelectedTargetReader(self.game_state.reader)
 
     @property
     def reader(self):
@@ -132,6 +134,8 @@ class StartupHudRecognizer:
             # they do not make the independently captured game image unhealthy.
         healthy = source_reason is None
         fields["ship_telemetry"] = ship_field
+        fields['selected_target'] = (FieldValue(None, sample.acquired_at, False, source_reason)
+            if source_reason else FieldValue(self.selected_target.read(source_image), sample.acquired_at))
         fields['features'] = FieldValue({'mining': {'enabled': mining_enabled,
             'reason': reason}}, sample.acquired_at)
         evidence.update(source_frame_size=source_size,
