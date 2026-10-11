@@ -569,6 +569,49 @@ target names and other layouts, weapon, and radar readers remain future work. En
 still runs as an extension in the observation worker; exceptions are isolated,
 but separate worker budgets would be needed to isolate a slow extension's latency.
 
+### NPC farm: offline discovery and target return
+
+The **NPC farm** workspace rehearses step 1 using the same bounded decision
+engine intended for a future live adapter. It has its own status and simulation
+controls, independently of mining. Live activation is unavailable. Simulated
+targets, selection and activity stay in the rehearsal board; they never replace
+the shared game-state instruments or call a native input controller.
+
+Each pass records the initial target, requests `X`, waits for a fresh acknowledged
+selection, and records targets until it returns to the initial identity. It then
+chooses the closest living hostile NPC (excluding players), or retains the prior
+intended NPC if still eligible. A second cycle leaves the intended target selected
+and verifies it. Only then does the next random wait begin (default 2–8 seconds,
+configurable 1–60). This is a wait **between complete passes**, not between X
+requests. Run one pass, Start demo loop, Pause demo, and Reset rehearsal are
+available. Each start initializes the selected scenario from scratch.
+
+`npc_farm.NpcFarm.tick(observation, now)` consumes timestamped observations and
+returns at most one `select_next_enemy` intent. `Observation.selection_ack` must
+match the pending intent ID, with a newer image sequence and acquisition time.
+The adapter must distinguish a confirmed selection response from successful key
+delivery alone, including a verified single-target cycle. Target identities must
+be confirmed, session-local identifiers that distinguish identical NPCs and
+persist across passes; names, HP and distance are not sufficient identifiers.
+The existing visual reader does **not** yet provide that guarantee. The offline
+adapter supplies explicitly simulated identities and never imports native input.
+
+Bounds are 64 selection requests and 45 seconds per pass, with a 3-second wait
+for selection acknowledgment. Ambiguous identities, stale/unreadable evidence,
+session changes and targets disappearing during return cannot claim success.
+An unknown range blocks a new closest-target decision. Pause discards pending
+intents and the countdown. Future live wiring still needs NPC/player recognition,
+selection continuity, guarded X delivery, chat/focus checks and shared input
+ownership arbitration. It must not reuse mining-only admission conditions.
+
+`GET /api/npc-farm` is a read-only simulation snapshot. Same-origin JSON
+`POST /api/npc-farm` accepts `{"action":"start","scenario":"normal",
+"interval":[2,8],"repeat":true}`, `{"action":"pause"}`, or `{"action":"reset"}`.
+Scenarios also include `empty`, `ambiguous`, `unreadable`, and `target_lost`.
+The worker advances independently of browser polling and stops on server close.
+These rehearsals verify decision behavior; they do not establish live recognition
+or game-input acceptance.
+
 Selected-target scanning also has an independent `stationary_scan_evidence`
 reader at native 2560 × 1440. It requires complete measured zero-speed text,
 full own hull, a fresh matching frame, and no contradictory calibrated reading.

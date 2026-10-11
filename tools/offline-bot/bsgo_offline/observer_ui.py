@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from .observation_api import OBSERVATION_SCHEMA, observation_snapshot
 from .live_frame import LiveImageError
+from .npc_farm_demo import NpcFarmDemo
 
 
 RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
@@ -27,6 +28,12 @@ MANUAL_ROUTINES = ("scan_nearby_unscanned", "auto_scan_selected", "scan_selected
 
 
 class _DashboardHTTPServer(ThreadingHTTPServer):
+    def server_close(self):
+        demo = getattr(self, 'npc_demo', None)
+        if demo:
+            demo.close()
+        super().server_close()
+
     # Windows SO_REUSEADDR permits a second listener on an occupied endpoint.
     # Exclusive ownership must be requested before bind; other platforms keep
     # their existing HTTP server reuse behavior.
@@ -364,6 +371,7 @@ class ObserverIndex:
 def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 action_adapter=None, startup_adapter=None, observation_adapter=None):
     index = ObserverIndex(runs_root)
+    npc_demo = NpcFarmDemo()
     actions = action_adapter or UnattachedManualActions()
     observations = observation_adapter if observation_adapter is not None else actions
     controller = mode_controller or UnattachedModeController(actions)
@@ -469,6 +477,9 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             if request.path == "/":
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
                 return
+            if request.path == '/npc-farm.js':
+                self._send(200, HTML.with_name('npc-farm.js').read_bytes(), 'text/javascript; charset=utf-8')
+                return
             if request.path == "/api/live-frame":
                 if query:
                     self._json(400, {"error": "live_frame_does_not_accept_query_parameters"})
@@ -522,6 +533,12 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 provider = getattr(startup, 'features_snapshot', None)
                 self._json(200 if callable(provider) else 503,
                     provider() if callable(provider) else {'error': 'features_not_attached'})
+                return
+            if request.path == '/api/npc-farm':
+                if request.query:
+                    self._json(400, {'error': 'npc_state_does_not_accept_query_parameters'})
+                else:
+                    self._json(200, npc_demo.snapshot())
                 return
             if request.path in ("/api/observation", "/api/observation/schema"):
                 if query:
@@ -612,7 +629,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 self._json(403, {"error": "invalid_origin"})
                 return
             path = urlsplit(self.path).path
-            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup", "/api/features"):
+            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup", "/api/features", "/api/npc-farm"):
                 self._json(404, {"error": "not_found"})
                 return
             if self.headers.get("Content-Type") != "application/json":
@@ -627,7 +644,9 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 self._json(400, {"error": "invalid_mode_request"})
                 return
             try:
-                if path == '/api/features':
+                if path == '/api/npc-farm':
+                    decision = npc_demo.command(data)
+                elif path == '/api/features':
                     if (not isinstance(data, dict) or set(data) != {'feature', 'enabled'}
                             or data['feature'] != 'mining' or type(data['enabled']) is not bool):
                         self._json(400, {'error': 'invalid_feature_setting'})
@@ -721,6 +740,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             pass
 
     server = _DashboardHTTPServer(("127.0.0.1", port), Handler)
+    server.npc_demo = npc_demo
     server.daemon_threads = True
     return server
 
