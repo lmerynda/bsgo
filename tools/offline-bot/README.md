@@ -571,7 +571,13 @@ but separate worker budgets would be needed to isolate a slow extension's latenc
 
 ### NPC farm: offline discovery and target return
 
-The **NPC farm** workspace rehearses step 1 using the same bounded decision
+The right-hand farming selector offers **Asteroid mining** or **NPC farming**;
+the game capture and shared instruments remain visible for either feature.
+NPC controls and compact rehearsal results live entirely in that right panel.
+Pause an active routine before switching features. Choosing a feature never
+starts it; the NPC rehearsal still has no live input authority.
+
+The **NPC farming** feature rehearses step 1 using the same bounded decision
 engine intended for a future live adapter. It has its own status and simulation
 controls, independently of mining. Live activation is unavailable. Simulated
 targets, selection and activity stay in the rehearsal board; they never replace

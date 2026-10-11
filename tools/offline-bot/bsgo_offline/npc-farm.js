@@ -5,6 +5,8 @@
   const phases={idle:'Ready for rehearsal',discovering:'Discovering enemy cycle',returning:'Returning to intended target',waiting:'Holding selection',complete:'Pass complete',paused:'Rehearsal paused',blocked:'Stopped for a check'};
   function render() {
     const active=state?.active===true;
+    $('miningmode').disabled=busy || active;
+    $('miningmode').title=active ? 'Pause the NPC rehearsal before switching farming features' : '';
     for(const id of ['npcrun','npconce','npcscenario','npcmin','npcmax']) $(id).disabled=busy || !available || active;
     $('npcpause').disabled=busy || !active;
     $('npcreset').disabled=busy || !available;

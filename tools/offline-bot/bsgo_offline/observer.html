@@ -160,33 +160,31 @@
     @media(max-width:1100px) { main.shell { padding:12px; }.deck { grid-template-columns:minmax(0,1fr) 340px; gap:12px; }.range,.readout .value { font-size:clamp(15px,17cqi,23px); }.readout { padding:9px; }.readout .pair { font-size:clamp(12px,14cqi,15px); }.strip { gap:8px; }.strip #powerbutton { margin-left:0; } }
     @media(max-width:850px) { main.shell { height:auto; }.deck { grid-template-columns:1fr; }.capture { flex:none; }.captureviewport { aspect-ratio:16/9; min-height:0; }.workspace { overflow:visible; }.instrument { grid-template-columns:repeat(3,minmax(0,1fr)); }.readout:nth-last-child(-n+2) { grid-column:span 1; }.workbody { gap:14px; }.checks { grid-template-columns:repeat(2,minmax(0,1fr)); }.execution { position:sticky; bottom:0; background:var(--panel); padding:12px; margin:0 -12px -12px; border-top-color:#526473; z-index:1; }header { flex-wrap:wrap; }.modechooser { margin-left:auto; }.capturefoot { flex-wrap:wrap; } }
     @media(max-width:480px) { main.shell { padding:10px; gap:10px; }h1 { font-size:19px; }.brandmark { display:none; }.modechooser { width:100%; }.modechooser button { flex:1; }.strip { font-size:12px; }.strip #powerbutton { margin-left:auto; }.instrument { grid-template-columns:repeat(2,minmax(0,1fr)); }.readout:nth-child(3) { grid-column:1/-1; }.readout .pair { font-size:clamp(12px,14cqi,18px); }.checks { grid-template-columns:1fr; }.drawers { gap:6px; }.drawer summary { padding:7px 10px; }.modeintro { line-height:1.5; } }
-    .npc-board { padding:22px; border:1px solid var(--line); border-radius:10px; background:linear-gradient(130deg,#112532,#0c141e); min-height:440px; }
-    .npc-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:22px; }
-    .npc-heading h2 { font-size:22px; }.npc-kicker { color:var(--cyan); font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
-    .npc-flow { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:18px 0; }
-    .npc-flow span { border-top:3px solid var(--line); padding:9px 0; color:var(--muted); font-size:12px; }
-    .npc-flow span.active { border-color:var(--cyan); color:var(--cyan); }
-    .npc-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:18px 0; }
-    .npc-summary > div { border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:12px; }
-    .npc-summary strong { display:block; font-size:19px; margin-top:5px; overflow-wrap:anywhere; }
+    .featurechooser { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:12px; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; background:var(--panel); }
+    .featurechooser button { padding:9px 6px; font-size:13px; font-weight:650; }
+    .featurechooser button[aria-pressed="true"] { color:var(--cyan); border-color:#5d9aa5; background:#183c48; }
+    #miningcontrols > .modechooser { margin:12px; }.feature-enable { display:block; margin:12px; font-size:12px; color:var(--muted); }
+    #npcworkspace { gap:10px; }#npcworkspace > p { margin:0; }#npcworkspace .panelhead { padding:0 0 8px; }#npcworkspace .phase { padding:8px; }
+    .npc-board { border-top:1px solid var(--line); margin-top:4px; padding-top:10px; }
+    .npc-summary { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 12px; }
+    .npc-summary > div { padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--panel2); }
+    .npc-summary > div:last-child { grid-column:1/-1; }.npc-summary strong { display:block; font-size:14px; margin-top:3px; overflow-wrap:anywhere; }
     .npc-table { width:100%; border-collapse:collapse; text-align:left; font-variant-numeric:tabular-nums; }
-    .npc-table th { color:var(--muted); font-size:11px; font-weight:500; padding:10px 8px; border-bottom:1px solid var(--line); }
-    .npc-table td { padding:12px 8px; border-bottom:1px solid var(--line); font-size:13px; }
+    .npc-table th { color:var(--muted); font-size:10px; font-weight:500; padding:7px 4px; border-bottom:1px solid var(--line); }
+    .npc-table td { padding:8px 4px; border-bottom:1px solid var(--line); font-size:11px; overflow-wrap:anywhere; }
     .npc-table tr.intended { background:#17343c; }.npc-table .selected { color:var(--cyan); }
-    .npc-activity { margin-top:20px; }.npc-activity ol { padding-left:22px; max-height:160px; overflow:auto; color:var(--muted); font-size:12px; }
-    .npc-settings { display:grid; gap:14px; margin:18px 0; }.npc-settings label { display:grid; gap:6px; font-size:12px; color:var(--muted); }
-    .npc-settings select { width:100%; }.npc-interval { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .npc-activity { margin-top:12px; }.npc-activity summary { cursor:pointer; font-size:12px; }.npc-activity ol { padding-left:20px; max-height:150px; overflow:auto; color:var(--muted); font-size:11px; }
+    .npc-settings { display:grid; gap:10px; margin:4px 0; }.npc-settings label { display:grid; gap:5px; font-size:12px; color:var(--muted); }
+    .npc-settings select { width:100%; }.npc-interval { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .npc-settings input { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--panel2); color:var(--text); }
-    .npc-primary { width:100%; background:#175260; border-color:#609da7; font-weight:650; margin-top:10px; }
-    .npc-buttons { display:flex; gap:8px; margin-top:8px; }.npc-buttons button { flex:1; }
-    #npcmessage { min-height:36px; color:var(--amber); font-size:12px; }
-    @media(max-width:600px) { .npc-board { padding:14px; }.npc-summary { grid-template-columns:1fr; }.npc-heading { align-items:start; }.npc-table td,.npc-table th { padding:9px 4px; } }
+    .npc-primary { width:100%; background:#175260; border-color:#609da7; font-weight:650; }
+    .npc-buttons { display:flex; gap:8px; }.npc-buttons button { flex:1; }
+    #npcmessage { margin:0; min-height:20px; color:var(--amber); font-size:12px; }
 </style></head><body>
 
 <main class="shell">
   <header><div class="brand"><span class="brandmark" aria-hidden="true">◇</span><h1>Game control panel</h1><span id="syntheticchip" class="synthetic" hidden>SYNTHETIC DEMO</span></div>
-    <label><input id="miningfeature" type="checkbox" disabled> Asteroid mining</label>
-    <div class="modechooser" role="group" aria-label="Choose operating workspace; selection does not activate it"><button id="assistmode" type="button" aria-pressed="true">Assist</button><button id="npcmode" type="button" aria-pressed="false">NPC farm <span class="small">Rehearsal</span></button><button id="autopilotmode" type="button" aria-pressed="false">Autopilot <span id="autopilotavailability" class="small">Unavailable</span></button></div>
+
   </header>
   <section class="strip" aria-label="Connection and control authority">
     <span><span id="connectiondot" class="dot"></span><strong id="connectionlabel">Checking game</strong></span><span id="imageage" class="small">Image UNKNOWN</span><button id="issuebutton" type="button">Field issues UNKNOWN ›</button><button id="retrybutton" type="button" hidden>Retry connection</button>
@@ -202,17 +200,12 @@
       <div class="readout"><div class="eyebrow">Energy reserve</div><div id="energyvalue" class="pair">UNKNOWN</div><div id="energybar" class="bar unknown"><div id="energyfill" class="fill"></div></div><div id="energyprovenance" class="small">Reading unavailable</div></div>
     </section>
     <section id="gamecapture" class="capture" aria-label="Original game capture"><div class="panelhead"><h2>Game view</h2><span id="capturestatus" class="capturestatus">Waiting for capture</span></div><div class="captureviewport"><img id="livecapture" alt="Original captured game window, with its own HUD unchanged" hidden><div id="captureplaceholder" class="captureplaceholder">Waiting for the original game capture.</div></div><div class="capturefoot"><span id="capturedetail">No captured frame available</span><span>Original pixels · full frame</span></div></section>
-    <section id="npcboard" class="npc-board" aria-label="Simulated enemy detection" hidden>
-      <div class="npc-heading"><div><div class="npc-kicker">NPC farm · step 1</div><h2>Discover, choose, return</h2></div><span class="synthetic">OFFLINE SIMULATION</span></div>
-      <p class="small">Cycle through every enemy, recognize the first target again, then return to the intended NPC. These targets are simulated; the game receives no input.</p>
-      <div class="npc-flow" aria-label="Detection pass phases"><span data-npc-phase="discovering">01 · Discover</span><span data-npc-phase="choose">02 · Choose</span><span data-npc-phase="returning">03 · Return</span><span data-npc-phase="waiting">04 · Wait 2–8s</span></div>
-      <div class="npc-summary"><div><span class="small">Simulated selection</span><strong id="npcselected">—</strong></div><div><span class="small">Intended target</span><strong id="npcintended">—</strong></div><div><span class="small">Next detection pass</span><strong id="npccountdown">Not scheduled</strong></div></div>
-      <table class="npc-table"><thead><tr><th scope="col">Observed target</th><th scope="col">Range</th><th scope="col">HP</th><th scope="col">Decision</th></tr></thead><tbody id="npctargets"><tr><td colspan="4">Start a rehearsal to discover the simulated targets.</td></tr></tbody></table>
-      <div class="npc-activity"><h2>Pass activity <span id="npcpass" class="small">No pass yet</span></h2><ol id="npcevents"><li>Ready for an offline rehearsal.</li></ol></div>
-    </section>
   </div><div class="workspace" aria-label="Operating mode workspace">
-    <p id="miningoff" class="modeintro" hidden>Asteroid mining is off. Its controls remain here; enable the feature to use them.</p>
+    <div class="featurechooser" role="group" aria-label="Choose farming feature"><button id="miningmode" type="button" aria-pressed="true">Asteroid mining</button><button id="npcmode" type="button" aria-pressed="false">NPC farming</button></div>
     <div id="miningcontrols">
+    <div class="modechooser" role="group" aria-label="Choose operating workspace; selection does not activate it"><button id="assistmode" type="button" aria-pressed="true">Assist</button><button id="autopilotmode" type="button" aria-pressed="false">Autopilot <span id="autopilotavailability" class="small">Unavailable</span></button></div>
+    <label class="feature-enable"><input id="miningfeature" type="checkbox" disabled> Enable asteroid mining</label>
+    <p id="miningoff" class="modeintro" hidden>Asteroid mining is off. Its controls remain here; enable the feature to use them.</p>
     <div class="panelhead"><h2 id="workspacetitle">Assist</h2><span id="workspacestate" class="small">You control flight</span></div>
     <section id="assistworkspace" class="workbody" aria-label="Assist controls">
       <p class="modeintro">Scan rocks in the current stopped view automatically, or choose a target yourself for scanning and approach.</p>
@@ -231,7 +224,9 @@
       <div class="missionrow"><strong>Objective</strong><span id="missionobjective">Automatic mining cycle · unavailable</span></div><div class="missionrow"><strong>Current target</strong><span id="missiontarget">UNKNOWN</span></div><div class="missionrow"><strong>Cycle phase / next step</strong><span id="missionphase">No active automatic mining cycle</span></div>
       <p class="small">Choosing this workspace does not enable actions or start flying.</p><div class="execution"><button id="activateautopilot" type="button" disabled>Activate Autopilot</button><p id="modeack" class="small" role="status"></p><button id="returnassist" type="button">Back to Assist</button></div>
     </section>
+    </div>
     <section id="npcworkspace" class="workbody" aria-label="NPC farm controls" hidden>
+      <div class="panelhead"><h2>NPC farming</h2><span class="synthetic">OFFLINE REHEARSAL</span></div>
       <div class="phase"><span class="dot warn"></span><strong id="npcphase" role="status">Ready for rehearsal</strong></div>
       <p class="modeintro">Choose the closest eligible NPC on the first pass. Keep that NPC on later passes while it remains available.</p>
       <div class="npc-settings">
@@ -245,8 +240,12 @@
       <p id="npcmessage" role="status">Connecting to the rehearsal service.</p>
       <button id="npcreset" type="button" disabled>Reset rehearsal</button>
       <p class="small">Each start creates a new scenario. Pause stops the loop; Reset clears its results.</p>
+    <section id="npcboard" class="npc-board" aria-label="Simulated enemy detection" hidden>
+      <div class="npc-summary"><div><span class="small">Simulated selection</span><strong id="npcselected">—</strong></div><div><span class="small">Intended target</span><strong id="npcintended">—</strong></div><div><span class="small">Next detection pass</span><strong id="npccountdown">Not scheduled</strong></div></div>
+      <table class="npc-table"><thead><tr><th scope="col">Observed target</th><th scope="col">Range</th><th scope="col">HP</th><th scope="col">Decision</th></tr></thead><tbody id="npctargets"><tr><td colspan="4">Start a rehearsal to discover the simulated targets.</td></tr></tbody></table>
+      <details class="npc-activity"><summary>Pass activity <span id="npcpass" class="small">No pass yet</span></summary><ol id="npcevents"><li>Ready for an offline rehearsal.</li></ol></details>
     </section>
-    </div>
+    </section>
   </div></div>
   <div class="drawers">
     <details id="diagnostics" class="drawer"><summary>Diagnostics</summary><div class="drawerbody">
@@ -280,7 +279,7 @@
   const pretty = value => value == null ? 'UNKNOWN' : typeof value === 'object' ? JSON.stringify(value,null,2) : String(value);
   const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
   const label = name => ({scan_nearby_unscanned:'Scan visible',scan_selected:'Scan once',auto_scan_selected:'Auto-scan',approach_current_target:'Approach'})[name] || name;
-  let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='scan_nearby_unscanned',selectedMode='assist';
+  let startup=null,mode=null,actions=null,history=null,selectedRun='',selectedAction='scan_nearby_unscanned',selectedMode='assist',selectedFeature='mining';
   let gameState=null,lastGameReceivedAt=null,featureInFlight=false;
   let inFlight=false,pauseInFlight=false,imagesVisible=false,connectionKey=null,contextKey=null,lastNotice=null,statusFault=null,lastKnownActive=false,lastKnownEnabled=false,lastActionReceivedAt=null;
   const assessments={scan_nearby_unscanned:null,scan_selected:null,auto_scan_selected:null,approach_current_target:null};
@@ -481,13 +480,16 @@
     renderLive();
   }
   function renderModes(current) {
-    const auto=selectedMode==='autopilot', npc=selectedMode==='npc', actual=mode?.actual_mode;
+    const auto=selectedMode==='autopilot', npc=selectedFeature==='npc', actual=mode?.actual_mode;
     $('assistmode').setAttribute('aria-pressed',String(!auto && !npc));
     $('npcmode').setAttribute('aria-pressed',String(npc));
     $('autopilotmode').setAttribute('aria-pressed',String(auto));
     $('assistworkspace').hidden=auto || npc; $('autopilotworkspace').hidden=!auto;
     $('npcworkspace').hidden=!npc; $('npcboard').hidden=!npc;
-    $('gamecapture').hidden=npc;
+    $('gamecapture').hidden=false;
+    $('miningcontrols').hidden=npc;
+    $('miningmode').setAttribute('aria-pressed',String(!npc));
+    $('npcmode').disabled=Boolean(actions?.ownership?.owner || actions?.routines?.auto_scan_selected?.active || actual==='autopilot');
     set('workspacetitle',npc?'NPC farm':auto?'Autopilot':'Assist');
     set('workspacestate',npc?'Offline rehearsal':auto?'Automatic mining cycle':'You choose each action');
     set('operationstate',!mode || !actions ? 'Status unknown' : mode.pending===true ? 'Mode change pending' : inFlight || pauseInFlight ? 'Request pending' : startup?.action_control?.enabled!==true ? 'Actions paused' : actions.ownership?.owner ? 'Routine active' : actions.routines?.auto_scan_selected?.active===true ? 'Auto-scan watching' : 'Actions enabled');
@@ -526,7 +528,8 @@
     finally { inFlight=false; renderLive(); }
   }
   $('assistmode').addEventListener('click',()=>selectMode('assist'));
-  $('npcmode').addEventListener('click',()=>selectMode('npc'));
+  $('miningmode').addEventListener('click',()=>{selectedFeature='mining';renderLive();});
+  $('npcmode').addEventListener('click',()=>{selectedFeature='npc';for(const name of Object.keys(assessments)) clearAssessment(name);renderLive();});
   $('autopilotmode').addEventListener('click',()=>selectMode('autopilot'));
   $('returnassist').addEventListener('click',()=>selectMode('assist'));
   $('activateautopilot').addEventListener('click',()=>requestMode('autopilot'));
@@ -668,7 +671,7 @@
     return {assessment_token:token,supervisor_assessment:{safe_stopped_scene:$(name==='scan_nearby_unscanned'?'visiblesafe':name==='auto_scan_selected'?'autoscansafe':'scanselectedsafe').checked}};
   }
   async function requestAction(action) {
-    if (inFlight || !actions || (action==='start' && (pauseInFlight || selectedMode!=='assist' || mode?.actual_mode!=='manual' || mode?.pending===true))) return;
+    if (inFlight || !actions || (action==='start' && (pauseInFlight || selectedFeature!=='mining' || selectedMode!=='assist' || mode?.actual_mode!=='manual' || mode?.pending===true))) return;
     const ownership=actions.ownership || {}, routines=actions.routines || {};
     const name=ownership.owner || (routines.auto_scan_selected?.active===true?'auto_scan_selected':selectedAction);
     const request=actionRequest(name,action);
