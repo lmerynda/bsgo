@@ -13,6 +13,7 @@ from .mining_recognition import MiningHudRecognizer, MINING_FIELDS
 from .recognition import HUD_FIELDS, RecognitionResult
 from .state import FieldValue
 from .hud_calibration import HudAnchorCalibrator
+from .game_state import GameStateReader
 
 
 PROFILE = "largehud-20261003"
@@ -49,7 +50,11 @@ class StartupLayout:
 
 
 class StartupHudRecognizer:
-    """Adapt only recognition pixels; retain native frame identity and dimensions."""
+    """Compose independent game observation and asteroid-specific calibration.
+
+    Ship instruments read the original image before target registration. Their
+    display readings never replace the validated fields consumed by routines.
+    """
     def __init__(self, client_size, *, profile=PROFILE):
         if profile != PROFILE:
             raise ValueError("startup_requires_explicit_large_hud_profile")
@@ -57,6 +62,7 @@ class StartupHudRecognizer:
         self.reader = MiningHudRecognizer(profile)
         self.profile = profile
         self.calibrator = HudAnchorCalibrator(self.reader.hud._reader._large)
+        self.game_state = GameStateReader(self.reader.hud._reader._large)
 
     def __call__(self, sample):
         if callable(getattr(sample, "to_image", None)):
@@ -65,14 +71,23 @@ class StartupHudRecognizer:
             with Image.open(sample.path) as opened:
                 image = opened.convert("RGB")
         source_size = image.size
+        source_image = image
         reason = ("layout_profile_mismatch" if sample.layout != self.profile else
                   "startup_client_dimensions_changed" if source_size != self.layout.client_size else None)
+        source_reason = reason
+        geometry = getattr(sample, "geometry", None)
+        context = (getattr(sample, "session_epoch", None), sample.layout, source_size, geometry,
+                   getattr(sample, "source_id", None))
+        sequence = getattr(sample, "acquisition_sequence", None)
+        if source_reason:
+            self.game_state.reset(source_reason)
+            ship_field = FieldValue(None, sample.acquired_at, False, source_reason)
+        else:
+            ship_field = FieldValue(self.game_state.read(source_image,
+                context=context, sequence=sequence, observed_at=sample.acquired_at), sample.acquired_at)
         if reason:
             self.calibrator.reset(reason)
         elif not self.layout.control_supported:
-            geometry = getattr(sample, "geometry", None)
-            context = (getattr(sample, "session_epoch", None), sample.layout, source_size, geometry)
-            sequence = getattr(sample, "acquisition_sequence", None)
             if sequence is None:
                 self.calibrator.reset("capture_identity_required_for_calibration")
                 image = None
@@ -85,7 +100,9 @@ class StartupHudRecognizer:
             fields = {name: FieldValue(None, sample.acquired_at, False, reason)
                       for name in (*HUD_FIELDS, *MINING_FIELDS)}
             evidence = {"reasons": [reason]}
-            healthy = False
+            # Missing target anchors are field-level recognition failures;
+            # they do not make the independently captured game image unhealthy.
+            healthy = source_reason is None
         else:
             # This proxy is private to the reader. Capture/snapshot publication
             # continues to use the original sample, epoch, sequence and bytes.
@@ -96,6 +113,7 @@ class StartupHudRecognizer:
             evidence = dict(fields["ocr_evidence"].value)
             healthy = result.healthy
             reason = result.reason
+        fields["ship_telemetry"] = ship_field
         evidence.update(source_frame_size=source_size,
             recognition_frame_size=CALIBRATED_SIZE if image is not None and not reason else source_size,
             startup_layout=self.layout.metadata(),

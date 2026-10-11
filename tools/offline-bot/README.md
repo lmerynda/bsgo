@@ -519,6 +519,22 @@ readings and rejection reasons. They do not promote the separately calibrated
 fields used by scan/approach routines. Unsupported, absent or incomplete text
 stays unknown; the station view does not contain flight instruments.
 
+General game observation runs independently of asteroid recognition. The
+`GameStateReader` reads the original captured image before any target-panel
+registration. At other window sizes it registers own-ship instrument geometry
+across three newer images without requiring an asteroid selection. Ship bars
+and speed have separate registration and rejection evidence; a lost target or
+unreadable instrument cannot erase unrelated verified ship readings. A valid
+capture remains healthy when only asteroid calibration fails. Wrong profiles,
+changed capture geometry and source failures still invalidate the image.
+
+The cockpit uses this independent display telemetry while actions are paused.
+`GET /api/observation` exposes each instrument under `game_state.ship`, with
+`value`, `usable`, `reason`, `unit` and `display_only`. The existing
+`observation.fields` retain their calibrated action semantics, and routine
+readiness never falls back to display telemetry. This separation does not
+validate new HUD fonts or authorize input at new window sizes.
+
 Selected-target scanning also has an independent `stationary_scan_evidence`
 reader at native 2560 × 1440. It requires complete measured zero-speed text,
 full own hull, a fresh matching frame, and no contradictory calibrated reading.
@@ -573,14 +589,17 @@ retain one latest frame in memory independently of the diagnostic archive;
 capture failure leaves an explicitly aged last-known image.
 
 Startup and Retry discover dimensions afresh. At the calibrated 2560 × 1440
-size, the enlarged-HUD reader uses native pixels. Other dimensions automatically
-locate the selected asteroid panel, own hull ratio and speed decimal independently.
-Select an asteroid and keep its HUD visible: three distinct, newer captures must
+size, the enlarged-HUD reader uses native pixels. Asteroid-specific recognition
+at other dimensions registers the selected asteroid panel, own hull ratio and
+speed decimal together. Select an asteroid and keep its HUD visible for that
+recognizer: three distinct, newer captures must
 agree on the regions and a supported uniform HUD scale. Existing font, spacing,
 ratio and clipping checks must also pass. This supports independently relocated
 regions and different aspect ratios without stretching the entire frame.
 Original frames, source hashes and observation identities retain the detected
 native size. Only private recognition crops are registered to the existing reader.
+General ship observation has its own independent registration and does not wait
+for this asteroid-specific registration to succeed.
 The flight point is derived from that size rather than a fixed screen location.
 
 Other dimensions currently provide **observation only**: Enable, routine Start,

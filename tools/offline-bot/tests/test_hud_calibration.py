@@ -43,10 +43,10 @@ class HudCalibrationTests(unittest.TestCase):
         self.assertTrue(result.healthy)
         return result
 
-    def assert_unknown(self,result):
-        self.assertFalse(result.healthy)
+    def assert_unknown(self,result, *, healthy=True):
+        self.assertEqual(result.healthy,healthy)
         self.assertTrue(all(not field.valid and field.value is None
-            for name,field in result.fields.items() if name != 'ocr_evidence'))
+            for name,field in result.fields.items() if name not in ('ocr_evidence','ship_telemetry')))
         self.assertEqual(result.fields['ocr_evidence'].value['startup_calibration']['status'],'pending')
 
     def test_independent_relocation_works_across_aspect_ratios_without_frame_stretching(self):
@@ -130,7 +130,7 @@ class HudCalibrationTests(unittest.TestCase):
         self.assert_unknown(self.reader(moved))
         self.assertEqual(self.reader.calibrator.count,1)
         wrong = replace(moved,layout='original',acquisition_sequence=5,acquired_at=4.)
-        self.assert_unknown(self.reader(wrong))
+        self.assert_unknown(self.reader(wrong),healthy=False)
         self.assertEqual(self.reader.calibrator.count,0)
 
 

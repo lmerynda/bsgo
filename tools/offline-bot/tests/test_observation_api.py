@@ -1,4 +1,5 @@
 """LLM observation contracts, with real loopback HTTP and no native game APIs."""
+from dataclasses import replace
 import json
 from threading import Event, Thread
 import unittest
@@ -7,6 +8,7 @@ from urllib.request import Request, urlopen
 
 from bsgo_offline.observation_api import OBSERVATION_SCHEMA, observation_snapshot
 from bsgo_offline.observer_ui import make_server
+from bsgo_offline.state import FieldValue
 from test_cockpit_contract import cockpit
 from test_observer_ui import package
 from test_trace import scratch_directory
@@ -36,7 +38,101 @@ def project(startup, mode, actions, **extra):
     return observation_snapshot(startup, mode, actions, collected_at=100, started_at=99.9, **extra)
 
 
+def with_ship_telemetry(actions, **changes):
+    value = {"display_only": True, "speed": 25.7, "hull_current": 4684, "hull_max": 5005,
+             "energy_current": 671, "energy_max": 800, "reasons": {}, **changes}
+    actions["current_observation"]["fields"]["ship_telemetry"] = {
+        "value": value, "valid": True, "fresh": True, "observed_at": 99.8}
+    return value
+
+
 class ObservationProjectionTests(unittest.TestCase):
+    def test_general_ship_readings_survive_missing_asteroid_and_paused_controls(self):
+        startup, mode, actions = providers()
+        with_ship_telemetry(actions)
+        for name, field in actions["current_observation"]["fields"].items():
+            if name != "ship_telemetry":
+                field.update(value=None, valid=False, reason="selected_panel_anchor_missing_or_ambiguous")
+        startup["action_control"].update(enabled=False, paused=True)
+        actions["paused"] = True
+        mode["actual_mode"] = "autopilot"
+        response = project(startup, mode, actions)
+        ship = response["game_state"]["ship"]
+        self.assertEqual({name: row["value"] for name, row in ship.items()}, {
+            "speed": 25.7, "hull_current": 4684, "hull_max": 5005,
+            "energy_current": 671, "energy_max": 800})
+        self.assertTrue(all(row["usable"] and row["display_only"] for row in ship.values()))
+        self.assertIsNone(response["observation"]["fields"]["speed"]["value"])
+        self.assertIsNone(response["observation"]["fields"]["hull_current"]["value"])
+        self.assertIsNone(response["assessment_context"])
+        self.assertFalse(response["routines"]["approach_current_target"]["machine_ready"])
+        self.assertEqual(response["status"], "degraded")
+
+    def test_general_ship_readings_do_not_fall_back_to_action_fields(self):
+        response = project(*providers())
+        self.assertEqual(response["observation"]["fields"]["speed"]["value"], 0)
+        self.assertTrue(all(row["value"] is None and row["reason"] == "field_missing"
+                            for row in response["game_state"]["ship"].values()))
+
+    def test_bad_ship_instrument_preserves_others_and_requires_complete_ratios(self):
+        for changes, names, reason in (
+                ({"speed": float("nan")}, ("speed",), "invalid_numeric_value"),
+                ({"speed": True}, ("speed",), "invalid_numeric_value"),
+                ({"hull_current": None}, ("hull_current", "hull_max"), "complete_ratio_not_verified"),
+                ({"energy_max": 0}, ("energy_current", "energy_max"), "nonpositive_maximum"),
+                ({"energy_current": 900}, ("energy_current", "energy_max"), "current_exceeds_maximum"),
+                ({"hull_max": float("inf")}, ("hull_current", "hull_max"), "invalid_numeric_value"),
+                ({"reasons": {"hull": "complete_ratio_not_verified"}},
+                 ("hull_current", "hull_max"), "complete_ratio_not_verified")):
+            with self.subTest(changes=changes):
+                startup, mode, actions = providers()
+                expected = with_ship_telemetry(actions, **changes)
+                response = project(startup, mode, actions)
+                for name, row in response["game_state"]["ship"].items():
+                    self.assertEqual(row["usable"], name not in names)
+                    self.assertEqual(row["reason"], reason if name in names else None)
+                    self.assertEqual(row["value"], None if name in names else expected[name])
+                json.dumps(response, allow_nan=False)
+
+    def test_general_ship_requires_current_healthy_image_and_reader_acceptance(self):
+        for raw_changes, field_changes, telemetry_changes, extra, reason in (
+                ({"age_seconds": 2}, {}, {}, {}, "image_stale"),
+                ({"age_seconds": -1}, {}, {}, {}, "image_stale"),
+                ({"age_seconds": None}, {}, {}, {}, "image_age_unknown"),
+                ({"healthy": False}, {}, {}, {}, "image_unhealthy"),
+                ({}, {"valid": False}, {}, {}, "recognition_rejected"),
+                ({}, {"fresh": False}, {}, {}, "field_stale"),
+                ({}, {"observed_at": 99.7}, {}, {}, "not_from_current_image"),
+                ({"acquired_at": None}, {"observed_at": None}, {}, {}, "not_from_current_image"),
+                ({}, {}, {"display_only": False}, {}, "display_telemetry_required"),
+                ({}, {}, {}, {"actions_collected_at": 98}, "image_stale")):
+            with self.subTest(reason=reason, raw_changes=raw_changes, field_changes=field_changes):
+                startup, mode, actions = providers()
+                with_ship_telemetry(actions, **telemetry_changes)
+                # Display readings must never repair a rejected action speed.
+                actions["current_observation"]["fields"]["speed"].update(value=None, valid=False)
+                actions["current_observation"]["fields"]["ship_telemetry"].update(field_changes)
+                actions["current_observation"].update(raw_changes)
+                response = project(startup, mode, actions, **extra)
+                self.assertTrue(all(row["value"] is None and row["reason"] == reason
+                                    for row in response["game_state"]["ship"].values()))
+                self.assertFalse(response["routines"]["approach_current_target"]["machine_ready"])
+
+    def test_disconnection_and_source_errors_do_not_reuse_general_ship_values(self):
+        for source in ("startup", "actions", "mode", None):
+            with self.subTest(source=source):
+                startup, mode, actions = providers()
+                with_ship_telemetry(actions)
+                errors = {source: "fixture failure"} if source else {}
+                if source is None:
+                    startup["phase"] = "blocked"
+                response = project(startup, mode, actions, source_errors=errors)
+                ship = response["game_state"]["ship"]
+                self.assertEqual(all(row["usable"] for row in ship.values()), source == "mode")
+                if source != "mode":
+                    self.assertTrue(all(row["value"] is None for row in ship.values()))
+                self.assertFalse(response["routines"]["approach_current_target"]["machine_ready"])
+
     def test_fresh_zero_speed_unclamped_distance_and_assessment_are_observation_only(self):
         response = project(*providers())
         self.assertEqual(response["schema_version"], "bsgo-observation-v1")
@@ -129,6 +225,24 @@ class ObservationProjectionTests(unittest.TestCase):
 
 
 class ObservationHttpTests(unittest.TestCase):
+    def test_general_ship_http_read_preserves_human_control_while_actions_paused(self):
+        with cockpit() as (fixture, _):
+            before = fixture.controller.action_control_snapshot()
+            fixture.row = replace(fixture.row, fields={**fixture.row.fields,
+                "ship_telemetry": FieldValue({"display_only": True, "speed": 25.7,
+                    "hull_current": 4684, "hull_max": 5005,
+                    "energy_current": 671, "energy_max": 800, "reasons": {}},
+                    fixture.row.acquired_at),
+                "asteroid_selected": FieldValue(None, fixture.row.acquired_at, False, "no_asteroid")})
+            code, state = fixture.http("/api/observation")
+            self.assertEqual(code, 200)
+            self.assertEqual(state["game_state"]["ship"]["speed"]["value"], 25.7)
+            self.assertTrue(state["game_state"]["ship"]["hull_current"]["display_only"])
+            self.assertFalse(state["routines"]["approach_current_target"]["machine_ready"])
+            self.assertIsNone(state["assessment_context"])
+            self.assertEqual(fixture.calls, [])
+            self.assertEqual(fixture.controller.action_control_snapshot(), before)
+
     def test_get_schema_history_isolation_no_control_and_rejected_mutation(self):
         with cockpit() as (fixture, directory):
             package(directory, "recorded", finished=True)

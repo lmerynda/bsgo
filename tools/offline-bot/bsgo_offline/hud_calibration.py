@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from PIL import Image
+from .hud_regions import unique_boxes
 
 
 def white(image):
@@ -38,14 +39,6 @@ def find_template(area, template, *, limit=256):
                 and common / max(1,np.count_nonzero(patch)) >= .92):
             found.append((int(x),int(y)))
     return found
-
-
-def unique_boxes(boxes, tolerance=2):
-    unique = []
-    for box in sorted(set(boxes)):
-        if not any(max(abs(a-b) for a,b in zip(box,old)) <= tolerance for old in unique):
-            unique.append(box)
-    return unique
 
 
 @dataclass(frozen=True)

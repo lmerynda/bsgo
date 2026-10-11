@@ -51,7 +51,8 @@ class StartupLayoutTests(unittest.TestCase):
         for index in range(3):
             fresh=replace(frame,acquisition_sequence=7+index,acquired_at=12.+index*.8)
             result=reader(fresh)
-            self.assertEqual(result.healthy,index==2)
+            self.assertTrue(result.healthy)
+            self.assertEqual(result.fields['distance'].valid,index==2)
         self.assertTrue(result.healthy)
         self.assertEqual(result.frame_size,(5120,2880))
         self.assertEqual(frame.rgb,original)
@@ -76,10 +77,51 @@ class StartupLayoutTests(unittest.TestCase):
                 reader.reader=Mock(side_effect=AssertionError("must not read mismatched pixels"))
                 result=reader(frame)
                 self.assertEqual(result.frame_size,frame.frame_size)
-                self.assertFalse(result.healthy)
+                self.assertEqual(result.healthy,reason=='selected_panel_anchor_missing_or_ambiguous')
                 self.assertEqual(result.reason,reason)
                 self.assertTrue(all(not field.valid and field.value is None
-                    for name,field in result.fields.items() if name!="ocr_evidence"))
+                    for name,field in result.fields.items() if name not in ("ocr_evidence", "ship_telemetry")))
+
+    def test_ship_observation_does_not_depend_on_an_asteroid_or_target_registration(self):
+        from test_ship_telemetry import fixture
+        image = fixture(0)  # Manually labelled combat instruments, no asteroid panel.
+        reader = StartupHudRecognizer(image.size)
+        result = reader(sample(image))
+        self.assertTrue(result.healthy)
+        self.assertFalse(result.fields['hull_current'].valid)
+        self.assertFalse(result.fields['speed'].valid)
+        ship = result.fields['ship_telemetry'].value
+        self.assertEqual((ship['hull_current'],ship['hull_max'],ship['speed']), (4684,5005,25.7))
+        self.assertEqual((ship['energy_current'],ship['energy_max']), (671,800))
+        self.assertTrue(ship['display_only'])
+
+    def test_independent_ship_readings_survive_missing_target_at_a_relocated_size(self):
+        from test_ship_telemetry import fixture
+        native_image = fixture(0)
+        reader = StartupHudRecognizer((1920,1200))
+        data = reader.reader.hud._reader._large.data
+        image = Image.new('RGB',(1920,1200))
+        hull = data['hull_box']
+        for name,box,delta in (
+                ('hull',hull,(30,10)),
+                ('energy',tuple(v+(24 if i%2 else 0) for i,v in enumerate(hull)),(30,10)),
+                ('speed',data['speed_text_box'],(-400,-100))):
+            image.paste(native_image.crop(box),(box[0]+delta[0],box[1]+delta[1]))
+        frame = sample(image)
+        for index in range(3):
+            result = reader(replace(frame,acquisition_sequence=7+index,acquired_at=12.+index*.8))
+        self.assertTrue(result.healthy)
+        self.assertEqual(result.reason,'selected_panel_anchor_missing_or_ambiguous')
+        self.assertFalse(result.fields['distance'].valid)
+        self.assertFalse(result.fields['speed'].valid)
+        ship = result.fields['ship_telemetry'].value
+        self.assertEqual((ship['hull_current'],ship['hull_max'],ship['speed']), (4684,5005,25.7))
+        self.assertEqual((ship['energy_current'],ship['energy_max']), (671,800))
+        # Losing a target can never authorize a mining routine via display values.
+        from bsgo_offline.manual_assist import target_reading
+        from bsgo_offline.state import Snapshot
+        snapshot = Snapshot(3,3,9,13.6,13.7,frame.layout,image.size,result.fields,result.healthy,result.reason)
+        self.assertIsNone(target_reading(snapshot,13.7)[0])
 
     def test_nonnative_binding_captures_actual_size_but_cannot_focus_or_dispatch(self):
         for size in ((1920,1080),(3840,2160),(1920,1200)):
