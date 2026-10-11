@@ -17,12 +17,13 @@ from .ship_telemetry import ShipTelemetryReader
 class _Registration:
     scale: float
     boxes: tuple
+    reader_profile: str = 'native'
 
     def mapping(self):
         return dict(self.boxes)
 
     def compatible(self, other):
-        return bool(other and self.scale == other.scale and all(
+        return bool(other and self.reader_profile == other.reader_profile and self.scale == other.scale and all(
             max(abs(a-b) for a, b in zip(box, other.mapping()[name])) <= 2
             for name, box in self.boxes))
 
@@ -44,6 +45,7 @@ class _Component:
                 'reason': self.reason, 'consistent_frames': self.count,
                 'required_frames': 3,
                 'hud_scale': self.registration.scale if self.registration else None,
+                'reader_profile': self.registration.reader_profile if self.registration else None,
                 'region_boxes_in_normalized_pixels': self.registration.mapping()
                     if self.registration else {}}
 
@@ -238,6 +240,8 @@ class GameStateReader:
         return [dict(speed=box) for box in unique_boxes(boxes)]
 
     def _current(self, normalized, registration):
+        if registration.reader_profile != 'native':
+            return self.reader.read_display_bars(normalized)
         return self.reader.read(self._canvas(normalized, registration.mapping()))
 
     @staticmethod
@@ -332,6 +336,11 @@ class GameStateReader:
                 geometry_validated = current is not None
                 candidates = [] if current is not None else [_Registration(scale, tuple(sorted(boxes.items())))
                     for scale, candidate_image in normalized.items() for boxes in locate(candidate_image)]
+                if name == 'own_ship' and current is None:
+                    display = self.reader.read_display_bars(image)
+                    if display and display['hull_current'] is not None and display['energy_current'] is not None:
+                        candidates = [_Registration(1., tuple(sorted((name, tuple(box))
+                            for name, box in display['boxes'].items())), display['profile'])]
                 if name == 'speed' and len(candidates) > 1:
                     candidates = self._deduplicate_speed_models(candidates, normalized, image.size)
                 if geometry_validated:

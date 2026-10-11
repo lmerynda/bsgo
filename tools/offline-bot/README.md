@@ -600,13 +600,20 @@ Original frames, source hashes and observation identities retain the detected
 native size. Only private recognition crops are registered to the existing reader.
 General ship observation has its own independent registration and does not wait
 for this asteroid-specific registration to succeed.
+The measured 3096x1704 display profile reads the raw 120% own-ship font without
+resampling. Its numeric glyphs came from manually labeled live bars; three later
+captures excluded from calibration read hull 5210/5210 and energy 772, 797, and
+819 out of 827. A subsequent fresh passive run matched hull 4696/5210, speed
+0.0, and energy 774, 799, 824, and 827. These are bounded live checks, not a claim
+that every HUD scale is supported. Only small numeric crops are retained as
+regression fixtures; no game chat or full frame is included.
 The flight point is derived from that size rather than a fixed screen location.
 
 Other dimensions currently provide **observation only**: Enable, routine Start,
 focus handover and native input creation are blocked until their HUD accuracy is
 validated. Registration is experimental and uses the existing enlarged-HUD fonts;
 it does not learn new numeric glyphs. Missing, duplicate, corrupted or unsupported
-anchors keep all readings unknown. Moved regions, a capture gap over two seconds,
+anchors keep the affected readings unknown. Moved regions, a capture gap over two seconds,
 repeated/out-of-order captures or a changed session require new agreement.
 The cockpit shows dimensions and calibration status; `/api/startup` and
 `/api/observation` include `game.startup_layout.calibration` progress, scale,

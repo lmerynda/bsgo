@@ -19,6 +19,65 @@ class ShipTelemetryReader:
         self.digit_variants = [(variant['digit'], variant['top'], np.array(
             [[c == '1' for c in row] for row in variant['rows']], dtype=bool))
             for variant in calibration.get('speed_digit_variants', [])]
+        self.display_bar_profiles = [dict(profile, bank={char: [np.array(
+            [[pixel == '1' for pixel in row] for row in rows], dtype=bool)
+            for rows in variants] for char, variants in profile['glyphs'].items()})
+            for profile in calibration.get('display_bar_profiles', [])]
+
+    @staticmethod
+    def _display_ratio(image, box, bank):
+        """Read a complete measured ratio without resampling or partial digits."""
+        rgb = np.asarray(image.crop(box).convert('RGB'))
+        readings = []
+        for threshold in (100, 120, 140, 160, 180):
+            mask = (rgb.min(2) >= threshold) & (rgb.max(2).astype(int)-rgb.min(2) < 65)
+            if mask[:2].any() or mask[-2:].any() or mask[:, :2].any() or mask[:, -2:].any():
+                continue
+            edges = np.flatnonzero(np.diff(np.r_[False, mask.any(0), False]))
+            runs = list(zip(edges[::2], edges[1::2]))
+            if not 3 <= len(runs) <= 11:
+                continue
+            text, bottoms = '', []
+            for left, right in runs:
+                ys, _ = np.where(mask[:, left:right])
+                glyph = mask[ys.min():ys.max()+1, left:right]
+                scores = sorted((min((float(np.mean(glyph != variant)) for variant in variants
+                    if glyph.shape == variant.shape), default=1.), char)
+                    for char, variants in bank.items())
+                if scores[0][0] > .06 or scores[1][0]-scores[0][0] < .06:
+                    break
+                text += scores[0][1]
+                bottoms.append(int(ys.max()))
+            if (len(text) != len(runs) or text.count('/') != 1
+                    or max(bottoms)-min(bottoms) > 1
+                    or abs((runs[0][0]+runs[-1][1])/2-rgb.shape[1]/2) > 5
+                    or any(not 3 <= right[0]-left[1] <= 12 for left, right in zip(runs, runs[1:]))):
+                continue
+            parts = text.split('/')
+            if any(not part or len(part) > 5 or len(part) > 1 and part[0] == '0' for part in parts):
+                continue
+            current, maximum = map(int, parts)
+            if 0 <= current <= maximum and maximum > 0:
+                readings.append((current, maximum))
+        if len(readings) >= 2 and len(set(readings)) == 1:
+            return (*readings[0], None)
+        return None, None, 'complete_display_ratio_not_verified'
+
+    def read_display_bars(self, image):
+        """Explicit measured own-ship display profiles; never action telemetry."""
+        profiles = [profile for profile in self.display_bar_profiles
+                    if tuple(profile['frame_size']) == image.size]
+        if len(profiles) != 1:
+            return None
+        profile = profiles[0]
+        result = dict(profile=profile['name'], display_only=True, reasons={},
+                      boxes=profile['boxes'])
+        for name, box in profile['boxes'].items():
+            current, maximum, reason = self._display_ratio(image, box, profile['bank'])
+            result[name+'_current'], result[name+'_max'] = current, maximum
+            if reason:
+                result['reasons'][name] = reason
+        return result
 
     def _number(self, glyphs):
         text, confidence = '', 1.
