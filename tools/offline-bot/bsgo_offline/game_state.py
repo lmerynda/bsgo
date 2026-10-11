@@ -240,6 +240,50 @@ class GameStateReader:
     def _current(self, normalized, registration):
         return self.reader.read(self._canvas(normalized, registration.mapping()))
 
+    @staticmethod
+    def _speed_source_footprint(normalized, registration, source_size):
+        """Measure the accepted number in source pixels, including its origin."""
+        box = registration.mapping()['speed']
+        rgb = np.asarray(normalized.crop(box).convert('RGB'))
+        minimum, maximum = rgb.min(2), rgb.max(2)
+        ys, xs = np.where((minimum >= 80) & (maximum.astype(np.int16)-minimum < 65))
+        if not len(xs):
+            return None
+        factors = (source_size[0]/normalized.width, source_size[1]/normalized.height)
+        glyph = (box[0]+int(xs.min()), box[1]+int(ys.min()),
+                 box[0]+int(xs.max())+1, box[1]+int(ys.max())+1)
+        return (tuple(value*factors[index % 2] for index, value in enumerate(glyph)),
+                (box[0]*factors[0], box[1]*factors[1]))
+
+    def _deduplicate_speed_models(self, candidates, normalized, source_size):
+        """Collapse agreeing scale hypotheses for the same complete number.
+
+        Different numbers, locations, or materially different scales remain
+        ambiguous. Source coordinates use actual resize dimensions rather
+        than the proposed scale, so rounding cannot move a glyph's identity.
+        """
+        explicit_scales = (1., .75, 1.2, 1.25, 1.5, 2.)
+        models = []
+        for candidate in sorted(candidates, key=lambda item: (item.scale not in explicit_scales, item.scale)):
+            image = normalized[candidate.scale]
+            value = self._current(image, candidate)['speed']
+            footprint = self._speed_source_footprint(image, candidate, source_size)
+            same = False
+            if value is not None and footprint is not None:
+                glyph, origin = footprint
+                for previous, previous_value, previous_footprint in models:
+                    if previous_value != value or previous_footprint is None:
+                        continue
+                    old_glyph, old_origin = previous_footprint
+                    if (abs(candidate.scale/previous.scale-1) <= .02
+                            and max(abs(a-b) for a, b in zip(glyph, old_glyph)) <= 2
+                            and max(abs(a-b) for a, b in zip(origin, old_origin)) <= 2):
+                        same = True
+                        break
+            if not same:
+                models.append((candidate, value, footprint))
+        return [candidate for candidate, _, _ in models]
+
     def read(self, image, *, context, sequence, observed_at):
         result = self._empty()
         identity = (context, image.size)
@@ -288,6 +332,8 @@ class GameStateReader:
                 geometry_validated = current is not None
                 candidates = [] if current is not None else [_Registration(scale, tuple(sorted(boxes.items())))
                     for scale, candidate_image in normalized.items() for boxes in locate(candidate_image)]
+                if name == 'speed' and len(candidates) > 1:
+                    candidates = self._deduplicate_speed_models(candidates, normalized, image.size)
                 if geometry_validated:
                     component.confirm(component.registration)
                     if component.count < 3:
