@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BSGO Control · design study</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<style>
+  :root { color-scheme:dark; --base:#10191f; --surface:#17242d; --raised:#20323e; --line:#3b5362; --text:#edf3f5; --muted:#b2c4cf; --blue:#8cd5e3; --amber:#e7b570; --red:#f28b8e; }
+  * { box-sizing:border-box; } [hidden] { display:none!important; }
+  body { margin:0; background:var(--base); color:var(--text); font:15px/1.45 Bahnschrift,"Segoe UI",sans-serif; }
+  button,input,select { font:inherit; } button,select { min-height:44px; border:1px solid var(--line); border-radius:6px; background:var(--raised); color:var(--text); padding:9px 13px; }
+  button { cursor:pointer; } button:disabled { color:var(--muted); background:var(--surface); cursor:default; opacity:.65; }
+  button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+  button.primary { background:var(--blue); border-color:var(--blue); color:var(--base); font-weight:600; } button.primary:disabled { background:var(--raised); border-color:var(--line); color:var(--muted); opacity:1; }
+  button.stop { color:var(--red); } button.pause { color:var(--amber); border-color:var(--amber); font-weight:600; }
+  h1,h2,h3,p { margin:0; } h1 { font-size:22px; line-height:1.1; font-weight:600; } h2 { font-size:19px; font-weight:600; } h3 { font-size:15px; font-weight:600; }
+  small,.hint { color:var(--muted); font-size:13px; } .hint { line-height:1.45; } .pill { display:inline-flex; align-items:center; gap:7px; color:var(--muted); font-size:13px; }
+  .dot { width:8px; height:8px; flex:none; border-radius:50%; background:var(--amber); } .dot.fresh { background:var(--blue); }
+  .study { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); background:#20323e; }
+  .study-title { display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; } .study-title strong { color:var(--amber); font-size:14px; }
+  .study-tools { display:flex; align-items:center; gap:12px; flex-wrap:wrap; } .study-tools label { display:flex; align-items:center; gap:8px; font-size:13px; } .study-tools select { font-size:13px; min-height:40px; padding:7px; }
+  .shell { padding:16px 20px; display:flex; flex-direction:column; gap:14px; height:calc(100dvh - 65px); min-height:590px; }
+  .authority { display:flex; gap:20px; align-items:center; border-bottom:1px solid var(--line); padding:0 0 12px; min-height:57px; flex-wrap:wrap; }
+  .authority .connection { display:flex; align-items:center; gap:9px; font-weight:600; } .authority .state { color:var(--amber); } .authority .owner { margin-left:auto; color:var(--muted); } .authority .owner strong { color:var(--text); font-weight:500; }
+  .deck { display:grid; grid-template-columns:minmax(0,1fr) 370px; gap:20px; min-height:0; flex:1; }
+  .visual { display:flex; flex-direction:column; gap:14px; min-width:0; min-height:0; }
+  .instruments { display:flex; gap:20px; padding:4px 0 13px; border-bottom:1px solid var(--line); align-items:center; }
+  .target { flex:1; min-width:0; } .target-line { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; } .target strong { font-size:26px; font-weight:500; font-variant-numeric:tabular-nums; } .target .hint { margin-top:3px; }
+  .vitals { display:flex; gap:18px; } .vitals div { min-width:65px; } .vitals dt { font-size:13px; color:var(--muted); } .vitals dd { margin:3px 0 0; font-size:19px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  dl { margin:0; } .capture { display:flex; flex-direction:column; min-height:180px; flex:1; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .capture-head,.capture-foot { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:10px 13px; background:var(--surface); } .capture-head { border-bottom:1px solid var(--line); } .capture-foot { border-top:1px solid var(--line); font-size:13px; color:var(--muted); }
+  .capture-canvas { min-height:120px; flex:1; background:#080f14; display:grid; place-items:center; padding:20px; } .empty { max-width:320px; text-align:center; color:var(--muted); } .empty svg { margin:0 auto 14px; width:52px; height:40px; display:block; } .empty strong { font-size:18px; font-weight:500; color:var(--text); display:block; margin-bottom:8px; }
+  .findings { border-top:1px solid var(--line); padding-top:12px; } .findings-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap; } .finding-row { display:flex; align-items:baseline; gap:14px; padding:6px 0; } .finding-row strong { color:var(--blue); font-weight:500; } .finding-row small { margin-left:auto; } .finding-row span { font-variant-numeric:tabular-nums; } .recorded { color:var(--amber); }
+  .workpane { display:flex; flex-direction:column; min-height:0; border-left:1px solid var(--line); padding-left:20px; }
+  .feature-nav { display:flex; border-bottom:1px solid var(--line); gap:14px; flex:none; } .feature-nav button { border:0; border-radius:0; border-bottom:3px solid transparent; background:none; padding:9px 0; font-size:14px; } .feature-nav button[aria-pressed="true"] { border-bottom-color:var(--blue); color:var(--blue); } .feature-nav small { display:block; font-size:12px; }
+  .pane-scroll { overflow:auto; min-height:0; padding:8px 2px 8px 0; flex:1; scrollbar-color:var(--line) var(--surface); }
+  .mode-row { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:8px; } .mode-choice { display:flex; gap:6px; } .mode-choice button { min-height:40px; padding:7px 10px; font-size:14px; background:none; } .mode-choice button[aria-pressed="true"] { background:var(--raised); border-color:var(--blue); color:var(--blue); }
+  .mining-switch { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); min-height:44px; } input { accent-color:var(--blue); } input[type="checkbox"],input[type="radio"] { width:18px; height:18px; flex:none; margin:0; }
+  .next { padding:8px 12px; border-left:3px solid var(--amber); background:var(--surface); margin-bottom:0; } .next h2 { margin:0 0 4px; font-size:18px; } .next p { color:var(--muted); font-size:14px; }
+  .tasks { border:0; padding:0; margin:0 0 16px; } .tasks legend { margin-bottom:7px; font-weight:600; } .task { display:flex; align-items:center; gap:10px; border:1px solid transparent; border-bottom-color:var(--line); padding:9px 10px; cursor:pointer; min-height:53px; } .task:has(input:checked) { border-color:var(--blue); border-radius:5px; background:var(--raised); } .task .hint { display:block; font-size:13px; } .task strong { font-weight:500; }
+  details { margin-top:10px; } summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; } summary::before { content:'+'; width:16px; } details[open]>summary::before { content:'−'; } details p { color:var(--muted); font-size:14px; padding:4px 0 10px; }
+  .execution { padding:12px 0 0; border-top:1px solid var(--line); flex:none; background:var(--base); }
+  .assessment { border:0; padding:0; margin:0 0 10px; } .assessment legend { font-size:14px; font-weight:600; margin-bottom:5px; } .assessment.multiple { display:grid; grid-template-columns:1fr 1fr; gap:0 10px; } .check { display:flex; align-items:center; gap:9px; min-height:44px; font-size:14px; cursor:pointer; }
+  .task-picker { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:9px; margin:0 0 10px; font-size:14px; font-weight:600; } .task-picker select { width:100%; font-size:14px; padding:8px; } .task-picker .hint { font-weight:400; position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } #taskSelector details { display:none; }
+  .actions { display:flex; gap:8px; margin-top:8px; } .actions button { flex:1; } .actions .primary { flex:1.8; } .execution .hint { margin-top:7px; } .bottom { display:flex; gap:20px; align-items:center; border-top:1px solid var(--line); padding-top:8px; } .bottom button { border:0; background:none; padding:0; color:var(--muted); font-size:14px; } .bottom a { margin-left:auto; color:var(--muted); font-size:13px; }
+  .drawer { border:1px solid var(--line); padding:16px; border-radius:7px; background:var(--surface); } .drawer h2 { margin-bottom:7px; } .drawer p { margin:5px 0 12px; } .drawer button { margin-top:5px; } .unavailable { margin-top:18px; border-top:1px solid var(--line); padding-top:12px; }
+  body.sidecar .shell { max-width:600px; margin:auto; min-height:730px; } body.sidecar .deck { display:flex; flex-direction:column; gap:0; } body.sidecar .visual { flex:none; } body.sidecar .capture { display:none; } body.sidecar .findings { order:2; } body.sidecar .workpane { border:0; padding:0; flex:1; } body.sidecar .instruments { margin-bottom:9px; } body.sidecar .pane-scroll { display:grid; grid-template-columns:1fr 1fr; gap:15px; align-content:start; } body.sidecar .mode-row { grid-column:1/-1; margin:0; } body.sidecar .next { margin:0; } body.sidecar .tasks { margin:0; } body.sidecar #npcPanel,body.sidecar #autopilotPanel { grid-column:1/-1; } body.sidecar .authority { gap:10px; } body.sidecar .authority .owner { margin-left:0; } body.sidecar .authority .pause { margin-left:auto; } body.sidecar .execution .assessment { display:flex; gap:14px; flex-wrap:wrap; } body.sidecar .execution .assessment legend { width:100%; }
+  @media(min-width:1600px) { .deck { grid-template-columns:minmax(0,1fr) 390px; } .shell { padding:18px 28px; } }
+  @media(max-width:950px) { .study { align-items:flex-start; flex-wrap:wrap; padding:10px 14px; gap:10px; } .study-tools { gap:10px; } .shell { height:auto; min-height:0; padding:12px 14px; } .authority { position:sticky; top:0; z-index:3; background:var(--base); gap:10px; padding:10px 0; } .authority .owner { margin-left:0; } .authority .pause { margin-left:auto; } .deck { display:flex; flex-direction:column; gap:18px; } .capture { height:210px; flex:none; } .workpane { border:0; padding:0; min-height:500px; } .pane-scroll { overflow:visible; } .execution { position:sticky; bottom:0; z-index:2; padding-bottom:10px; } .bottom { flex-wrap:wrap; gap:15px; } body.sidecar .shell { height:calc(100dvh - 128px); min-height:730px; } body.sidecar .pane-scroll { overflow:auto; } body.sidecar .execution { position:static; } }
+  @media(max-width:560px) { .study-title h1 { font-size:20px; } .study-tools { width:100%; } .study-tools label { align-items:flex-start; flex-direction:column; flex:1; } .study-tools select { width:100%; } .authority { font-size:14px; } .authority .connection { width:calc(100% - 110px); } .authority .state { order:2; } .authority .owner { order:3; margin-left:auto; } .authority .pause { position:absolute; right:0; top:9px; } .instruments { align-items:flex-start; flex-direction:column; gap:8px; } .vitals { width:100%; justify-content:space-between; } .target strong { font-size:23px; } .capture { height:180px; } .capture-canvas { min-height:80px; } .empty svg,.empty p { display:none; } .mode-row { gap:6px; } .mode-choice { gap:4px; } .mode-choice button { padding:8px; } body.sidecar .pane-scroll { display:block; } body.sidecar .mode-row { margin-bottom:14px; } body.sidecar .next { margin-bottom:14px; } body.sidecar .shell { height:auto; } body.sidecar .execution { position:sticky; } body.sidecar .execution .assessment { display:block; } }
+  body.sidecar .workpane { min-height:0; }
+  @media(min-width:561px) and (max-width:950px) { body.sidecar .shell { height:calc(100dvh - 95px); min-height:640px; } }
+  @media(max-width:950px) { .execution,body.sidecar .execution { position:static; } }
+  @media(max-width:560px) { .authority .connection { min-height:44px; } }
+</style>
+</head>
+<body>
+<div class="study">
+  <div class="study-title"><h1>BSGO Control</h1><strong>Design study · simulated</strong></div>
+  <div class="study-tools">
+    <label>Preview state<select id="scenario"><option value="ready">Ready to review</option><option value="disconnected">Game disconnected</option><option value="stale">Capture stale</option><option value="partial">HUD readable, control blocked</option><option value="scanning">Scan in progress</option><option value="cleanup">Stop unconfirmed</option></select></label>
+    <label>Layout<select id="layout"><option value="cockpit">With game view</option><option value="sidecar">Panel alongside game</option></select></label>
+  </div>
+</div>
+<main class="shell">
+  <section class="authority" aria-label="Acknowledged control state">
+    <span class="connection"><span id="connectionDot" class="dot fresh" aria-hidden="true"></span><span id="connection">Game connected</span></span>
+    <span id="authorityState" class="state">Assist · actions paused</span>
+    <span class="owner">Input <strong id="owner">Human</strong></span>
+    <button class="pause" id="pause" type="button">Pause actions</button>
+  </section>
+  <div class="deck">
+    <div class="visual">
+      <section class="instruments" aria-label="Illustrative HUD readings">
+        <div class="target"><small id="targetLabel">Selected asteroid · HUD range</small><div class="target-line"><strong id="range">2,528 m</strong><span id="targetHealth" class="hint">Target HP 920 / 920</span></div><p id="provenance" class="hint">Illustrative HUD readings · not live evidence</p></div>
+        <dl class="vitals"><div><dt>Speed</dt><dd id="speed">0 m/s</dd></div><div><dt>Hull</dt><dd id="hull">100%</dd></div><div><dt>Energy</dt><dd id="energy">410</dd></div></dl>
+      </section>
+      <section class="capture" aria-label="Original game view placement">
+        <div class="capture-head"><h3>Original game view</h3><span id="frameState" class="pill"><span class="dot" aria-hidden="true"></span>Placement only · no game capture</span></div>
+        <div class="capture-canvas"><div class="empty"><svg aria-hidden="true" viewBox="0 0 52 40" fill="none"><rect x="1" y="1" width="50" height="31" rx="3" stroke="#3b5362" stroke-width="2"/><path d="M19 39h14M26 32v7" stroke="#3b5362" stroke-width="2"/></svg><strong id="emptyTitle">Your game stays untouched</strong><p>In the app, the original frame fills this area. All controls stay outside its pixels.</p></div></div>
+        <div class="capture-foot"><span>No image loaded in this study</span><span>Full frame · original aspect ratio</span></div>
+      </section>
+      <section class="findings" aria-label="Illustrative scan findings">
+        <div class="findings-head"><h3>Scan findings</h3><small id="findingsScope">Recorded example · last visible pass</small></div>
+        <div id="findingList"><div class="finding-row"><strong>Water</strong><span>2,528 m</span><small class="recorded">Recorded, verify after selection</small></div></div>
+        <p id="findingsEmpty" class="hint" hidden>No findings in this preview state.</p>
+      </section>
+    </div>
+    <section class="workpane" aria-label="Task workspace">
+      <nav class="feature-nav" aria-label="Farming features"><button id="miningTab" type="button" aria-pressed="true">Asteroid mining</button><button id="npcTab" type="button" aria-pressed="false">NPC farming <small>Offline rehearsal</small></button></nav>
+      <div class="pane-scroll">
+        <div class="mode-row"><div class="mode-choice" aria-label="Choose workspace without activation"><button id="assistTab" type="button" aria-pressed="true">Assist</button><button id="autoTab" type="button" aria-pressed="false">Autopilot unavailable</button></div><label class="mining-switch"><input type="checkbox" id="miningEnabled" checked>Mining tools</label></div>
+        <div id="taskSelector">
+          <div class="task-picker"><label for="taskChoice">Task</label><select id="taskChoice" aria-describedby="taskScope"><option value="visible">Scan this view</option><option value="selected">Scan selected target</option><option value="watch">Watch my selections</option><option value="approach">Approach selected target</option></select><span class="hint" id="taskScope">One pass, up to 4,000 m</span></div>
+          <details><summary>Task limits</summary><p id="taskLimits">Keep the camera still for one visible pass. Change the view yourself before starting another pass. Nearby discovery is unavailable.</p></details>
+        </div>
+        <section class="next" id="nextStep" aria-live="polite"><h2 id="nextTitle">Review the stopped scene</h2><p id="nextDetail">Review the stopped scene. Allowing actions does not start a task.</p></section>
+        <section id="autopilotPanel" class="unavailable" hidden><h2>Autopilot unavailable</h2><p class="hint">An automatic mining controller is not connected. Choosing this workspace keeps the acknowledged mode unchanged.</p><button type="button" disabled>Activate Autopilot</button></section>
+        <section id="npcPanel" class="unavailable" hidden><h2>NPC farming rehearsal</h2><p class="hint">NPC farming is available as an offline rehearsal. Live enemy recognition and control remain unavailable.</p><button type="button" disabled>Live NPC farming unavailable</button><details><summary>Rehearsal setup</summary><p>In production, scenarios, simulated target decisions and pass timing belong here. This study explores the entry and availability labels.</p></details></section>
+      </div>
+      <div class="execution" id="execution">
+        <fieldset class="assessment" id="checks"><legend>Your scene assessment</legend></fieldset>
+        <div class="actions"><button id="enable" class="primary" type="button">Allow app actions</button><button type="button" id="start" class="primary" disabled>Start visible scan</button><button type="button" id="stop" class="stop" disabled>Stop task</button></div>
+        <p class="hint" id="assessmentNote">Required checks stay unchecked until you assess the scene.</p>
+      </div>
+    </section>
+  </div>
+  <section class="drawer" id="drawer" hidden aria-label="Supporting detail"><h2 id="drawerTitle">Diagnostics</h2><div id="drawerContent"></div><button type="button" id="closeDrawer">Close details</button></section>
+  <footer class="bottom"><button id="diagnostics" type="button">Diagnostics</button><button id="history" type="button">Recorded history</button><button id="settings" type="button">Settings</button><a href="critique.md">Read the critique</a></footer>
+</main>
+<script>
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const taskNames={visible:'visible scan',selected:'selected scan',watch:'selection watcher',approach:'approach'};
+  let scenario='ready', task='visible', feature='mining', workspace='assist', enabled=false, running=false, stopping=false, pending=false, timer=null, expiry=null;
+  function clearTimers(){clearTimeout(timer);clearTimeout(expiry);timer=null;expiry=null;}
+  function resetAssessments(){clearTimeout(expiry);expiry=null; for(const input of $('checks').querySelectorAll('input')) input.checked=false;}
+  function makeChecks(){
+    $('checks').replaceChildren(); const legend=document.createElement('legend'); legend.textContent='Your scene assessment'; $('checks').append(legend);
+    const labels=task==='approach'?['Clear corridor','Aligned heading','Safe stopped scene','Configured flight point']:task==='visible'?['Stopped scene and clear game view']:['Safe stopped scene'];
+    $('checks').classList.toggle('multiple',labels.length>1);
+    for(const text of labels){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.addEventListener('change',()=>{clearTimeout(expiry);expiry=setTimeout(()=>{resetAssessments();render();$('assessmentNote').textContent='Assessment expired. Review the current scene again.';},30000);render();});label.append(input,document.createTextNode(text));$('checks').append(label);}
+  }
+  function render(){
+    const missing=scenario==='disconnected', stale=scenario==='stale', blocked=missing||stale||scenario==='partial', uncertain=scenario==='cleanup';
+    const current=!(missing||stale); const chosen=feature==='mining'&&workspace==='assist'&&$('miningEnabled').checked;
+    $('connection').textContent=missing?'Game disconnected':stale?'Capture stale':'Game connected'; $('connectionDot').className=`dot${current?' fresh':''}`;
+    $('authorityState').textContent=uncertain||stopping?'Assist · stopping unconfirmed':pending?'Assist · start pending':running?'Assist · task running':enabled?'Assist · actions enabled':'Assist · actions paused';
+    $('owner').textContent=missing||uncertain||stopping?'Unknown':running?task==='approach'?'Approach':task==='watch'?'Selection watcher':'Scanner':'Human';
+    $('range').textContent=current?'2,528 m':'—'; $('speed').textContent=current?'0 m/s':'—'; $('hull').textContent=current?'100%':'—'; $('energy').textContent=current?'410':'—'; $('targetHealth').textContent=current?'Target HP 920 / 920':'No current target reading';
+    $('targetLabel').textContent=current?'Selected asteroid · HUD range':'Current HUD readings unavailable'; $('provenance').textContent=scenario==='partial'?'HUD readable · control calibration unavailable':'Illustrative HUD readings · not live evidence';
+    $('emptyTitle').textContent=missing?'No game window attached':stale?'Current image unavailable':'Your game stays untouched';
+    $('findingsScope').textContent=missing?'No pass in this example':'Recorded example · last visible pass'; $('findingList').hidden=missing; $('findingsEmpty').hidden=!missing;
+    $('miningTab').setAttribute('aria-pressed',String(feature==='mining')); $('npcTab').setAttribute('aria-pressed',String(feature==='npc')); $('assistTab').setAttribute('aria-pressed',String(workspace==='assist')); $('autoTab').setAttribute('aria-pressed',String(workspace==='autopilot'));
+    $('autopilotPanel').hidden=feature!=='mining'||workspace!=='autopilot'; $('npcPanel').hidden=feature!=='npc'; $('taskSelector').hidden=!chosen; $('execution').hidden=!chosen&&!running&&!pending&&!uncertain&&!stopping; $('nextStep').hidden=!chosen;
+    $('enable').hidden=enabled||running||uncertain||stopping||pending; $('enable').disabled=stale||scenario==='partial'; $('enable').textContent=missing?'Retry connection':'Allow app actions'; $('start').hidden=!$('enable').hidden;
+    let title='Review the stopped scene',detail='Allowing actions does not start a task. Review the scene below.';
+    if(missing){title='Connect the game';detail='Open or restore BSGO, then retry the connection.';}
+    else if(stale){title='Wait for a fresh capture';detail='Current readings and scene checks are unavailable. Restore the game view before continuing.';}
+    else if(scenario==='partial'){title='Control calibration needed';detail='The HUD is readable, but these values cannot authorize a task. Inspect the rejected control fields in Diagnostics.';}
+    else if(uncertain||stopping){title='Stop is not yet confirmed';detail='A stop request is not proof that input has been released. Keep Pause available until cleanup is acknowledged.';}
+    else if(pending){title='Waiting for Start acknowledgment';detail='The request is pending. Pause remains available.';}
+    else if(running){title=task==='approach'?'Approach in progress':'Scanning the current view';detail=task==='approach'?'The app owns input for this task. Keep Stop available.':'Candidate 3 of 6 · verifying the selected asteroid before scanning.';}
+    else if(enabled){title='Confirm the scene, then start';detail=task==='approach'?'Review the route and flight point. Complete all four checks.':task==='visible'?'Keep the camera still. Start scans one view, up to 4,000 m.':task==='watch'?'Stay stopped. The app scans only asteroids you select.':'Confirm the stopped scene. Start scans your selected asteroid.';}
+    $('nextTitle').textContent=title; $('nextDetail').textContent=detail;
+    $('start').textContent=pending?'Start pending…':running?'Task running':`Start ${taskNames[task]}`;
+    const inputs=[...$('checks').querySelectorAll('input')], checked=inputs.length>0&&inputs.every(input=>input.checked);
+    $('start').disabled=!chosen||blocked||uncertain||running||stopping||pending||!enabled||!checked;
+    $('stop').disabled=!(running||pending)||stopping; $('stop').textContent=stopping?'Stopping…':'Stop task';
+    for(const input of inputs)input.disabled=blocked||uncertain||running||pending||stopping;
+    $('taskChoice').disabled=running||pending||uncertain||stopping;
+    $('taskScope').textContent={visible:'One pass in the stopped view · up to 4,000 m',selected:'One scan of the asteroid you select',watch:'Scan each asteroid you choose · no steering',approach:'Guarded flight to mining range'}[task];
+    $('assessmentNote').textContent=blocked?'Fresh control evidence is required before scene assessment.':running||pending?'Input delivery and observed game effects remain separate.':uncertain||stopping?'Input ownership remains unknown until acknowledgment.':checked?'Assessment expires in 30 seconds or when context changes.':'Required checks stay unchecked until you assess the scene.';
+    $('taskLimits').textContent=task==='visible'?'Keep the camera still for one visible pass. Change the view yourself before another pass. Nearby discovery is unavailable.':task==='watch'?'Only scans the asteroid you select. It does not search, steer or change targets.':task==='approach'?'Requires a verified target and configured flight point. Distance alone does not prove a clear route.':'One scan of the currently selected and verified asteroid.';
+  }
+  function chooseScenario(value){clearTimers();scenario=value;task='visible';enabled=value==='scanning';running=value==='scanning';stopping=false;pending=false;feature='mining';workspace='assist';$('miningEnabled').checked=true;$('taskChoice').value='visible';makeChecks();render();}
+  $('scenario').addEventListener('change',e=>chooseScenario(e.target.value));
+  $('layout').addEventListener('change',e=>document.body.classList.toggle('sidecar',e.target.value==='sidecar'));
+  $('taskChoice').addEventListener('change',e=>{task=e.target.value;resetAssessments();makeChecks();render();});
+  $('enable').addEventListener('click',()=>{if(scenario==='disconnected'){scenario='ready';$('scenario').value='ready';}else enabled=true;resetAssessments();render();});
+  $('start').addEventListener('click',()=>{pending=true;resetAssessments();render();timer=setTimeout(()=>{pending=false;running=true;render();},650);});
+  function requestStop(){clearTimers();running=false;pending=false;enabled=false;stopping=true;resetAssessments();render();timer=setTimeout(()=>{stopping=false;scenario='ready';$('scenario').value='ready';render();},850);}
+  $('pause').addEventListener('click',()=>{if(scenario==='cleanup'){resetAssessments();$('nextTitle').textContent='Pause requested · still unconfirmed';return;}requestStop();}); $('stop').addEventListener('click',requestStop);
+  $('miningTab').addEventListener('click',()=>{feature='mining';resetAssessments();render();}); $('npcTab').addEventListener('click',()=>{feature='npc';resetAssessments();render();});
+  $('assistTab').addEventListener('click',()=>{workspace='assist';resetAssessments();render();}); $('autoTab').addEventListener('click',()=>{workspace='autopilot';resetAssessments();render();}); $('miningEnabled').addEventListener('change',()=>{resetAssessments();render();});
+  function showDrawer(title,paragraphs){$('drawerTitle').textContent=title;$('drawerContent').replaceChildren();for(const text of paragraphs){const p=document.createElement('p');p.className='hint';p.textContent=text;$('drawerContent').append(p);}$('drawer').hidden=false;$('closeDrawer').focus();$('drawer').scrollIntoView({block:'nearest'});}
+  $('diagnostics').addEventListener('click',()=>showDrawer('Diagnostics',['This study has no connection to the game or controller. All values and transitions are local illustrations.','A production panel should list rejected fields and reasons here, separately from readable HUD values. Preserve capture age, context validity, request acknowledgment, input delivery and observed effects.']));
+  $('history').addEventListener('click',()=>showDrawer('Recorded history',['The Water finding is a recorded example. It does not describe a currently verified resource or replace current telemetry.','Selecting recorded runs must not change active control ownership or populate live instruments.']));
+  $('settings').addEventListener('click',()=>showDrawer('Settings',['Choose the layout in the study toolbar to compare a panel alongside the game with a cockpit containing the game view.','In production, keep feature settings and focus preferences here. Capture pixels retain their original colors and aspect ratio.']));
+  $('closeDrawer').addEventListener('click',()=>{$('drawer').hidden=true;$('diagnostics').focus();});
+  makeChecks();render();
+</script>
+</body>
+</html>

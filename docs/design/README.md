@@ -6,6 +6,12 @@
 
 The production dashboard implements this direction. [Implementation and validation](../architecture/mining-cockpit-ui-results.md) records the available controller capabilities, rendered checks, and remaining live verification.
 
+## Current critique and proposed refinement
+
+The [October 11 design critique](cockpit-critique-20261011/critique.md) reviews the current dashboard and proposes clearer task selection, actionable recovery, persistent execution controls, scoped findings, and direct capability labels. Its [interactive prototype](cockpit-critique-20261011/prototype.html) compares the game-view cockpit with a compact panel alongside the game using simulated states. [Rendered validation and limits](cockpit-critique-20261011/validation.md) separate the proposal from production and live-game evidence.
+
+This is a reviewable refinement; it does not supersede the selected direction or change the production UI. The October 7 implementation record is historical: later changes added visible scanning and NPC rehearsal, so current capability claims should be checked against current source.
+
 ## Preserved proposals
 
 All eight original Astra concept images are retained in Git under [cockpit-astra-20261007](cockpit-astra-20261007/README.md). Keep them as inspiration when real verification identifies a better arrangement; selecting a direction does not discard the alternatives.
