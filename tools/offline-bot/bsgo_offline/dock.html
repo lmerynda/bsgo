@@ -186,7 +186,8 @@ function readiness(action){
   if(r.available!==true) return {ok:false,why:human(r.reason)||'Not available.'};
   if(r.ready!==true) return {ok:false,why:human(r.reason)||'Waiting for a clear reading.'};
   const kind=name==='scan_nearby_unscanned'?'visible':'target';
-  if(!$('c-safe').checked || !checks[kind]) return {ok:false,why:'Tick “Ship stopped, scene clear”.'};
+  if(!$('c-safe').checked) return {ok:false,why:'Tick “Ship stopped, scene clear”.'};
+  if(!checks[kind]) return {ok:false,why:'The scene changed. Untick and tick “Ship stopped, scene clear” again.'};
   if(name==='approach_current_target'){
     if(!($('c-corridor').checked&&$('c-heading').checked&&$('c-point').checked)) return {ok:false,why:'Tick the three approach checks.'};
     const p=actions?.assessment_context?.wheel_point;
@@ -285,7 +286,7 @@ function render(){
   } else { $('findtitle').textContent='This view'; const d=document.createElement('div'), s=document.createElement('span'); s.className='r';
     s.textContent=canAct?'Press F9 to scan the asteroids in view.':'Asteroids you scan will be listed here.'; d.append(s); rows.append(d); }
 
-  const ship=game?.ship||{}, val=n=>ship[n]?.usable?ship[n].value:null;
+  const ship=game?.ship||{}, val=n=>ship[n]?.usable&&Number.isFinite(ship[n].value)?ship[n].value:null;
   const hull=val('hull_current'), hullMax=val('hull_max'), energy=val('energy_current'), energyMax=val('energy_max'), speed=val('speed');
   $('v-hull').textContent=hull!==null&&hullMax?`${Math.round(100*hull/hullMax)}%`:'—';
   $('b-hull').style.width=hull!==null&&hullMax?`${Math.min(100,100*hull/hullMax)}%`:'0';
@@ -305,12 +306,12 @@ async function refresh(){
   try {
     const [s,a,d]=await Promise.all([getJson('/api/startup'),getJson('/api/manual-actions'),getJson('/api/dock').catch(()=>null)]);
     startup=s; actions=a.routines?a:null; dock=d&&d.hotkeys?d:null; statusOk=true;
+    expireChecks(); // drop stale scene bindings before a hotkey can use them
     const hk=dock?.hotkeys;
-    if(hk){ if(seenHotkey===null) seenHotkey=hk.sequence;
+    if(hk){ if(seenHotkey===null || hk.sequence<seenHotkey) seenHotkey=hk.sequence; // first poll or restarted server: never replay
       else if(hk.sequence>seenHotkey){ seenHotkey=hk.sequence; const last=hk.last;
         if(last?.action==='pause'){ clearChecks(); notice('Paused with F8.'); }
         else if(last && ROUTINE[last.action]) trigger(last.action,'hotkey'); } }
-    expireChecks();
   } catch { statusOk=false; }
   render();
 }
