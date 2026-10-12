@@ -112,7 +112,7 @@
   <section class="sec" id="npcsec" hidden>
     <h2>NPC farming</h2>
     <div class="keys"><button class="key" id="k-npc_fight"><span class="label">Auto-fight</span><kbd>F9</kbd><small></small></button></div>
-    <p class="note">Experimental: X (next enemy), G (guns on), 100–300 ms, G (guns off), then 1–2 s before the next X. It does not check what X selects, so use it in a safe spot. It stops if the game loses focus.</p>
+    <p class="note">Experimental: X (next enemy), then a check of the next screen image. Only if a target within 2,500 m (not an asteroid) shows up: G (guns on), 100–300 ms, G (guns off). Then 1–2 s before the next X. It does not check what X selects, so use it in a safe spot. It stops if the game loses focus.</p>
     <div class="rows" style="margin-top:8px">
       <div><span class="r">Offline rehearsal</span><span id="npc-phase">—</span></div>
       <div><span class="r">Last pass</span><span id="npc-pass">—</span></div>
@@ -317,7 +317,8 @@ function render(){
   } else if(startup?.features?.mining?.enabled===false){ tone='warn'; mark='i'; title='Mining is off'; line='Turn mining on in the full dashboard.'; }
   else if(mode==='npc' && active==='npc_fight'){
     const r=routines().npc_fight||{}; tone='live'; mark='▶'; title='Auto-fight on';
-    line=r.state==='arming'?human(r.waiting_for)||'Starting…':'X → G burst on each next enemy. F9 or F8 stops it.';
+    line=r.state==='arming'?human(r.waiting_for)||'Starting…':
+      /^Last: /.test(r.processing||'')?r.processing:'X, then G only if a target in range shows up. F9 or F8 stops it.';
   }
   else if(active){
     const r=routines()[active]||{}; tone='live'; mark='▶'; title=LABEL[active]||'Working';

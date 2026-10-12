@@ -1,6 +1,10 @@
 """Experimental NPC fight loop: X (next enemy), G on, brief random hold, G off, pause.
 
 Toggling the guns per target fires them fresh at each newly selected enemy.
+With an observation feed, each X is followed by a check of an image captured
+after it: G fires only when a target card shows a readable distance within
+`max_range` and the target is not an asteroid. NPCs and players are not told
+apart; the game decides what X selects.
 
 No image recognition gates this loop. It is a supervised experiment for a safe
 spot: the game decides what X selects and what G fires at. The native
@@ -32,10 +36,13 @@ def _window(value, name, low, high):
 
 def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_size,
                   cancel_file, scope="native", fire=(.1, .3), delay=(1., 2.), max_cycles=None,
-                  rng=None, delivery_timeout=1.5, on_cycle=None, guns_state=None):
+                  rng=None, delivery_timeout=1.5, on_cycle=None, guns_state=None,
+                  observe=None, max_range=2500, confirm_timeout=1.5, settle=.15):
     """Repeat X, G, hold `fire` s, G, pause `delay` s until canceled."""
     fire_lo, fire_hi = _window(fire, "fire", .05, 5)
     lo, hi = _window(delay, "delay", .2, 10)
+    if type(max_range) not in (int, float) or not 0 < max_range <= 20000:
+        raise ValueError("max_range")
     if scope not in ("native", "synthetic"):
         raise ValueError("scope")
     if max_cycles is not None and (type(max_cycles) is not int or max_cycles < 1):
@@ -46,7 +53,7 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
         configuration={**configuration, "keys": list(KEYS), "fire_seconds": [fire_lo, fire_hi],
                        "delay_seconds": [lo, hi],
                        "max_cycles": max_cycles, "cancel_file": str(cancel_path),
-                       "recognition_gated": False},
+                       "recognition_gated": observe is not None, "max_range": max_range},
         frame_capacity=1, max_frames=1)
     backend = RecordingInputBackend(session_id="npc-" + diagnostic.journal.run_id,
         layout_id=profile, width=frame_size[0], height=frame_size[1], journal=diagnostic.journal)
@@ -54,6 +61,7 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
     shutdown, error = {}, None
     result = {"state": "blocked", "reason": "not_started", "cycles": 0,
               "presses": {key: 0 for key in KEYS}, "guns_left_on": False, "cancel_requested": False,
+              "fired": 0, "skipped": {}, "last_target": None,
               "unverified": ["target_kind", "target_hostility", "hits", "kills", "rewards"]}
 
     def canceled():
@@ -89,9 +97,43 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
                 if done[down.sequence].outcome != "injected":
                     raise RuntimeError(f"{key}_not_delivered: {done[down.sequence].outcome}")
                 result["presses"][key] += 1
-                return
+                return done[up.sequence].at
             time.sleep(.01)
         raise RuntimeError(f"{key}_delivery_timeout")
+
+    def confirm(after):
+        """Judge the first healthy image captured after X; never an older one."""
+        deadline = time.monotonic() + confirm_timeout
+        while time.monotonic() < deadline:
+            if canceled():
+                return {"fire": False, "reason": "stopped"}
+            try:
+                snapshot = observe()
+            except Exception:
+                snapshot = None
+            if snapshot is not None and snapshot.healthy and snapshot.acquired_at > after + settle:
+                def field(name):
+                    value = snapshot.fields.get(name)
+                    return value.value if value and value.valid and value.observed_at == snapshot.acquired_at else None
+                distance, asteroid = field("distance"), field("asteroid_selected")
+                row = {"sequence": snapshot.sequence, "distance": distance}
+                if asteroid is True:
+                    return {**row, "fire": False, "reason": "asteroid_selected"}
+                if type(distance) not in (int, float) or not distance > 0:
+                    return {**row, "fire": False, "reason": "no_target"}
+                if distance > max_range:
+                    return {**row, "fire": False, "reason": "out_of_range"}
+                return {**row, "fire": True, "reason": "target_in_range"}
+            time.sleep(.05)
+        return {"fire": False, "reason": "no_fresh_image"}
+
+    def show(verdict):
+        result["last_target"] = verdict
+        where = f"{int(verdict['distance']):,} m · " if verdict.get("distance") else ""
+        what = "fired" if verdict["fire"] else {"no_target": "no target", "out_of_range": "out of range",
+            "asteroid_selected": "asteroid, skipped", "no_fresh_image": "no fresh image"}.get(verdict["reason"], verdict["reason"])
+        skipped = sum(result["skipped"].values())
+        diagnostic.update_execution(processing=f"Last: {where}{what} · {result['fired']} fired, {skipped} skipped")
 
     try:
         diagnostic.attach(worker=None, store=None, coordinator=None, backend=backend)
@@ -101,9 +143,21 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
         diagnostic.update_execution(phase="fighting", processing="X, G on, brief hold, G off, pause",
             waiting_for=None, expected_next_step="repeat until stopped")
         while not canceled():
-            press("X")
+            x_at = press("X")
             if canceled():
                 break
+            if observe is not None:
+                verdict = confirm(x_at)
+                if verdict["reason"] == "stopped":
+                    break
+                if not verdict["fire"]:
+                    result["skipped"][verdict["reason"]] = result["skipped"].get(verdict["reason"], 0) + 1
+                    show(verdict)
+                    if wait(rng.uniform(lo, hi)):
+                        break
+                    continue
+                result["fired"] += 1
+                show(verdict)
             guns_on = guns_state["on"] = True
             press("G")
             time.sleep(rng.uniform(fire_lo, fire_hi))  # short; a stop waits for the off press

@@ -131,7 +131,7 @@ class GuardedManualRoutines:
                     lambda: may_deliver() or guns["on"], on_delivery), journal)
             return run_npc_fight(output, dispatcher_factory=fight_dispatcher, configuration=self.configuration,
                 profile=self.profile, frame_size=self.frame_size, cancel_file=cancel_file, scope=self.scope,
-                guns_state=guns)
+                guns_state=guns, observe=self.snapshot_provider)
         if name == "scan_nearby_unscanned":
             from .visible_scan_probe import run_visible_scan_pass
             on_progress(output)

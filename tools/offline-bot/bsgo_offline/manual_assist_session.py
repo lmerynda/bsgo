@@ -159,6 +159,9 @@ def run_manual_assist_session(output, *, source_factory, recognizer_factory, run
         selection_track_provider=selection_track_provider, action_output_root=action_output_root)
     live_frames = observation_feed.frames
     controller.observation_feed = observation_feed
+    # Routines that judge their own effects (Auto-fight) read the same feed.
+    if runner is not None and hasattr(runner, "snapshot_provider") and runner.snapshot_provider is None:
+        runner.snapshot_provider = observation_feed.latest
     controller.live_frame_snapshot = live_frames.snapshot
     controller.live_frame_image = live_frames.image
     source = worker = server = server_thread = None

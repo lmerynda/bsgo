@@ -7,6 +7,7 @@ import unittest
 from bsgo_offline.native_input import DeliveryRecord
 from bsgo_offline.npc_fight import run_npc_fight
 from bsgo_offline.manual_assist import ManualAssistController
+from bsgo_offline.state import FieldValue, Snapshot
 from test_manual_assist import snapshot
 from test_trace import scratch_directory
 
@@ -136,6 +137,69 @@ class NpcFightTests(unittest.TestCase):
             self.assertEqual(result["state"], "blocked")
             self.assertIn("Target window is not foreground", result["reason"])
             self.assertEqual(dispatcher.keys, ["X"])
+
+    def test_target_check_after_x_decides_whether_to_fire(self):
+        # Each X gets the next scene from this list, captured after the press.
+        scenes = [{"distance": 886, "asteroid_selected": False},
+                  {"distance": None, "asteroid_selected": False},
+                  {"distance": 3100, "asteroid_selected": False},
+                  {"distance": 700, "asteroid_selected": True},
+                  "stale",
+                  {"distance": 1449, "asteroid_selected": False}]
+        current = {"scene": None, "x_at": 0.}
+        sequence = [0]
+        def observe():
+            scene = current["scene"]
+            sequence[0] += 1
+            at = current["x_at"] - 1 if scene == "stale" else time.monotonic()
+            values = {} if scene == "stale" else scene
+            fields = {name: FieldValue(value, at, value is not None, None if value is not None else "unreadable")
+                      for name, value in values.items()}
+            return Snapshot(sequence[0], 1, sequence[0], at, at, "largehud-20261003", (2560, 1440), fields)
+        with scratch_directory() as directory:
+            made = []
+            def factory(backend, journal):
+                dispatcher = KeyDispatcher(backend)
+                def run():
+                    # Advance the scene whenever X is delivered.
+                    while not dispatcher.stop_event.is_set():
+                        record = backend.get_action(timeout=.01)
+                        if record is None:
+                            continue
+                        permitted = (record.kind == "key_up" and record.key in dispatcher.held) or backend.delivery_allowed(record)
+                        outcome = "injected" if permitted else "skipped_dependency"
+                        if permitted and record.kind == "key_down":
+                            dispatcher.held.add(record.key)
+                            dispatcher.keys.append(record.key)
+                            if record.key == "X":
+                                current["scene"] = scenes[dispatcher.keys.count("X") - 1]
+                                current["x_at"] = time.monotonic()
+                        elif permitted:
+                            dispatcher.held.discard(record.key)
+                        with dispatcher.lock:
+                            dispatcher.rows.append(DeliveryRecord(record.sequence, time.monotonic(), record.kind,
+                                outcome, 1, 1 if permitted else 0, 0))
+                        backend.report_delivery(record, outcome)
+                dispatcher.run = run
+                made.append(dispatcher)
+                return dispatcher
+            stop = directory / "stop.request"
+            def after_x_count():
+                if made and made[0].keys.count("X") >= len(scenes):
+                    stop.write_text("done", encoding="utf-8")
+            result = run_npc_fight(directory / "run", dispatcher_factory=factory, configuration={},
+                profile="largehud-20261003", frame_size=(2560, 1440), cancel_file=stop, scope="synthetic",
+                delay=(.2, .2), observe=observe, confirm_timeout=.6,
+                max_range=2500, on_cycle=lambda n: after_x_count())
+            keys = made[0].keys
+            self.assertEqual(keys[:3], ["X", "G", "G"], "886 m fires")
+            self.assertEqual(keys.count("X"), len(scenes))
+            self.assertEqual(result["fired"], 2, result)
+            self.assertEqual(result["skipped"], {"no_target": 1, "out_of_range": 1,
+                                                 "asteroid_selected": 1, "no_fresh_image": 1})
+            self.assertEqual(result["presses"]["G"], 4)
+            self.assertEqual(result["last_target"]["distance"], 1449)
+            self.assertFalse(result["guns_left_on"])
 
     def test_delay_bounds_are_validated(self):
         with scratch_directory() as directory:
