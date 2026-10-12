@@ -68,7 +68,7 @@ class NpcFightTests(unittest.TestCase):
             scope="synthetic", **options)
         return result, made[0]
 
-    def test_cycles_press_x_then_g_with_bounded_random_waits(self):
+    def test_cycles_press_x_g_hold_g_with_bounded_random_waits(self):
         waits = []
         class Recording(random.Random):
             def uniform(self, a, b):
@@ -76,12 +76,13 @@ class NpcFightTests(unittest.TestCase):
                 return a
         with scratch_directory() as directory:
             started = time.monotonic()
-            result, dispatcher = self.run_loop(directory, delay=(.2, .3), max_cycles=2, rng=Recording())
+            result, dispatcher = self.run_loop(directory, fire=(.1, .3), delay=(.2, .3), max_cycles=2, rng=Recording())
             self.assertEqual(result["state"], "recorded", result)
-            self.assertEqual(dispatcher.keys, ["X", "G", "X", "G"])
-            self.assertEqual(result["presses"], {"X": 2, "G": 2})
-            self.assertTrue(all(window == (.2, .3) for window in waits))
-            self.assertGreaterEqual(time.monotonic() - started, .6, "waits after each X and between cycles")
+            self.assertEqual(dispatcher.keys, ["X", "G", "G", "X", "G", "G"])
+            self.assertEqual(result["presses"], {"X": 2, "G": 4})
+            self.assertFalse(result["guns_left_on"])
+            self.assertEqual(waits, [(.1, .3), (.2, .3), (.1, .3)], "hold per burst, pause between cycles")
+            self.assertGreaterEqual(time.monotonic() - started, .4)
             self.assertTrue(all(result["shutdown"].values()))
 
     def test_cancel_stops_before_the_next_key(self):
@@ -90,9 +91,44 @@ class NpcFightTests(unittest.TestCase):
             def cancel_after_first(cycle):
                 stop.write_text("stop", encoding="utf-8")
             result, dispatcher = self.run_loop(directory, delay=(.2, .2), on_cycle=cancel_after_first)
-            self.assertEqual(dispatcher.keys, ["X", "G"])
+            self.assertEqual(dispatcher.keys, ["X", "G", "G"])
             self.assertTrue(result["cancel_requested"])
             self.assertEqual(result["reason"], "stopped")
+
+    def test_stop_during_the_burst_still_turns_the_guns_off(self):
+        with scratch_directory() as directory:
+            stop = directory / "stop.request"
+            class StopMidBurst(random.Random):
+                def uniform(self, a, b):
+                    if (a, b) == (.1, .3):
+                        stop.write_text("stop", encoding="utf-8")
+                    return a
+            result, dispatcher = self.run_loop(directory, fire=(.1, .3), delay=(.2, .2), rng=StopMidBurst())
+            self.assertEqual(dispatcher.keys, ["X", "G", "G"])
+            self.assertFalse(result["guns_left_on"])
+            self.assertTrue(result["cancel_requested"])
+
+    def test_controller_pause_after_guns_on_still_delivers_the_off_press(self):
+        from bsgo_offline.manual_routines import GuardedManualRoutines
+        with scratch_directory() as directory:
+            made, paused = [], [False]
+            cancel = directory / "cancel"
+            def factory(backend, journal):
+                made.append(KeyDispatcher(backend))
+                return made[0]
+            def delivered(record, outcome):
+                if record.key == "G" and record.kind == "key_down" and outcome == "injected":
+                    paused[0] = True  # F8 lands while the guns are on
+                    cancel.write_text("paused", encoding="utf-8")
+            routines = GuardedManualRoutines(source_factory=None, recognizer_factory=None,
+                dispatcher_factory=factory, profile="largehud-20261003", window_id="1:2",
+                frame_size=(2560, 1440), scope="synthetic")
+            result = routines("npc_fight", output=directory / "run", cancel_file=cancel,
+                expected_target=None, assessment={}, on_progress=lambda path: None,
+                on_delivery=delivered, may_deliver=lambda: not paused[0])
+            self.assertEqual(made[0].keys, ["X", "G", "G"])
+            self.assertFalse(result["guns_left_on"])
+            self.assertTrue(result["cancel_requested"])
 
     def test_refused_key_ends_the_loop_with_its_cause(self):
         with scratch_directory() as directory:
@@ -103,10 +139,11 @@ class NpcFightTests(unittest.TestCase):
 
     def test_delay_bounds_are_validated(self):
         with scratch_directory() as directory:
-            for delay in ((0, 1), (2, 1), (1, 11), "1-2"):
+            for options in ({"delay": (0, 1)}, {"delay": (2, 1)}, {"delay": (1, 11)}, {"delay": "1-2"},
+                            {"fire": (0, .3)}, {"fire": (.3, .1)}, {"fire": (1, 6)}):
                 with self.assertRaises(ValueError):
                     run_npc_fight(directory / "bad", dispatcher_factory=None, configuration={},
-                        profile="p", frame_size=(1, 1), cancel_file=directory / "x", delay=delay)
+                        profile="p", frame_size=(1, 1), cancel_file=directory / "x", **options)
 
     def test_controller_starts_without_scene_token_and_respects_pause_and_owner(self):
         with scratch_directory() as directory:

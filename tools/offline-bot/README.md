@@ -540,8 +540,9 @@ An **Asteroids | NPC farm** switch at the top of the panel picks the activity,
 remembered per panel. NPC farm hides the mining keys, checks and scan list,
 shows the offline rehearsal's status read-only and keeps F8 and ship readings.
 In that mode F9 toggles **Auto-fight** (`npc_fight`), an experimental live loop:
-X (select next enemy), a random 1–2 s wait, G (fire all), another 1–2 s wait,
-repeat. It needs actions enabled but no scene ticks, because nothing in it reads
+X (select next enemy), G (guns on), a random 100–300 ms hold, G (guns off), then
+a random 1–2 s pause before the next X, so the guns start fresh on each target.
+A stop or pause during the hold still sends the off G. It needs actions enabled but no scene ticks, because nothing in it reads
 the image: the game decides what X selects and what G fires at, so use it only
 in a safe spot. Every key goes through the guarded native dispatcher; the game
 losing focus, a refused key, F8 or a second F9 ends it. F10/F11 do nothing in
