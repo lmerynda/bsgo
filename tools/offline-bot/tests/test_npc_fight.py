@@ -200,6 +200,10 @@ class NpcFightTests(unittest.TestCase):
             self.assertEqual(result["presses"]["G"], 4)
             self.assertEqual(result["last_target"]["distance"], 1449)
             self.assertFalse(result["guns_left_on"])
+            import json
+            loop = json.loads((directory / "run" / "status.json").read_text(encoding="utf-8"))["execution"]["loop"]
+            self.assertEqual((loop["fired"], loop["skipped"], loop["checked"]), (2, 4, True))
+            self.assertIn(loop["step"], ("select", "check", "fire", "pause"))
 
     def test_delay_bounds_are_validated(self):
         with scratch_directory() as directory:

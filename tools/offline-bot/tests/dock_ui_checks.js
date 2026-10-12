@@ -28,6 +28,8 @@ for(const [action,key] of [['scan_view','F9'],['approach','F10'],['auto_scan','F
   label.className='label';kbd.own=key;b.children=[label,kbd,small];}
 {const b=el('k-pause'),label=new Element('span'),kbd=new Element('kbd');label.className='label';kbd.own='F8';b.children=[label,kbd];}
 for(const id of ['c-safe','c-corridor','c-heading','c-point'])el(id).tag='input';
+for(const step of ['select','check','fire','pause']){const li=new Element('li');li.dataset.step=step;el('npc-loop').children.push(li);}
+const loopNow=()=>el('npc-loop').children.filter(li=>li.classes.has('now')).map(li=>li.dataset.step);
 
 // Server state the fake fetch serves; scenarios mutate these between polls.
 const S={startup:null,actions:null,dock:{hotkeys:{sequence:0,last:null,registered:{F8:true,F9:true,F10:true,F11:true}},window:{mode:'beside_right'}},
@@ -146,7 +148,7 @@ const scenarios={
     assert.equal(el('k-pause').hidden,false,'F8 pause stays');
     assert.equal(el('checksec').hidden,true);assert.equal(el('findsec').hidden,true);assert.equal(el('npcsec').hidden,false);
     assert.equal(status().title,'NPC farm ready');assert.equal(small('npc_fight'),'Ready');
-    await ctx.refreshNpc();await poll();assert.equal(el('npc-phase').textContent,'Ready');
+    assert.deepEqual(loopNow(),[],'idle loop has no active step');assert.equal(el('loop-stats').textContent,'Not running.');
     // Mining hotkeys are neither claimed nor started in NPC mode; F8 still works.
     S.dock.hotkeys.sequence+=1;S.dock.hotkeys.last={sequence:S.dock.hotkeys.sequence,action:'approach',key:'F10'};await poll();
     assert.equal(posts.length,0,'F10 is neither claimed nor started');assert.match(status().notice,/^F10 is an asteroid-mining key/);
@@ -160,6 +162,15 @@ const scenarios={
     S.actions=readyActions({ownership:{owner:'npc_fight',state:'active'},routines:{...readyActions().routines,
       npc_fight:{...idleRoutine,active:true,state:'active'}}});await poll();
     assert.equal(status().title,'Auto-fight on');assert.equal(el('m-mining').disabled,true);assert.equal(label('npc_fight'),'Stop Auto-fight');
+    // The loop diagram follows the live step and shows the last check.
+    const running=step=>readyActions({ownership:{owner:'npc_fight',state:'active'},routines:{...readyActions().routines,
+      npc_fight:{...idleRoutine,active:true,state:'active',loop:step}}});
+    S.actions=running({step:'fire',fired:3,skipped:1,checked:true,max_range:2500,fire_ms:[100,300],pause_s:[1,2],
+      last:{fire:true,distance:886,reason:'target_in_range'}});await poll();
+    assert.deepEqual(loopNow(),['fire']);assert.equal(el('loop-check').textContent,'886 m · in range');
+    assert.equal(el('loop-stats').textContent,'3 fired · 1 skipped');assert.equal(el('loop-skip').classes.has('hit'),false);
+    S.actions=running({step:'pause',fired:3,skipped:2,checked:true,max_range:2500,last:{fire:false,distance:null,reason:'no_target'}});await poll();
+    assert.deepEqual(loopNow(),['pause']);assert.equal(el('loop-check').textContent,'No target');assert.equal(el('loop-skip').classes.has('hit'),true);
     await press('scan_view');assert.deepEqual(posts.at(-1),{url:'/api/manual-actions',body:{action:'stop',routine:'npc_fight'}});
     // Paused actions refuse Auto-fight without posting a start.
     S.actions=readyActions({paused:true});S.startup=connected({enabled:false,paused:true,acknowledgment_token:'a'});await poll();

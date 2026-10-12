@@ -399,6 +399,7 @@ class ManualAssistController:
                 "expected_next_step": execution.get("expected_next_step") if owner == name else
                     "wait for fresh stationary selected target; do not move or retarget the ship" if active else None,
                 "result": item.get("result"), "error": item.get("error"),
+                "loop": execution.get("loop") if owner == name else None,
                 "visible_scan": execution.get("visible_scan") if owner == name else (item.get("result") or {}).get("probe_evidence", {}).get("visible_scan")}
             if name == "auto_scan_selected" and active and owner != name:
                 routines[name].update(phase="waiting", processing="observing the human-selected target",

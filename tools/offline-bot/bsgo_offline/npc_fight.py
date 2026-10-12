@@ -127,48 +127,58 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
             time.sleep(.05)
         return {"fire": False, "reason": "no_fresh_image"}
 
-    def show(verdict):
-        result["last_target"] = verdict
-        where = f"{int(verdict['distance']):,} m · " if verdict.get("distance") else ""
-        what = "fired" if verdict["fire"] else {"no_target": "no target", "out_of_range": "out of range",
-            "asteroid_selected": "asteroid, skipped", "no_fresh_image": "no fresh image"}.get(verdict["reason"], verdict["reason"])
+    def publish(step, verdict=None):
+        """One status update per step, so no field is wiped by a later one."""
+        if verdict is not None:
+            result["last_target"] = verdict
+        last = result["last_target"]
+        where = f"{int(last['distance']):,} m · " if last and last.get("distance") else ""
+        what = "" if not last else "fired" if last["fire"] else {"no_target": "no target",
+            "out_of_range": "out of range", "asteroid_selected": "asteroid, skipped",
+            "no_fresh_image": "no fresh image"}.get(last["reason"], last["reason"])
         skipped = sum(result["skipped"].values())
-        diagnostic.update_execution(processing=f"Last: {where}{what} · {result['fired']} fired, {skipped} skipped")
+        diagnostic.update_execution(phase="fighting", processing=f"Last: {where}{what}" if last else None,
+            loop={"step": step, "cycles": result["cycles"], "fired": result["fired"], "skipped": skipped,
+                  "checked": observe is not None, "last": last,
+                  "fire_ms": [round(fire_lo * 1000), round(fire_hi * 1000)], "pause_s": [lo, hi],
+                  "max_range": max_range})
 
     try:
         diagnostic.attach(worker=None, store=None, coordinator=None, backend=backend)
         dispatcher = dispatcher_factory(backend, diagnostic.journal)
         diagnostic.attach_dispatcher(dispatcher)
         dispatcher.start()
-        diagnostic.update_execution(phase="fighting", processing="X, G on, brief hold, G off, pause",
-            waiting_for=None, expected_next_step="repeat until stopped")
         while not canceled():
+            publish("select")
             x_at = press("X")
             if canceled():
                 break
             if observe is not None:
+                publish("check")
                 verdict = confirm(x_at)
                 if verdict["reason"] == "stopped":
                     break
                 if not verdict["fire"]:
                     result["skipped"][verdict["reason"]] = result["skipped"].get(verdict["reason"], 0) + 1
-                    show(verdict)
+                    publish("pause", verdict)
                     if wait(rng.uniform(lo, hi)):
                         break
                     continue
                 result["fired"] += 1
-                show(verdict)
+                publish("fire", verdict)
+            else:
+                publish("fire")
             guns_on = guns_state["on"] = True
             press("G")
             time.sleep(rng.uniform(fire_lo, fire_hi))  # short; a stop waits for the off press
             press("G")
             guns_on = guns_state["on"] = False
             result["cycles"] += 1
-            diagnostic.update_execution(progress=f"{result['cycles']} cycles")
             if on_cycle:
                 on_cycle(result["cycles"])
             if max_cycles is not None and result["cycles"] >= max_cycles:
                 break
+            publish("pause")
             if wait(rng.uniform(lo, hi)):
                 break
         if dispatcher.error:

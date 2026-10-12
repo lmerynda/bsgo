@@ -68,6 +68,26 @@
   .modes button { min-height: 34px; border: 0; border-radius: 7px; background: none; color: var(--t2); font: 600 13px "Segoe UI", sans-serif; }
   .modes button[aria-pressed="true"] { background: var(--s2); color: var(--t1); box-shadow: inset 0 0 0 1px var(--accent); }
   .modes button:disabled { cursor: not-allowed; opacity: .5; }
+  .loop { list-style: none; margin: 10px 0 0; padding: 0 26px 0 0; position: relative; display: grid; gap: 6px; }
+  .loop::after { content: ""; position: absolute; right: 6px; top: 20px; bottom: 20px; width: 12px;
+                 border: 2px solid var(--line); border-left: 0; border-radius: 0 12px 12px 0; }
+  .loop::before { content: ""; position: absolute; right: 16px; top: 15px; border: 5px solid transparent;
+                  border-right-color: var(--line); }
+  .loop li { display: grid; grid-template-columns: 26px 1fr; gap: 0 10px; align-items: center; padding: 6px 8px;
+             border-radius: 9px; border: 1px solid var(--line); background: var(--s1); position: relative; }
+  .loop li i { grid-row: span 2; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+               font: 600 12px Bahnschrift, sans-serif; font-style: normal; border: 2px solid #3a4a55; color: var(--t2); }
+  .loop li b { font-weight: 600; font-size: 14px; }
+  .loop li small { color: var(--t2); font-size: 12px; }
+  .loop li .skip { position: absolute; right: 8px; top: 6px; font-size: 11px; color: var(--t2); }
+  .loop li.now { border-color: var(--ok); background: #143326; }
+  .loop li.now i { border-color: var(--ok); background: var(--ok); color: #08130e; }
+  .loop.running li.now i { animation: pulse 1.2s ease-in-out infinite; }
+  .loop li .skip.hit { color: var(--warn); }
+  .loop:not(.running) li { opacity: .7; }
+  .loopstats { margin-top: 8px; font-size: 13px; color: var(--t2); font-variant-numeric: tabular-nums; }
+  .loopstats b { color: var(--t1); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .loop.running li.now i { animation: none; } }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -112,11 +132,14 @@
   <section class="sec" id="npcsec" hidden>
     <h2>NPC farming</h2>
     <div class="keys"><button class="key" id="k-npc_fight"><span class="label">Auto-fight</span><kbd>F9</kbd><small></small></button></div>
-    <p class="note">Experimental: X (next enemy), then a check of the next screen image. Only if a target within 2,500 m (not an asteroid) shows up: G (guns on), 100–300 ms, G (guns off). Then 1–2 s before the next X. It does not check what X selects, so use it in a safe spot. It stops if the game loses focus.</p>
-    <div class="rows" style="margin-top:8px">
-      <div><span class="r">Offline rehearsal</span><span id="npc-phase">—</span></div>
-      <div><span class="r">Last pass</span><span id="npc-pass">—</span></div>
-    </div>
+    <p class="note">Experimental. NPCs and players aren't told apart. Stops if the game loses focus.</p>
+    <ol class="loop" id="npc-loop" aria-label="Auto-fight loop">
+      <li data-step="select"><i>1</i><b>Select next enemy</b><small>Press X</small></li>
+      <li data-step="check"><i>2</i><b>Check target</b><small id="loop-check">In range, not an asteroid</small><span class="skip" id="loop-skip">none → 4</span></li>
+      <li data-step="fire"><i>3</i><b>Fire burst</b><small id="loop-fire">G on · 100–300 ms · G off</small></li>
+      <li data-step="pause"><i>4</i><b>Pause</b><small id="loop-pause">1–2 s, then back to 1</small></li>
+    </ol>
+    <div class="loopstats" id="loop-stats">Not running.</div>
   </section>
 
   <section class="sec" id="findsec">
@@ -174,9 +197,9 @@ const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleStrin
 
 let startup=null, actions=null, game=null, dock=null, statusOk=false, inFlight=false;
 let seenHotkey=null, checks={visible:null,target:null}, noticeUntil=0, lastActive=null;
-let mode='mining', npc=null;
+let mode='mining';
 try { if(localStorage.getItem('wingman-mode')==='npc') mode='npc'; } catch {}
-const NPC_PHASE={idle:'Ready',discovering:'Discovering targets',returning:'Returning to target',waiting:'Holding selection',complete:'Pass complete',paused:'Paused',blocked:'Stopped for a check'};
+
 
 function notice(text,seconds=6){ $('notice').textContent=text||''; noticeUntil=Date.now()+seconds*1000; }
 async function getJson(url){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),1500);
@@ -262,6 +285,27 @@ async function claimHotkey(last,run){
   let d=null; try { d=await post('/api/dock',{action:'claim_hotkey',sequence:last.sequence}); } catch { d=null; }
   if(d?.accepted) (run||(()=>trigger(last.action,'hotkey')))();
 }
+function renderLoop(){
+  const r=routines().npc_fight||{}, running=activeRoutine()==='npc_fight', loop=running?r.loop:null;
+  $('npc-loop').classList.toggle('running',!!loop);
+  for(const li of $('npc-loop').children) li.classList.toggle('now',!!loop && li.dataset.step===loop.step);
+  if(loop){
+    const range=Number.isFinite(loop.max_range)?fmt(loop.max_range):'2,500';
+    if(Array.isArray(loop.fire_ms)) $('loop-fire').textContent=`G on · ${loop.fire_ms[0]}–${loop.fire_ms[1]} ms · G off`;
+    if(Array.isArray(loop.pause_s)) $('loop-pause').textContent=`${loop.pause_s[0]}–${loop.pause_s[1]} s, then back to 1`;
+    const last=loop.last;
+    $('loop-check').textContent=!loop.checked?'Not checked':!last?`Target within ${range} m?`:
+      last.fire?`${fmt(last.distance)} m · in range`:({no_target:'No target',out_of_range:`${fmt(last.distance)} m · too far`,
+        asteroid_selected:'Asteroid',no_fresh_image:'No fresh image'})[last.reason]||human(last.reason);
+    $('loop-skip').classList.toggle('hit',!!last && !last.fire && loop.step==='pause');
+    $('loop-stats').innerHTML=''; const b1=document.createElement('b'), b2=document.createElement('b');
+    b1.textContent=fmt(loop.fired); b2.textContent=fmt(loop.skipped);
+    $('loop-stats').append(b1,document.createTextNode(' fired · '),b2,document.createTextNode(' skipped'));
+  } else {
+    $('loop-check').textContent='In range, not an asteroid'; $('loop-skip').classList.remove('hit');
+    $('loop-stats').textContent=running?'Starting…':'Not running.';
+  }
+}
 function npcReadiness(){
   const r=routines().npc_fight||{}, active=activeRoutine();
   if(active==='npc_fight') return {ok:true,running:true};
@@ -317,8 +361,7 @@ function render(){
   } else if(startup?.features?.mining?.enabled===false){ tone='warn'; mark='i'; title='Mining is off'; line='Turn mining on in the full dashboard.'; }
   else if(mode==='npc' && active==='npc_fight'){
     const r=routines().npc_fight||{}; tone='live'; mark='▶'; title='Auto-fight on';
-    line=r.state==='arming'?human(r.waiting_for)||'Starting…':
-      /^Last: /.test(r.processing||'')?r.processing:'X, then G only if a target in range shows up. F9 or F8 stops it.';
+    line=r.state==='arming'?human(r.waiting_for)||'Starting…':'F9 or F8 stops it.';
   }
   else if(active){
     const r=routines()[active]||{}; tone='live'; mark='▶'; title=LABEL[active]||'Working';
@@ -358,8 +401,7 @@ function render(){
   fk.disabled=inFlight; fk.setAttribute('aria-disabled',String(!nf.ok));
   fk.querySelector('.label').textContent=nf.running?'Stop Auto-fight':'Auto-fight';
   fk.querySelector('small').textContent=nf.running?'Running · press again to stop':nf.ok?'Ready':nf.why;
-  $('npc-phase').textContent=npc?(NPC_PHASE[npc.phase]||human(npc.phase)):'Status unavailable';
-  $('npc-pass').textContent=npc?.pass_number?`Pass ${npc.pass_number}`:'None yet';
+  renderLoop();
 
   const visible=routines().scan_nearby_unscanned?.visible_scan;
   const statuses={selecting:'Selecting…',scanning:'Scanning…',already_scanned:'Already scanned',selection_unverified:'Could not select',outside_scanner_range:'Out of range',scan_sent_result_unverified:'Result unreadable',scan_color_observed:'Scanned'};
@@ -423,15 +465,12 @@ function setMode(next){
   if(next===mode) return;
   if(activeRoutine()){ notice(next==='npc'?'Stop the running action before switching to NPC farming.':'Stop Auto-fight before switching to Asteroids.'); return; }
   mode=next; clearChecks(); try { localStorage.setItem('wingman-mode',mode); } catch {}
-  if(mode==='npc') refreshNpc();
   render();
 }
-async function refreshNpc(){ if(mode!=='npc') return;
-  try { const d=await getJson('/api/npc-farm'); npc=d&&d.environment==='simulation'?d:null; } catch { npc=null; } }
 $('m-mining').addEventListener('click',()=>setMode('mining'));
 $('m-npc').addEventListener('click',()=>setMode('npc'));
 $('k-npc_fight').addEventListener('click',()=>npcTrigger('button'));
-setInterval(refreshNpc,1000); refreshNpc();
+
 refresh(); refreshGame();
 setInterval(refresh,400); setInterval(refreshGame,1000);
 </script>

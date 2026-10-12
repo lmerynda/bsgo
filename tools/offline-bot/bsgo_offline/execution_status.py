@@ -17,11 +17,11 @@ class ExecutionStatus:
             "phase_entered_utc": utc, "updated_monotonic": now, "updated_utc": utc,
             "reason": None, "first_blocker": None, "last_progress": None,
             "last_input_intent": None, "last_input_delivery": None,
-            "last_confirmed_effect": None, "terminal": False, "warnings": []}
+            "last_confirmed_effect": None, "terminal": False, "warnings": [], "loop": None}
 
     def update(self, *, phase=None, processing=None, waiting_for=None,
                expected_next_step=None, reason=None, blocker=None, progress=None,
-               confirmed_effect=None, terminal=False, warnings=None, visible_scan=None):
+               confirmed_effect=None, terminal=False, warnings=None, visible_scan=None, loop=None):
         now, utc = time.monotonic(), datetime.now(timezone.utc).isoformat()
         effect = plain(freeze(confirmed_effect)) if confirmed_effect is not None else None
         with self._lock:
@@ -44,6 +44,9 @@ class ExecutionStatus:
                 self._value["warnings"] = list(warnings)
             if visible_scan is not None:
                 self._value['visible_scan'] = plain(freeze(visible_scan))
+            # A repeating routine's current step; persists until replaced.
+            if loop is not None:
+                self._value["loop"] = plain(freeze(loop))
 
     def read(self, *, intent=None, delivery=None):
         with self._lock:
