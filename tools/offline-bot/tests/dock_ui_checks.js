@@ -38,7 +38,10 @@ const posts=[];
 async function fakeFetch(url,options={}){
   if(S.down)throw new Error('connection refused');
   if(options.method==='POST'){const body=JSON.parse(options.body);posts.push({url,body});
-    const reply=S.replies[body.action]||{accepted:true};return {json:async()=>reply};}
+    const reply=S.replies[body.action]||{accepted:true};
+    if(body.action==='enable_manual_actions' && reply.accepted){S.startup={...S.startup,action_control:{enabled:true,paused:false}};
+      if(S.actions)S.actions={...S.actions,paused:false};}
+    return {json:async()=>reply};}
   const row={'/api/startup':S.startup,'/api/manual-actions':S.actions,'/api/dock':S.dock,'/api/game-state':S.game,'/api/npc-farm':S.npc}[url];
   if(row===undefined)throw new Error('unexpected '+url);
   return {json:async()=>JSON.parse(JSON.stringify(row))};
@@ -93,20 +96,33 @@ const scenarios={
     assert.deepEqual(posts,[{url:'/api/startup',body:{action:'fit_game_window'}}],'fit never enables actions');
   },
   async status_paused_and_enable(){
+    // A normal session pause needs no separate Enable: the first start press lifts it.
     await boot(connected({enabled:false,paused:true,acknowledgment_token:'ack-7'}),readyActions({paused:true}));
     for(let i=0;i<3;i++)await poll();
     assert.equal(posts.length,0,'polling must never enable actions');
-    let s=status();assert.equal(s.title,'Actions paused');assert.equal(s.act,'Enable actions');assert.equal(s.actDisabled,false);
-    assert.equal(small('scan_view'),'Enable actions first.');assert.equal(el('checksec').hidden,true);
+    let s=status();assert.equal(s.title,'Ready');assert.equal(s.act,null);assert.match(s.line,/F11 to auto-scan/);
+    assert.equal(small('auto_scan'),'Ready');
+    await click('k-auto_scan');
+    assert.deepEqual(posts,[{url:'/api/startup',body:{action:'enable_manual_actions',acknowledgment_token:'ack-7'}},
+      {url:'/api/manual-actions',body:{action:'start',routine:'auto_scan_selected',
+        request:{assessment_token:'tgt-1',supervisor_assessment:{safe_stopped_scene:true}}}}]);
+    // A refused Enable never starts anything.
+    posts.length=0;S.startup=connected({enabled:false,paused:true,acknowledgment_token:'ack-8'});S.actions=readyActions({paused:true});
+    S.replies.enable_manual_actions={accepted:false,reason:'pause_marker_changed_refresh_acknowledgment'};await poll();
+    await click('k-scan_view');assert.equal(starts().length,0);delete S.replies.enable_manual_actions;
+    // An external pause switch still needs an explicit Enable.
+    posts.length=0;S.startup=connected({enabled:false,paused:true,acknowledgment_token:'ack-9',global_pause_present:true});await poll();
+    s=status();assert.equal(s.title,'Actions paused');assert.equal(s.act,'Enable actions');
+    await click('k-scan_view');assert.equal(posts.length,0);assert.equal(status().notice,'A pause switch is on. Use Enable actions.');
     await click('stateaction');
-    assert.deepEqual(posts,[{url:'/api/startup',body:{action:'enable_manual_actions',acknowledgment_token:'ack-7'}}]);
-    S.startup=connected({enabled:false,paused:true,acknowledgment_token:null});await poll();
+    assert.deepEqual(posts,[{url:'/api/startup',body:{action:'enable_manual_actions',acknowledgment_token:'ack-9'}}]);
+    S.startup=connected({enabled:false,paused:true,acknowledgment_token:null,global_pause_present:true});await poll();
     s=status();assert.equal(s.act,'Enable actions');assert.equal(s.actDisabled,true);
   },
   async status_ready_and_active(){
     await boot(connected(),readyActions());
     let s=status();assert.equal(s.title,'Ready');assert.equal(s.act,null);assert.equal(el('checksec').hidden,false);
-    assert.equal(small('scan_view'),'Tick “Ship stopped, scene clear”.');
+    assert.equal(small('scan_view'),'Ready');assert.equal(small('approach'),'Tick the approach checks first.');
     S.actions=readyActions({ownership:{owner:'scan_nearby_unscanned',state:'active'},
       routines:{...readyActions().routines,scan_nearby_unscanned:{active:true,ready:false,phase:'selecting'}}});
     await poll();
@@ -147,7 +163,7 @@ const scenarios={
     for(const a of ['scan_view','approach','auto_scan']) assert.equal(el('k-'+a).hidden,true);
     assert.equal(el('k-pause').hidden,false,'F8 pause stays');
     assert.equal(el('checksec').hidden,true);assert.equal(el('findsec').hidden,true);assert.equal(el('npcsec').hidden,false);
-    assert.equal(status().title,'NPC farm ready');assert.equal(small('npc_fight'),'Ready');
+    assert.equal(status().title,'Ready');assert.equal(small('npc_fight'),'Ready');
     assert.deepEqual(loopNow(),[],'idle loop has no active step');assert.equal(el('loop-stats').textContent,'Not running.');
     // Mining hotkeys are neither claimed nor started in NPC mode; F8 still works.
     S.dock.hotkeys.sequence+=1;S.dock.hotkeys.last={sequence:S.dock.hotkeys.sequence,action:'approach',key:'F10'};await poll();
@@ -172,9 +188,15 @@ const scenarios={
     S.actions=running({step:'pause',fired:3,skipped:2,checked:true,max_range:2500,last:{fire:false,distance:null,reason:'no_target'}});await poll();
     assert.deepEqual(loopNow(),['pause']);assert.equal(el('loop-check').textContent,'No target');assert.equal(el('loop-skip').classes.has('hit'),true);
     await press('scan_view');assert.deepEqual(posts.at(-1),{url:'/api/manual-actions',body:{action:'stop',routine:'npc_fight'}});
-    // Paused actions refuse Auto-fight without posting a start.
+    // A paused session: one press enables, then starts Auto-fight.
     S.actions=readyActions({paused:true});S.startup=connected({enabled:false,paused:true,acknowledgment_token:'a'});await poll();
-    const before=posts.length;await click('k-npc_fight');assert.equal(posts.length,before);assert.equal(status().notice,'Enable actions first.');
+    await click('k-npc_fight');
+    assert.deepEqual(posts.slice(-2),[{url:'/api/startup',body:{action:'enable_manual_actions',acknowledgment_token:'a'}},
+      {url:'/api/manual-actions',body:{action:'start',routine:'npc_fight',request:{}}}]);
+    // An external pause switch is never lifted by a start press.
+    S.startup=connected({enabled:false,paused:true,acknowledgment_token:'b',global_pause_present:true});S.actions=readyActions({paused:true});await poll();
+    const before=posts.length;await click('k-npc_fight');assert.equal(posts.length,before);
+    assert.equal(status().notice,'A pause switch is on. Use Enable actions.');
     S.actions=readyActions();S.startup=connected();await poll();
     // Back to mining restores the keys.
     await click('m-mining');assert.equal(el('k-approach').hidden,false);assert.equal(el('npcsec').hidden,true);
@@ -188,35 +210,33 @@ const scenarios={
     assert.equal(status().title,'App not responding');
   },
   async start_refused_until_checked(){
-    await boot(connected({enabled:false,paused:true,acknowledgment_token:'ack'}),readyActions({paused:true}));
-    tick('c-safe');await click('k-scan_view');
-    assert.equal(starts().length,0,'paused actions never start');assert.equal(status().notice,'Enable actions first.');
-    S.startup=connected();S.actions=readyActions();el('c-safe').checked=false;el('c-safe').fire('change');await poll();
-    await click('k-scan_view');assert.equal(starts().length,0,'unticked check never starts');
-    assert.match(status().notice,/Tick “Ship stopped, scene clear”/);
+    // Scanning needs a fresh still view from the server, not a tick.
+    await boot(connected(),readyActions({server_monotonic:120}));
+    await click('k-scan_view');assert.equal(starts().length,0,'expired scene never starts');
+    assert.equal(status().notice,'Waiting for a still view. Stop the ship.');
     // A tick without a fresh token does not bind and is undone.
-    S.actions=readyActions({server_monotonic:120});await poll();tick('c-safe');
-    assert.equal(el('c-safe').checked,false);assert.match(status().notice,/No fresh still scene/);
-    await click('k-scan_view');assert.equal(starts().length,0);
+    tick('c-safe');assert.equal(el('c-safe').checked,false);assert.match(status().notice,/No fresh still scene/);
     // Manual mode is required too.
-    S.actions=readyActions({actual_mode:'automatic'});await poll();tick('c-safe');await click('k-scan_view');
+    S.actions=readyActions({actual_mode:'automatic'});await poll();await click('k-scan_view');
     assert.equal(starts().length,0);assert.equal(status().notice,'Switch to Assist first.');
+    // A server-side refusal reason is shown, not overridden.
+    S.actions=readyActions({routines:{...readyActions().routines,scan_nearby_unscanned:{...idleRoutine,ready:false,reason:'image_stale'}}});
+    await poll();await click('k-scan_view');assert.equal(starts().length,0);assert.equal(status().notice,'Game image is old.');
   },
   async start_scan_posts_exact_body(){
-    await boot(connected(),readyActions());tick('c-safe');
+    // One press, no tick: the press binds the current still-scene token.
+    await boot(connected(),readyActions());
     assert.equal(small('scan_view'),'Ready');assert.ok(el('k-scan_view').classes.has('ready'));
     await click('k-scan_view');
     assert.deepEqual(starts(),[{url:'/api/manual-actions',body:{action:'start',routine:'scan_nearby_unscanned',
       request:{assessment_token:'vis-1',supervisor_assessment:{safe_stopped_scene:true}}}}]);
-    assert.equal(el('c-safe').checked,false,'check clears after a start');assert.deepEqual(read('checks'),{visible:null,target:null});
-    await click('k-scan_view');assert.equal(starts().length,1,'a second start needs a new tick');
     // Auto-scan binds the target assessment token.
-    tick('c-safe');await click('k-auto_scan');
+    await click('k-auto_scan');
     assert.deepEqual(starts()[1].body,{action:'start',routine:'auto_scan_selected',
       request:{assessment_token:'tgt-1',supervisor_assessment:{safe_stopped_scene:true}}});
-    // A refused start still clears the check.
-    S.replies.start={accepted:false,reason:'image_stale'};tick('c-safe');await click('k-scan_view');
-    assert.equal(starts().length,3);assert.equal(el('c-safe').checked,false);assert.equal(status().notice,'Game image is old.');
+    // A refused start reports why.
+    S.replies.start={accepted:false,reason:'image_stale'};await click('k-scan_view');
+    assert.equal(starts().length,3);assert.equal(status().notice,'Game image is old.');
   },
   async start_approach_requires_all_checks_and_point(){
     await boot(connected(),readyActions({assessment_context:{token:'tgt-1',context_key:'portrait-A',expires_at:115}}));
@@ -245,13 +265,12 @@ const scenarios={
     S.actions=readyActions();await poll();tick('c-safe');
     S.actions=readyActions({visible_assessment_context:{token:'vis-2',context_key:'scene-B',expires_at:130}});await poll();
     assert.equal(read('checks.visible'),null);assert.equal(read('checks.target.token'),'tgt-1');
-    await click('k-scan_view');assert.equal(starts().length,0);assert.match(status().notice,/again/);
     // Server time passes expires_at: everything clears.
     S.actions=readyActions();await poll();el('c-safe').checked=false;el('c-safe').fire('change');tick('c-safe');
     assert.equal(read('checks.visible.token'),'vis-1');
     S.actions=readyActions({server_monotonic:115});await poll();
     assert.equal(el('c-safe').checked,false);assert.deepEqual(read('checks'),{visible:null,target:null});
-    await click('k-scan_view');assert.equal(starts().length,0);
+    await click('k-approach');assert.equal(starts().length,0,'expired approach ticks never start');
     // Missing server time also drops the binding.
     S.actions=readyActions();await poll();tick('c-safe');S.actions=readyActions({server_monotonic:null});await poll();
     assert.equal(el('c-safe').checked,false);
@@ -265,10 +284,13 @@ const scenarios={
     assert.deepEqual(posts,[{url:'/api/dock',body:{action:'claim_hotkey',sequence:6}},
       {url:'/api/manual-actions',body:{action:'stop',routine:'scan_nearby_unscanned'}}]);
     S.actions=readyActions();await poll();
-    await press('scan_view');assert.equal(starts().length,0);assert.match(status().notice,/^F9: Tick/);
-    tick('c-safe');await press('scan_view');
+    await press('scan_view');
     assert.deepEqual(starts().map(p=>p.body.request.assessment_token),['vis-1']);
     await poll();assert.equal(starts().length,1,'one press starts once');
+    // An expired scene is refused with the reason.
+    S.actions=readyActions({server_monotonic:120});await poll();
+    await press('scan_view');assert.equal(starts().length,1);assert.match(status().notice,/^F9: Waiting for a still view/);
+    S.actions=readyActions();await poll();
     // A press another panel already claimed is never acted on here.
     S.replies.claim_hotkey={accepted:false,reason:'hotkey_press_already_handled'};
     tick('c-safe');await press('scan_view');assert.equal(starts().length,1,'unclaimed press never starts');
@@ -277,14 +299,14 @@ const scenarios={
     // F8 shows a notice and clears checks, never POSTing a start.
     const before=posts.length;tick('c-safe');await press('pause');
     assert.equal(posts.length,before);assert.equal(status().notice,'Paused with F8.');assert.equal(el('c-safe').checked,false);
-    // A press arriving in the same poll as a scene change must not use the old token.
-    tick('c-safe');S.actions=readyActions({visible_assessment_context:{token:'vis-2',context_key:'scene-B',expires_at:130},
+    // A press arriving with a scene change binds the new scene, never the old token.
+    S.actions=readyActions({visible_assessment_context:{token:'vis-2',context_key:'scene-B',expires_at:130},
       assessment_context:{token:'tgt-2',context_key:'portrait-B',expires_at:130,wheel_point:[1,2]}});
-    await press('scan_view');assert.equal(starts().length,1,'stale token never sent');
+    await press('scan_view');assert.deepEqual(starts().map(p=>p.body.request.assessment_token),['vis-1','vis-2']);
     // A restarted server resets the sequence; later presses still work and old ones are not replayed.
     S.dock.hotkeys={...S.dock.hotkeys,sequence:1,last:{sequence:1,action:'scan_view'}};await poll();
-    assert.equal(starts().length,1);tick('c-safe');await press('scan_view');
-    assert.deepEqual(starts().map(p=>p.body.request.assessment_token),['vis-1','vis-2']);
+    assert.equal(starts().length,2);await press('scan_view');
+    assert.deepEqual(starts().map(p=>p.body.request.assessment_token),['vis-1','vis-2','vis-2']);
   },
   async pause_button(){
     await boot(connected(),readyActions());tick('c-safe');await click('k-pause');

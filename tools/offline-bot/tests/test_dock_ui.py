@@ -28,7 +28,7 @@ class DockUiTests(unittest.TestCase):
     def test_unsupported_layout_is_watching_only_without_enable(self):
         self.run_scenario("status_unsupported_layout")
 
-    def test_paused_offers_enable_with_token_and_never_auto_enables(self):
+    def test_first_start_press_enables_a_session_pause_but_not_a_pause_switch(self):
         self.run_scenario("status_paused_and_enable")
 
     def test_ready_and_active_routine_labels_and_stop(self):
@@ -44,10 +44,10 @@ class DockUiTests(unittest.TestCase):
         self.run_scenario("status_app_down")
 
     # Start gating
-    def test_start_refused_until_enabled_checked_and_fresh(self):
+    def test_scan_start_needs_a_fresh_still_view_and_assist_mode(self):
         self.run_scenario("start_refused_until_checked")
 
-    def test_accepted_start_posts_token_and_assessment_then_clears(self):
+    def test_one_press_start_posts_current_token_and_assessment(self):
         self.run_scenario("start_scan_posts_exact_body")
 
     def test_approach_needs_three_checks_and_wheel_point(self):

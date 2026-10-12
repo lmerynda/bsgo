@@ -117,7 +117,7 @@
   </section>
 
   <section class="sec" id="checksec">
-    <h2>Before the app acts</h2>
+    <h2>Before an approach (F10)</h2>
     <div class="checks">
       <label class="check"><input type="checkbox" id="c-safe">Ship stopped, scene clear</label>
       <div id="approachchecks">
@@ -237,20 +237,37 @@ function readiness(action){
   if(active===name) return {ok:true,running:true};
   if(!connected()) return {ok:false,why:'Waiting for the game.'};
   if(startup?.game?.startup_layout?.control_supported===false) return {ok:false,why:human('game_client_dimensions_not_control_validated')};
-  if(control().enabled!==true || actions?.paused!==false) return {ok:false,why:'Enable actions first.'};
+  const paused=control().enabled!==true || actions?.paused!==false;
+  if(paused && !autoEnable()) return {ok:false,why:control().global_pause_present?'A pause switch is on. Use Enable actions.':'Enable actions first.'};
   if(actions?.actual_mode!=='manual' || actions?.mode_pending) return {ok:false,why:human('manual_mode_required')};
   if(active) return {ok:false,why:`${LABEL[active]||'Another action'} is running.`};
   if(r.available!==true) return {ok:false,why:human(r.reason)||'Not available.'};
-  if(r.ready!==true) return {ok:false,why:human(r.reason)||'Waiting for a clear reading.'};
   const kind=name==='scan_nearby_unscanned'?'visible':'target';
-  if(!$('c-safe').checked) return {ok:false,why:'Tick “Ship stopped, scene clear”.'};
-  if(!checks[kind]) return {ok:false,why:'The scene changed. Untick and tick “Ship stopped, scene clear” again.'};
   if(name==='approach_current_target'){
+    // An approach moves the ship: the path and heading stay your call.
+    if(!$('c-safe').checked) return {ok:false,why:'Tick the approach checks first.'};
+    if(!checks[kind]) return {ok:false,why:'The scene changed. Untick and tick “Ship stopped, scene clear” again.'};
     if(!($('c-corridor').checked&&$('c-heading').checked&&$('c-point').checked)) return {ok:false,why:'Tick the three approach checks.'};
     const p=actions?.assessment_context?.wheel_point;
     if(!(Array.isArray(p)&&p.length===2)) return {ok:false,why:'No flight point for this target.'};
   }
+  // While paused the server hides other blockers; the press enables, then rechecks.
+  if(paused) return {ok:true,enable:true};
+  if(r.ready!==true) return {ok:false,why:human(r.reason)||'Waiting for a clear reading.'};
+  if(name!=='approach_current_target' && !freshToken(kind)) return {ok:false,why:'Waiting for a still view. Stop the ship.'};
   return {ok:true};
+}
+// Session start and F8 pauses are lifted by the next start press; an external pause switch is not.
+function autoEnable(){ const c=control();
+  return c.enabled!==true && !!c.acknowledgment_token && c.global_pause_present!==true
+    && !['cleanup_unresolved','controller_closed'].includes(c.pause_reason); }
+function freshToken(kind){ const c=context(kind), t=now();
+  return c?.token && c.context_key && typeof c.expires_at==='number' && t!==null && t<c.expires_at
+    ? {token:c.token,context_key:c.context_key,expires_at:c.expires_at} : null; }
+async function enableNow(){
+  const d=await post('/api/startup',{action:'enable_manual_actions',acknowledgment_token:control().acknowledgment_token});
+  if(!d.accepted){ notice(human(d.reason||d.error)); return false; }
+  await refresh(); return true;
 }
 
 /* ---------- commands ---------- */
@@ -267,14 +284,23 @@ async function trigger(action,source){
     try { const d=await post('/api/manual-actions',{action:'stop',routine:name}); notice(d.accepted?`Stopping ${LABEL[name].toLowerCase()}.`:human(d.reason||d.error)); }
     catch { notice('Stop request did not get an answer. Use F8.'); }
     finally { inFlight=false; refresh(); } return; }
-  if(!ready.ok){ notice(`${source==='hotkey'?$('k-'+action).querySelector('kbd').textContent+': ':''}${ready.why}`); return; }
+  const prefix=source==='hotkey'?$('k-'+action).querySelector('kbd').textContent+': ':'';
+  if(!ready.ok){ notice(prefix+ready.why); return; }
   const kind=name==='scan_nearby_unscanned'?'visible':'target';
+  // For scanning, your press is the still-scene confirmation; approach keeps its ticks.
   const supervisor_assessment=name==='approach_current_target'
     ? {clear_corridor:true,aligned_heading:true,safe_stopped_scene:true,flight_point:true}
     : {safe_stopped_scene:true};
   inFlight=true;
   try {
-    const d=await post('/api/manual-actions',{action:'start',routine:name,request:{assessment_token:checks[kind].token,supervisor_assessment}});
+    if(ready.enable){
+      if(!await enableNow()) return;
+      const again=readiness(action);
+      if(!again.ok){ notice(prefix+again.why); return; }
+    }
+    const bound=name==='approach_current_target'?checks[kind]:freshToken(kind);
+    if(!bound){ notice(prefix+'Waiting for a still view. Stop the ship.'); return; }
+    const d=await post('/api/manual-actions',{action:'start',routine:name,request:{assessment_token:bound.token,supervisor_assessment}});
     if(d.accepted) lastActive=name;
     notice(d.accepted?`${LABEL[name]}.`:human(d.reason||d.error));
   } catch { notice('Start request did not get an answer. Use F8 if anything may be moving.'); }
@@ -311,10 +337,13 @@ function npcReadiness(){
   if(active==='npc_fight') return {ok:true,running:true};
   if(!connected()) return {ok:false,why:'Waiting for the game.'};
   if(startup?.game?.startup_layout?.control_supported===false) return {ok:false,why:human('game_client_dimensions_not_control_validated')};
-  if(control().enabled!==true || actions?.paused!==false) return {ok:false,why:'Enable actions first.'};
+  const paused=control().enabled!==true || actions?.paused!==false;
+  if(paused && !autoEnable()) return {ok:false,why:control().global_pause_present?'A pause switch is on. Use Enable actions.':'Enable actions first.'};
   if(actions?.actual_mode!=='manual' || actions?.mode_pending) return {ok:false,why:human('manual_mode_required')};
   if(active) return {ok:false,why:`${LABEL[active]||'Another action'} is running.`};
-  if(r.available!==true || r.ready!==true) return {ok:false,why:human(r.reason)||'Not available.'};
+  if(r.available!==true) return {ok:false,why:human(r.reason)||'Not available.'};
+  if(paused) return {ok:true,enable:true};
+  if(r.ready!==true) return {ok:false,why:human(r.reason)||'Not available.'};
   return {ok:true};
 }
 async function npcTrigger(source){
@@ -323,6 +352,8 @@ async function npcTrigger(source){
   try {
     if(ready.running){ const d=await post('/api/manual-actions',{action:'stop',routine:'npc_fight'}); notice(d.accepted?'Stopping Auto-fight.':human(d.reason||d.error)); }
     else if(!ready.ok) notice(`${source==='hotkey'?'F9: ':''}${ready.why}`);
+    else if(ready.enable && !(await enableNow())) return;
+    else if(ready.enable && !npcReadiness().ok) notice(`${source==='hotkey'?'F9: ':''}${npcReadiness().why}`);
     else { const d=await post('/api/manual-actions',{action:'start',routine:'npc_fight',request:{}});
       if(d.accepted) lastActive='npc_fight';
       notice(d.accepted?'Auto-fight on.':human(d.reason||d.error)); }
@@ -367,11 +398,14 @@ function render(){
     const r=routines()[active]||{}; tone='live'; mark='▶'; title=LABEL[active]||'Working';
     line=human(r.waiting_for||r.expected_next_step||r.phase||r.state)||'Working…';
     if(active==='auto_scan_selected'){ const t=actions?.selected_scan_toggle; if(t && Number.isInteger(t.attempts)) line=`Select asteroids in the game. ${t.attempts} scanned so far.`; }
+  } else if(ctl.enabled!==true && autoEnable() && !active){
+    tone='ok'; mark='✓'; title='Ready';
+    line=mode==='npc'?'Press F9 to start Auto-fight.':'Press F11 to auto-scan or F9 to scan this view.';
   } else if(ctl.enabled!==true){
     tone='warn'; mark='II'; title='Actions paused'; line='Nothing acts until you enable actions. F8 pauses again.';
     act={kind:'enable',text:'Enable actions',disabled:!ctl.acknowledgment_token};
-  } else if(mode==='npc'){ tone='ok'; mark='✓'; title='NPC farm ready'; line='Press F9 to start Auto-fight. F8 pauses everything.'; }
-  else { tone='ok'; mark='✓'; title='Ready'; line='Tick the scene check, then press F9, F10 or F11.'; }
+  } else if(mode==='npc'){ tone='ok'; mark='✓'; title='Ready'; line='Press F9 to start Auto-fight.'; }
+  else { tone='ok'; mark='✓'; title='Ready'; line='Press F11 to auto-scan or F9 to scan this view.'; }
   $('badge').className='badge '+tone; $('badge').textContent=mark; $('title').textContent=title; $('line').textContent=line;
   const sa=$('stateaction'); sa.hidden=!act; if(act){ sa.textContent=act.text; sa.dataset.kind=act.kind; sa.disabled=!!act.disabled||inFlight; }
 
@@ -389,7 +423,7 @@ function render(){
   }
   const canAct=connected() && layout?.control_supported!==false && ctl.enabled===true;
   const npcMode=mode==='npc';
-  $('checksec').hidden=npcMode || !canAct || !!active;
+  $('checksec').hidden=npcMode || !connected() || layout?.control_supported===false || !!active;
   for(const action of Object.keys(ROUTINE)) $('k-'+action).hidden=npcMode;
   $('findsec').hidden=npcMode; $('npcsec').hidden=!npcMode;
   $('m-mining').setAttribute('aria-pressed',String(!npcMode)); $('m-npc').setAttribute('aria-pressed',String(npcMode));

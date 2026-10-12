@@ -527,10 +527,14 @@ Global hotkeys are registered while the launcher runs ([hotkeys.py](bsgo_offline
 | F10 | Start or stop **Approach target** (`approach_current_target`). |
 | F11 | Turn **Auto-scan selections** (`auto_scan_selected`) on or off. |
 
-F9–F11 are requests that the panel handles exactly like its buttons. Actions must
-be enabled, and the **Ship stopped, scene clear** check must be ticked. That tick
-binds the server's current scene token, and Approach also needs its three
-checks. A check clears when the scene changes, and after every start. Hotkeys never
+F9–F11 are requests that the panel handles exactly like its buttons. One press
+starts Scan this view or Auto-scan: the press itself confirms the still scene and
+binds the server's current scene token, which must be fresh. If actions are
+paused only by the session start or F8, that press enables them first; an
+external pause switch (`global_pause_present`) still needs an explicit
+**Enable actions**. Approach (F10) moves the ship, so it still needs the
+**Ship stopped, scene clear** tick and its three checks; they clear when the
+scene changes, and after every start. Hotkeys never
 send game input themselves. `/api/dock` reports hotkey registration, the last
 press, and the panel's placement. Each press is claimed by exactly one open panel
 (`POST /api/dock` `claim_hotkey`), so a second panel cannot stop what the first
@@ -538,7 +542,7 @@ started.
 
 An **Asteroids | NPC farm** switch at the top of the panel picks the activity,
 remembered per panel. NPC farm hides the mining keys, checks and scan list,
-shows the offline rehearsal's status read-only and keeps F8 and ship readings.
+shows the Auto-fight loop diagram and keeps F8 and ship readings.
 In that mode F9 toggles **Auto-fight** (`npc_fight`), an experimental live loop:
 X (select next enemy), G (guns on), a random 100–300 ms hold, G (guns off), then
 a random 1–2 s pause before the next X, so the guns start fresh on each target.
