@@ -16,10 +16,17 @@ from .state import freeze
 from .trace import TraceJournal
 
 
+# Derived selected-scan display fields: unknown is their normal state whenever
+# no world label/scan texture is visible (for example a distant rock), not a
+# rejected read. Archiving them saved every frame, about 1 GB per 5 minutes live.
+DISPLAY_ONLY_FIELDS = frozenset({"selected_marker_scan_state", "selected_scan_resource"})
+
+
 def recognition_failures(snapshot):
     """Actual rejected image reads, excluding declared unimplemented fields."""
     reasons = {name: field.reason or "invalid_image_read"
                for name, field in snapshot.fields.items() if not field.valid
+               and name not in DISPLAY_ONLY_FIELDS
                and not (field.reason or "").startswith("mining_recognizer_not_validated:")}
     # An explicitly absent asteroid panel is a valid classification, not a
     # failed attempt to recognize its identity/portrait/HP.

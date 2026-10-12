@@ -146,7 +146,8 @@ unfiltered images are not rotated or deleted. Each has a JSON sidecar with field
 rejection reasons, acquisition/context identity, the full observation including
 OCR evidence, image SHA-256, run ID and source-code hashes. Native RGB frames are
 saved as lossless PNG; replay images are byte-exact source copies. Unimplemented
-recognizers and verified absent asteroid identity do not trigger this archive.
+recognizers, verified absent asteroid identity and an unknown selected-scan
+display (no visible world label or scan texture) do not trigger this archive.
 The queue and per-frame byte limit still bound work outside the control loop;
 storage errors, overflow and unavailable pixels appear in
 `frames.failed_recognition.missing` and make its `complete` flag false. Images

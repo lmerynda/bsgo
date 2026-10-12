@@ -209,6 +209,14 @@ class DiagnosticTests(unittest.TestCase):
             "target_identity": FieldValue(None, 1., False, "asteroid_title_not_verified")})
         self.assertEqual(recognition_failures(snapshot), {})
 
+    def test_unknown_selected_scan_display_is_not_archived_but_hud_misreads_are(self):
+        display = {"selected_marker_scan_state": FieldValue(None, 1., False, "selected_marker_absent_or_multiple"),
+                   "selected_scan_resource": FieldValue(None, 1., False, "resource_color_unverified")}
+        self.assertEqual(recognition_failures(observation(fields=display)), {})
+        misread = observation(fields={**display,
+            "distance": FieldValue(None, 1., False, "distance_spacing_invalid")})
+        self.assertEqual(recognition_failures(misread), {"distance": "distance_spacing_invalid"})
+
     def test_failure_image_backpressure_is_reported_without_blocking_capture(self):
         with scratch_directory() as directory:
             gate, entered = Event(), Event()
