@@ -50,11 +50,18 @@ Both surfaces read the same **status snapshot**: one status sentence, owner, mod
 4. **Scheduler and stop rules.** Start with the NPC-farm rehearsal (offline). Enable live schedules only after the live capability is verified.
 5. **Remote decisions and scheduling** from the phone, and push notifications.
 
+## Implementation status
+
+**2026-10-11: side panel first; phone view deferred.** The user confirmed that F8–F11 are free in the BSGO keybinds.
+
+- The launcher opens the panel (`/dock`, [dock.html](../../../tools/offline-bot/bsgo_offline/dock.html)) instead of the full dashboard. [dock_window.py](../../../tools/offline-bot/bsgo_offline/dock_window.py) keeps it always-on-top against the game's edge and non-activating. [hotkeys.py](../../../tools/offline-bot/bsgo_offline/hotkeys.py) registers F8–F11, with F8 Pause handled in the core.
+- Live check against the running game: the game client was 3370 × 1743 on the left 4K monitor, and the panel docked at the left edge of the right monitor (`beside_right`, 480 physical px at 150% scaling). All four hotkeys registered. The panel showed **Watching only** because actions need the calibrated 2560 × 1440 client. No game input was sent, and hotkey presses and focus-free clicking have not yet been exercised against the game.
+- Built only from the existing controller contracts (startup, manual actions, game state). The mission/step model is not built yet.
+
 ## Open questions for the user
 
 - **Remote reach:** home Wi-Fi only, or also away from home? Tailscale is installed on this PC, so a tailnet-only listener is a simple and private option.
 - **Notifications:** browser push, or a phone-friendly service such as ntfy or Telegram?
-- **Dock shell:** a small native wrapper around the web dock (for example WebView2 or pywebview) versus a pure Python/Tk window. A web dock keeps one UI codebase for both surfaces.
-- **Hotkeys:** confirm that F8–F11 are free in your BSGO keybinds.
+- **Dock shell:** decided for now. It is an Edge/Chrome app window around the web panel, which keeps one UI codebase for the dock and the future phone view. A native wrapper (WebView2 or pywebview) remains an option if the browser title bar or startup focus become a problem.
 
 Live gameplay verification, remote input, and enabling scheduled live farming each need separate authorisation, as before.

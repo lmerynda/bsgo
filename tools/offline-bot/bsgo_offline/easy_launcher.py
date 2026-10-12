@@ -17,6 +17,8 @@ from .manual_assist_session import (native_binding,run_manual_assist_session,
     SelectionEvidenceRecognizer)
 from .manual_routines import GuardedManualRoutines
 from .observer_ui import UnattachedManualActions,make_server
+from .side_panel import SidePanel
+from .dock_window import DockFollower,open_panel
 from .startup_layout import PROFILE,StartupLayout
 from .game_observation import game_state_view
 
@@ -454,7 +456,9 @@ def main():
     parser.add_argument("--runs-root",type=Path)
     parser.add_argument("--port",type=int,default=8765)
     parser.add_argument("--no-browser",action="store_true",
-        help="Start or reuse the observer without opening a browser or taking desktop focus")
+        help="Start or reuse the observer without opening the side panel, a browser, or taking desktop focus")
+    parser.add_argument("--dashboard",action="store_true",
+        help="Also open the full dashboard in the default browser")
     args=parser.parse_args()
     if not 0 <= args.port <= 65535:
         parser.error("port must be0..65535")
@@ -463,18 +467,24 @@ def main():
     local=workspace/"logs/mining/dashboard-launcher"
     local.mkdir(parents=True,exist_ok=True)
     metadata=local/"listener.json"
+    def show(url):
+        if args.no_browser:
+            return
+        # A running instance keeps the panel docked; a repeat launch only reopens it.
+        opened=open_panel(url+"dock",local/"side-panel-profile",DockFollower().placement())
+        if args.dashboard or not opened:
+            webbrowser.open(url)
+
     existing=compatible_listener(metadata,workspace,runs_root)
     if existing:
-        if not args.no_browser:
-            webbrowser.open(existing)
+        show(existing)
         return 0
     lease=WorkspaceLease(local/"workspace.lock")
     if not lease.acquire():
         for _ in range(20):
             existing=compatible_listener(metadata,workspace,runs_root)
             if existing:
-                if not args.no_browser:
-                    webbrowser.open(existing)
+                show(existing)
                 return 0
             time.sleep(.1)
         print("Another dashboard startup owns this workspace. Retry shortly; no process was stopped.",flush=True)
@@ -482,13 +492,16 @@ def main():
     launcher=EasyLauncher(workspace,runs_root,
         pause_file=workspace/"logs/mining/live-20261003/continuous-stop.request")
     server=thread=None
+    panel=SidePanel(local/"side-panel-profile")
     try:
         try:
-            server=make_server(runs_root,args.port,action_adapter=launcher,startup_adapter=launcher)
+            server=make_server(runs_root,args.port,action_adapter=launcher,startup_adapter=launcher,
+                dock_adapter=panel)
         except OSError:
             # An unknown/legacy listener is left alone; the new dashboard gets
             # a free loopback port rather than replacing someone else's server.
-            server=make_server(runs_root,0,action_adapter=launcher,startup_adapter=launcher)
+            server=make_server(runs_root,0,action_adapter=launcher,startup_adapter=launcher,
+                dock_adapter=panel)
         url=f"http://127.0.0.1:{server.server_port}/"
         temporary=metadata.with_suffix(".tmp")
         temporary.write_text(json.dumps({"url":url,"instance_id":launcher.instance_id,
@@ -497,14 +510,20 @@ def main():
         thread=Thread(target=lambda:server.serve_forever(poll_interval=.2),daemon=True,name="manual-dashboard-http")
         thread.start()
         print(f"Mining dashboard: {url}",flush=True)
+        # Hotkeys never send game input: F8 pauses, F9-F11 are requests the panel checks.
+        registered=panel.start_hotkeys(server.hotkey_pause)
+        print("Hotkeys: "+", ".join(f"{key} {'ready' if ok else 'unavailable'}" for key,ok in registered.items()),flush=True)
         if not args.no_browser:
-            webbrowser.open(url)
+            opened=panel.open(url)
+            if args.dashboard or not opened:
+                webbrowser.open(url)
         launcher.retry_connection()
         while thread.is_alive():
             thread.join(.5)
     except KeyboardInterrupt:
         pass
     finally:
+        panel.close()
         clean=launcher.close()
         if server:
             if thread and thread.ident is not None:

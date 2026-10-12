@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wingman</title>
+<style>
+  :root { color-scheme: dark; --bg:#0f171d; --s1:#15212a; --s2:#1b2a35; --line:#2a3944; --t1:#eaf2f7; --t2:#a7b8c4;
+          --ok:#6fe0b0; --warn:#ffcf70; --bad:#ff8f8f; --accent:#79c7ff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--t1); font: 14px/1.4 "Segoe UI", system-ui, sans-serif; display: flex; flex-direction: column; overflow-x: hidden; user-select: none; }
+  h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--t2); font-weight: 600; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .sec { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .head strong { font: 600 15px Bahnschrift, "Segoe UI", sans-serif; letter-spacing: .06em; }
+  .head .link { margin-left: auto; font-size: 12px; color: var(--t2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--t2); display: inline-block; margin-right: 6px; }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+
+  .state { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; }
+  .badge { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; border: 4px solid #3a4a55; font: 700 18px Bahnschrift, sans-serif; color: var(--t2); }
+  .badge.ok { border-color: var(--ok); color: var(--ok); } .badge.live { border-color: var(--ok); color: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+  .badge.warn { border-color: var(--warn); color: var(--warn); } .badge.bad { border-color: var(--bad); color: var(--bad); }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(111,224,176,.15); } }
+  @media (prefers-reduced-motion: reduce) { .badge.live { animation: none; } }
+  .state h1 { margin: 0; font: 600 19px/1.2 Bahnschrift, "Segoe UI", sans-serif; }
+  .state p { margin: 3px 0 0; color: var(--t2); font-size: 13px; }
+  .stateaction { margin-top: 10px; width: 100%; min-height: 44px; border-radius: 10px; border: 0; background: var(--warn); color: #241803; font: 600 15px Bahnschrift, "Segoe UI", sans-serif; }
+  .stateaction:disabled { background: #3a3a33; color: #8f8a7a; }
+
+  .keys { display: grid; gap: 8px; }
+  .key { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; min-height: 48px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--s1); text-align: left; }
+  .key span.label { font-size: 15px; }
+  .key small { grid-column: 1 / -1; color: var(--t2); font-size: 12px; line-height: 1.3; }
+  .key kbd { font: 12px Consolas, monospace; border: 1px solid #3a4c59; border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; color: var(--t2); }
+  .key:hover:not(:disabled) { border-color: var(--accent); }
+  .key:disabled { opacity: .55; }
+  .key.ready { border-color: #2f6b55; background: #12271f; }
+  .key.running { border-color: var(--ok); background: #143326; }
+  .key.stop { border-color: #7a3b3b; background: #2a1517; color: #ffd6d6; font-weight: 600; opacity: 1; }
+  .key.flash { outline: 2px solid var(--accent); }
+
+  .checks { display: grid; gap: 4px; }
+  .check { display: flex; gap: 10px; align-items: center; min-height: 36px; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+  .check:hover { background: var(--s1); }
+  .check input { width: 18px; height: 18px; accent-color: var(--ok); margin: 0; }
+  .check.sub { padding-left: 22px; font-size: 13px; color: var(--t2); }
+  .note { color: var(--t2); font-size: 12px; margin: 6px 0 0; }
+
+  .rows { display: grid; gap: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .rows div { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+  .rows .r { color: var(--t2); }
+  .vitals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; color: var(--t2); }
+  .vitals b { display: block; color: var(--t1); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bar { height: 4px; border-radius: 2px; background: #24323c; margin-top: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--ok); }
+  .target { margin-top: 10px; font-size: 13px; color: var(--t2); }
+  .target b { color: var(--t1); font-weight: 600; }
+
+  .notice { min-height: 18px; color: var(--warn); font-size: 13px; }
+  .foot { margin-top: auto; padding: 10px 14px; font-size: 12px; color: var(--t2); display: flex; justify-content: space-between; gap: 8px; }
+  .foot button { background: none; border: 0; color: var(--accent); padding: 0; font-size: 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="head"><strong>WINGMAN</strong><span class="link" id="attach"><span class="dot"></span>Starting…</span></div>
+
+  <section class="sec" aria-live="polite">
+    <div class="state">
+      <div class="badge" id="badge">…</div>
+      <div><h1 id="title">Starting…</h1><p id="line">Reading the app's status.</p></div>
+    </div>
+    <button class="stateaction" id="stateaction" hidden></button>
+  </section>
+
+  <section class="sec">
+    <div class="keys">
+      <button class="key stop" id="k-pause"><span class="label">Pause everything</span><kbd>F8</kbd></button>
+      <button class="key" id="k-scan_view"><span class="label">Scan this view</span><kbd>F9</kbd><small></small></button>
+      <button class="key" id="k-approach"><span class="label">Approach target</span><kbd>F10</kbd><small></small></button>
+      <button class="key" id="k-auto_scan"><span class="label">Auto-scan selections</span><kbd>F11</kbd><small></small></button>
+    </div>
+    <div class="notice" id="notice" role="status"></div>
+  </section>
+
+  <section class="sec" id="checksec">
+    <h2>Before the app acts</h2>
+    <div class="checks">
+      <label class="check"><input type="checkbox" id="c-safe">Ship stopped, scene clear</label>
+      <div id="approachchecks">
+        <label class="check sub"><input type="checkbox" id="c-corridor">Path to target clear</label>
+        <label class="check sub"><input type="checkbox" id="c-heading">Heading lined up</label>
+        <label class="check sub"><input type="checkbox" id="c-point">Flight point looks right</label>
+      </div>
+    </div>
+    <p class="note" id="checknote">Checks expire when the scene changes.</p>
+  </section>
+
+  <section class="sec">
+    <h2 id="findtitle">This view</h2>
+    <div class="rows" id="rows"><div><span class="r">Press F9 to scan the asteroids in view.</span></div></div>
+  </section>
+
+  <section class="sec">
+    <h2>Ship</h2>
+    <div class="vitals">
+      <div>Hull<b id="v-hull">—</b><div class="bar"><i id="b-hull"></i></div></div>
+      <div>Energy<b id="v-energy">—</b><div class="bar"><i id="b-energy" style="background:var(--accent)"></i></div></div>
+      <div>Speed<b id="v-speed">—</b></div>
+    </div>
+    <div class="target" id="target">No target selected.</div>
+  </section>
+
+  <div class="foot"><span id="hotkeys">Hotkeys starting…</span><button id="full">Full dashboard ›</button></div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const ROUTINE={scan_view:'scan_nearby_unscanned',approach:'approach_current_target',auto_scan:'auto_scan_selected'};
+const LABEL={scan_nearby_unscanned:'Scanning this view',approach_current_target:'Approaching target',auto_scan_selected:'Auto-scan on',scan_selected:'Scanning target'};
+const WORDS={
+  game_connection_not_attached:'The game is not connected.',controller_not_attached:'The game is not connected.',
+  game_client_dimensions_not_control_validated:'Actions need the game at 2560 × 1440.',
+  mining_feature_disabled:'Mining is turned off.',manual_actions_paused:'Actions are paused.',
+  input_owner_busy:'Another action is still running.',manual_mode_required:'Switch to Assist first.',
+  routine_not_ready:'Not ready yet.',routine_not_active:'That action is not running.',
+  session_paused:'Actions are paused.',operator_pause:'Paused by you.',
+  fresh_healthy_image_not_available:'Waiting for a fresh game image.',
+  selected_target_card_unverified:'No asteroid selected.',target_reading_unverified:'Target card not readable.',
+  current_image_unavailable:'No game image yet.',image_stale:'Game image is old.',
+  cancel_requested:'Stopped.',view_changed_restart_scan:'The view moved; scan again.',
+  fresh_stationary_full_hull_scene_required:'Needs a still view with full hull.',
+  manual_actions_already_paused:'Already paused.',manual_actions_paused_ack:'Paused.',
+};
+const human=code=>{ if(!code) return ''; const text=String(code); if(WORDS[text]) return WORDS[text];
+  if(/\s/.test(text)) return text; const s=text.replace(/[_:]+/g,' ').trim(); return s.charAt(0).toUpperCase()+s.slice(1)+'.'; };
+const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleString('en-US'):'—';
+
+let startup=null, actions=null, game=null, dock=null, statusOk=false, inFlight=false;
+let seenHotkey=null, checks={visible:null,target:null}, noticeUntil=0;
+
+function notice(text,seconds=6){ $('notice').textContent=text||''; noticeUntil=Date.now()+seconds*1000; }
+async function getJson(url){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),1500);
+  try { const r=await fetch(url,{cache:'no-store',signal:c.signal}); return await r.json(); } finally { clearTimeout(t); } }
+async function post(url,body){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),4000);
+  try { const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:c.signal}); return await r.json(); } finally { clearTimeout(t); } }
+
+/* ---------- derived state ---------- */
+function connected(){ return startup?.phase==='connected'; }
+function control(){ return startup?.action_control||{}; }
+function owner(){ return actions?.ownership?.owner||null; }
+function routines(){ return actions?.routines||{}; }
+function activeRoutine(){ const r=routines(); return owner() || Object.keys(r).find(n=>r[n]?.active===true) || null; }
+function context(kind){ return kind==='visible'?actions?.visible_assessment_context:actions?.assessment_context; }
+function now(){ return typeof actions?.server_monotonic==='number'?actions.server_monotonic:null; }
+
+function bindCheck(){
+  // A tick binds the server's current scene token; any scene change clears it.
+  const bind=kind=>{ const c=context(kind), t=now();
+    return c?.token && c.context_key && typeof c.expires_at==='number' && t!==null && t<c.expires_at
+      ? {token:c.token,context_key:c.context_key,expires_at:c.expires_at} : null; };
+  checks={visible:bind('visible'),target:bind('target')};
+  if(!checks.visible && !checks.target){ $('c-safe').checked=false; notice('No fresh still scene yet. Stop the ship, keep the view steady, then tick again.'); }
+}
+function clearChecks(){ checks={visible:null,target:null}; for(const id of ['c-safe','c-corridor','c-heading','c-point']) $(id).checked=false; }
+function expireChecks(){
+  const t=now(); let lost=false;
+  for(const kind of ['visible','target']){ const b=checks[kind], c=context(kind);
+    if(b && (t===null || t>=b.expires_at || c?.context_key!==b.context_key)){ checks[kind]=null; lost=true; } }
+  if($('c-safe').checked && !checks.visible && !checks.target){ clearChecks(); if(lost) notice('The scene changed, so the checks were cleared.'); }
+}
+
+function readiness(action){
+  const name=ROUTINE[action], r=routines()[name]||{}, active=activeRoutine();
+  if(active===name) return {ok:true,running:true};
+  if(!connected()) return {ok:false,why:'Waiting for the game.'};
+  if(startup?.game?.startup_layout?.control_supported===false) return {ok:false,why:human('game_client_dimensions_not_control_validated')};
+  if(control().enabled!==true || actions?.paused!==false) return {ok:false,why:'Enable actions first.'};
+  if(actions?.actual_mode!=='manual' || actions?.mode_pending) return {ok:false,why:human('manual_mode_required')};
+  if(active) return {ok:false,why:`${LABEL[active]||'Another action'} is running.`};
+  if(r.available!==true) return {ok:false,why:human(r.reason)||'Not available.'};
+  if(r.ready!==true) return {ok:false,why:human(r.reason)||'Waiting for a clear reading.'};
+  const kind=name==='scan_nearby_unscanned'?'visible':'target';
+  if(!$('c-safe').checked || !checks[kind]) return {ok:false,why:'Tick “Ship stopped, scene clear”.'};
+  if(name==='approach_current_target'){
+    if(!($('c-corridor').checked&&$('c-heading').checked&&$('c-point').checked)) return {ok:false,why:'Tick the three approach checks.'};
+    const p=actions?.assessment_context?.wheel_point;
+    if(!(Array.isArray(p)&&p.length===2)) return {ok:false,why:'No flight point for this target.'};
+  }
+  return {ok:true};
+}
+
+/* ---------- commands ---------- */
+async function pause(source='button'){
+  try { const d=await post('/api/startup',{action:'pause_manual_actions'}); notice(d.accepted?'Paused. Nothing will act until you enable actions.':human(d.reason||d.error)); }
+  catch { notice('Pause request did not get an answer. Press F8 again.'); }
+  clearChecks(); refresh();
+}
+async function trigger(action,source){
+  flash(action);
+  if(inFlight) return;
+  const name=ROUTINE[action], ready=readiness(action);
+  if(ready.running){ inFlight=true;
+    try { const d=await post('/api/manual-actions',{action:'stop',routine:name}); notice(d.accepted?`Stopping ${LABEL[name].toLowerCase()}.`:human(d.reason||d.error)); }
+    catch { notice('Stop request did not get an answer. Use F8.'); }
+    finally { inFlight=false; refresh(); } return; }
+  if(!ready.ok){ notice(`${source==='hotkey'?$('k-'+action).querySelector('kbd').textContent+': ':''}${ready.why}`); return; }
+  const kind=name==='scan_nearby_unscanned'?'visible':'target';
+  const supervisor_assessment=name==='approach_current_target'
+    ? {clear_corridor:true,aligned_heading:true,safe_stopped_scene:true,flight_point:true}
+    : {safe_stopped_scene:true};
+  inFlight=true;
+  try {
+    const d=await post('/api/manual-actions',{action:'start',routine:name,request:{assessment_token:checks[kind].token,supervisor_assessment}});
+    notice(d.accepted?`${LABEL[name]}.`:human(d.reason||d.error));
+  } catch { notice('Start request did not get an answer. Use F8 if anything may be moving.'); }
+  finally { inFlight=false; clearChecks(); refresh(); }
+}
+async function stateAction(){
+  const kind=$('stateaction').dataset.kind; if(!kind || inFlight) return; inFlight=true;
+  try {
+    if(kind==='retry'){ const d=await post('/api/startup',{action:'retry_connection'}); notice(d.accepted?'Looking for the game window…':human(d.reason)); }
+    if(kind==='enable'){ const token=control().acknowledgment_token;
+      const d=await post('/api/startup',{action:'enable_manual_actions',acknowledgment_token:token});
+      notice(d.accepted?'Actions enabled. F8 pauses at any time.':human(d.reason||d.error)); }
+  } catch { notice('No answer from the app. Try again.'); }
+  finally { inFlight=false; refresh(); }
+}
+function flash(action){ const el=$('k-'+action); if(!el) return; el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),350); }
+
+/* ---------- render ---------- */
+function render(){
+  if(Date.now()>noticeUntil) $('notice').textContent='';
+  const ctl=control(), layout=startup?.game?.startup_layout, active=activeRoutine();
+  let tone='', mark='…', title='Starting…', line="Reading the app's status.", act=null;
+  if(!statusOk){ tone='bad'; mark='!'; title='App not responding'; line='The Wingman service stopped. Run Mining Dashboard again.'; }
+  else if(!connected()){
+    const connecting=startup?.phase==='connecting';
+    tone=connecting?'warn':'bad'; mark=connecting?'…':'—';
+    title=connecting?'Finding the game…':'Waiting for game';
+    line=human(startup?.reason)||'Open the game window.';
+    if(startup?.retry_available && !connecting) act={kind:'retry',text:'Find game window'};
+  } else if(layout?.control_supported===false){
+    tone='warn'; mark='i'; title='Watching only';
+    const size=startup?.game?.client_size; line=`The game window is ${size?size.join(' × '):'an unsupported size'}. Set it to 2560 × 1440 for actions and ship readings.`;
+  } else if(startup?.features?.mining?.enabled===false){ tone='warn'; mark='i'; title='Mining is off'; line='Turn mining on in the full dashboard.'; }
+  else if(active){
+    const r=routines()[active]||{}; tone='live'; mark='▶'; title=LABEL[active]||'Working';
+    line=human(r.waiting_for||r.expected_next_step||r.phase||r.state)||'Working…';
+    if(active==='auto_scan_selected'){ const t=actions?.selected_scan_toggle; if(t && Number.isInteger(t.attempts)) line=`Select asteroids in the game. ${t.attempts} scanned so far.`; }
+  } else if(ctl.enabled!==true){
+    tone='warn'; mark='II'; title='Actions paused'; line='Nothing acts until you enable actions. F8 pauses again.';
+    act={kind:'enable',text:'Enable actions',disabled:!ctl.acknowledgment_token};
+  } else { tone='ok'; mark='✓'; title='Ready'; line='Tick the scene check, then press F9, F10 or F11.'; }
+  $('badge').className='badge '+tone; $('badge').textContent=mark; $('title').textContent=title; $('line').textContent=line;
+  const sa=$('stateaction'); sa.hidden=!act; if(act){ sa.textContent=act.text; sa.dataset.kind=act.kind; sa.disabled=!!act.disabled||inFlight; }
+
+  $('attach').innerHTML=''; const dot=document.createElement('span');
+  dot.className='dot '+(connected()?'ok':statusOk?'warn':'bad'); $('attach').append(dot,
+    document.createTextNode(connected()?(dock?.window?.mode==='overlay'?'on the game':'beside the game'):'no game'));
+
+  for(const action of Object.keys(ROUTINE)){
+    const el=$('k-'+action), r=readiness(action), name=ROUTINE[action];
+    el.classList.toggle('running',!!r.running); el.classList.toggle('ready',!!r.ok && !r.running);
+    el.disabled=inFlight; el.setAttribute('aria-disabled',String(!r.ok));
+    el.querySelector('.label').textContent=r.running?({scan_view:'Stop scanning',approach:'Stop approach',auto_scan:'Turn auto-scan off'})[action]:
+      ({scan_view:'Scan this view',approach:'Approach target',auto_scan:'Auto-scan selections'})[action];
+    el.querySelector('small').textContent=r.running?'Running · press again to stop':r.ok?'Ready':r.why;
+  }
+  const canAct=connected() && layout?.control_supported!==false && ctl.enabled===true;
+  $('checksec').hidden=!canAct || !!active;
+
+  const visible=routines().scan_nearby_unscanned?.visible_scan;
+  const statuses={selecting:'Selecting…',scanning:'Scanning…',already_scanned:'Already scanned',selection_unverified:'Could not select',outside_scanner_range:'Out of range',scan_sent_result_unverified:'Result unreadable',scan_color_observed:'Scanned'};
+  const rows=$('rows'); rows.innerHTML='';
+  if(visible?.rows?.length){
+    $('findtitle').textContent=`This view · ${visible.rows.length} checked`;
+    for(const row of visible.rows.slice(0,8)){ const d=document.createElement('div'), a=document.createElement('span'), b=document.createElement('span');
+      a.textContent=row.resource||statuses[row.status]||human(row.status); b.className='r'; b.textContent=row.distance?`${fmt(row.distance)} m`:''; d.append(a,b); rows.append(d); }
+  } else { $('findtitle').textContent='This view'; const d=document.createElement('div'), s=document.createElement('span'); s.className='r';
+    s.textContent=canAct?'Press F9 to scan the asteroids in view.':'Asteroids you scan will be listed here.'; d.append(s); rows.append(d); }
+
+  const ship=game?.ship||{}, val=n=>ship[n]?.usable?ship[n].value:null;
+  const hull=val('hull_current'), hullMax=val('hull_max'), energy=val('energy_current'), energyMax=val('energy_max'), speed=val('speed');
+  $('v-hull').textContent=hull!==null&&hullMax?`${Math.round(100*hull/hullMax)}%`:'—';
+  $('b-hull').style.width=hull!==null&&hullMax?`${Math.min(100,100*hull/hullMax)}%`:'0';
+  $('v-energy').textContent=fmt(energy); $('b-energy').style.width=energy!==null&&energyMax?`${Math.min(100,100*energy/energyMax)}%`:'0';
+  $('v-speed').textContent=speed!==null?`${fmt(speed)} m/s`:'—';
+  const t=game?.target||{};
+  if(t.present){ const tgt=$('target'); tgt.textContent=''; const b=document.createElement('b'); b.textContent='Target';
+    tgt.append(b,document.createTextNode(` · ${t.distance?.usable?fmt(t.distance.value)+' m':'range —'} · HP ${t.current_hp?.usable?fmt(t.current_hp.value):'—'} / ${t.max_hp?.usable?fmt(t.max_hp.value):'—'}`)); }
+  else $('target').textContent=connected()?'No target selected.':'Target appears here when the game is connected.';
+
+  const reg=dock?.hotkeys?.registered||{}, missing=Object.keys(reg).filter(k=>reg[k]===false);
+  $('hotkeys').textContent=!dock?'Hotkeys unavailable':missing.length?`${missing.join(', ')} in use by another app`:'F8–F11 work in game';
+}
+
+/* ---------- polling ---------- */
+async function refresh(){
+  try {
+    const [s,a,d]=await Promise.all([getJson('/api/startup'),getJson('/api/manual-actions'),getJson('/api/dock').catch(()=>null)]);
+    startup=s; actions=a.routines?a:null; dock=d&&d.hotkeys?d:null; statusOk=true;
+    const hk=dock?.hotkeys;
+    if(hk){ if(seenHotkey===null) seenHotkey=hk.sequence;
+      else if(hk.sequence>seenHotkey){ seenHotkey=hk.sequence; const last=hk.last;
+        if(last?.action==='pause'){ clearChecks(); notice('Paused with F8.'); }
+        else if(last && ROUTINE[last.action]) trigger(last.action,'hotkey'); } }
+    expireChecks();
+  } catch { statusOk=false; }
+  render();
+}
+async function refreshGame(){ try { game=await getJson('/api/game-state'); } catch { game=null; } }
+
+$('k-pause').addEventListener('click',()=>pause());
+for(const action of Object.keys(ROUTINE)) $('k-'+action).addEventListener('click',()=>trigger(action,'button'));
+$('stateaction').addEventListener('click',stateAction);
+$('c-safe').addEventListener('change',e=>{ if(e.target.checked) bindCheck(); else clearChecks(); render(); });
+for(const id of ['c-corridor','c-heading','c-point']) $(id).addEventListener('change',render);
+$('full').addEventListener('click',()=>window.open('/','wingman-dashboard'));
+refresh(); refreshGame();
+setInterval(refresh,400); setInterval(refreshGame,1000);
+</script>
+</body>
+</html>

@@ -504,8 +504,34 @@ Opening the dashboard or retrying never focuses the game or sends an input.
 
 For a background restart while the human is playing, pass `--no-browser` to
 `python -m bsgo_offline.easy_launcher --workspace C:\Projects\bsgo --port 8765`.
-This starts or reuses the observer without opening a browser window. Actions
+This starts or reuses the observer without opening the side panel or a browser window. Actions
 still start paused; the app remains the owner of passive game capture.
+
+### Side panel (Wingman)
+
+The launcher opens the **side panel** instead of the full dashboard: a 320 px
+Edge/Chrome app window (`/dock`, own profile under `logs/mining/dashboard-launcher`)
+kept always-on-top beside the game. With two monitors it sits on the monitor that
+touches the game's edge; on one monitor it overlays the game's right edge. It is
+marked non-activating, so clicking it does not take keyboard focus from the game.
+Pass `--dashboard` to also open the full dashboard; the panel's **Full dashboard ›**
+link opens it too. Running the launcher again reopens a closed panel.
+
+Global hotkeys are registered while the launcher runs ([hotkeys.py](bsgo_offline/hotkeys.py)):
+
+| Key | Effect |
+| --- | --- |
+| F8 | Pause everything. Handled by the core even when the panel is closed. |
+| F9 | Start or stop **Scan this view** (`scan_nearby_unscanned`). |
+| F10 | Start or stop **Approach target** (`approach_current_target`). |
+| F11 | Turn **Auto-scan selections** (`auto_scan_selected`) on or off. |
+
+F9–F11 are requests that the panel handles exactly like its buttons. Actions must
+be enabled, and the **Ship stopped, scene clear** check must be ticked. That tick
+binds the server's current scene token, and Approach also needs its three
+checks. A check clears when the scene changes, and after every start. Hotkeys never
+send game input themselves. `/api/dock` reports hotkey registration, the last
+press, and the panel's placement.
 
 Passive observation now uses exact-HWND Windows Graphics Capture, with the
 Windows packages pinned in `requirements.txt`. An overlapping cockpit window

@@ -65,9 +65,13 @@ class ObserverBindingTests(unittest.TestCase):
                         patch("bsgo_offline.easy_launcher.compatible_listener",return_value=None),\
                         patch("bsgo_offline.easy_launcher.WorkspaceLease") as lease,\
                         patch("bsgo_offline.easy_launcher.EasyLauncher",return_value=launcher),\
+                        patch("bsgo_offline.easy_launcher.SidePanel") as panel,\
                         patch("bsgo_offline.easy_launcher.webbrowser.open",side_effect=browser),\
                         patch.object(Thread,"join",join),redirect_stdout(io.StringIO()):
                     lease.return_value.acquire.return_value=True
+                    # The panel opens against the alternate port; tests never open windows.
+                    panel.return_value.open.side_effect=browser
+                    panel.return_value.start_hotkeys.return_value={}
                     self.assertEqual(main(),0)
                     launcher.retry_connection.assert_called_once()
                 self.assertEqual(responses[0]["instance_id"],"a"*32)

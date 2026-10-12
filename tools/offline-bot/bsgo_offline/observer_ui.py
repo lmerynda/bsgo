@@ -22,6 +22,7 @@ from .npc_farm_demo import NpcFarmDemo
 RUN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 IMAGE_NAME = re.compile(r"observation-[0-9]{8}\.png\Z")
 HTML = Path(__file__).with_name("observer.html")
+DOCK_HTML = Path(__file__).with_name("dock.html")
 MAX_JSON_BYTES = 8 * 1024 * 1024
 MANUAL_ROUTINES = ("scan_nearby_unscanned", "auto_scan_selected", "scan_selected",
                    "approach_current_target")
@@ -369,7 +370,8 @@ class ObserverIndex:
 
 
 def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
-                action_adapter=None, startup_adapter=None, observation_adapter=None):
+                action_adapter=None, startup_adapter=None, observation_adapter=None,
+                dock_adapter=None):
     index = ObserverIndex(runs_root)
     npc_demo = NpcFarmDemo()
     actions = action_adapter or UnattachedManualActions()
@@ -476,6 +478,17 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             query = parse_qs(request.query)
             if request.path == "/":
                 self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
+                return
+            if request.path == "/dock":
+                self._send(200, DOCK_HTML.read_bytes(), "text/html; charset=utf-8")
+                return
+            if request.path == "/api/dock":
+                if query:
+                    self._json(400, {"error": "dock_state_does_not_accept_query_parameters"})
+                    return
+                provider = getattr(dock_adapter, "dock_snapshot", None)
+                self._json(200 if callable(provider) else 503,
+                    provider() if callable(provider) else {"error": "side_panel_not_attached"})
                 return
             if request.path == '/npc-farm.js':
                 self._send(200, HTML.with_name('npc-farm.js').read_bytes(), 'text/javascript; charset=utf-8')
@@ -739,7 +752,13 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
         def log_message(self, format, *args):
             pass
 
+    def hotkey_pause():
+        # Same mutation boundary as the dashboard's Pause request.
+        with actions_lock:
+            return startup.pause_actions()
+
     server = _DashboardHTTPServer(("127.0.0.1", port), Handler)
+    server.hotkey_pause = hotkey_pause
     server.npc_demo = npc_demo
     server.daemon_threads = True
     return server

@@ -246,6 +246,7 @@ class EasyLauncherTests(unittest.TestCase):
                     patch("bsgo_offline.easy_launcher.make_server",return_value=server),\
                     patch("pathlib.Path.replace",side_effect=OSError("fixture_metadata_failure")),\
                     patch("bsgo_offline.easy_launcher.discover_game_windows") as discover,\
+                    patch("bsgo_offline.easy_launcher.SidePanel") as panel,\
                     patch("bsgo_offline.easy_launcher.webbrowser.open") as browser:
                 lease.return_value.acquire.return_value=True
                 with self.assertRaisesRegex(OSError,"fixture_metadata_failure"):
@@ -255,27 +256,38 @@ class EasyLauncherTests(unittest.TestCase):
                 lease.return_value.close.assert_called_once()
                 discover.assert_not_called()
                 browser.assert_not_called()
+                panel.return_value.open.assert_not_called()
+                panel.return_value.close.assert_called_once()
 
     def test_unknown_occupied_port_gets_new_server_without_killing_listener(self):
-        with scratch_directory() as directory:
-            server=Mock(server_port=9001)
-            thread=Mock(ident=1)
-            thread.is_alive.return_value=False
-            launcher=Mock(instance_id="a"*32)
-            launcher.close.return_value=True
-            with patch("sys.argv",["easy_launcher","--workspace",str(directory)]),\
-                    patch("bsgo_offline.easy_launcher.compatible_listener",return_value=None),\
-                    patch("bsgo_offline.easy_launcher.WorkspaceLease") as lease,\
-                    patch("bsgo_offline.easy_launcher.EasyLauncher",return_value=launcher),\
-                    patch("bsgo_offline.easy_launcher.make_server",side_effect=[OSError("occupied"),server]) as make,\
-                    patch("bsgo_offline.easy_launcher.Thread",return_value=thread),\
-                    patch("bsgo_offline.easy_launcher.webbrowser.open") as browser,redirect_stdout(io.StringIO()):
-                lease.return_value.acquire.return_value=True
-                self.assertEqual(main(),0)
-                self.assertEqual(make.call_args_list[0].args[1],8765)
-                self.assertEqual(make.call_args_list[1].args[1],0)
-                browser.assert_called_once_with("http://127.0.0.1:9001/")
-                launcher.retry_connection.assert_called_once()
+        # The side panel opens instead of the dashboard; the dashboard is the fallback.
+        for opened,browser_calls in ((True,0),(False,1)):
+            with self.subTest(panel_opened=opened),scratch_directory() as directory:
+                server=Mock(server_port=9001)
+                thread=Mock(ident=1)
+                thread.is_alive.return_value=False
+                launcher=Mock(instance_id="a"*32)
+                launcher.close.return_value=True
+                with patch("sys.argv",["easy_launcher","--workspace",str(directory)]),\
+                        patch("bsgo_offline.easy_launcher.compatible_listener",return_value=None),\
+                        patch("bsgo_offline.easy_launcher.WorkspaceLease") as lease,\
+                        patch("bsgo_offline.easy_launcher.EasyLauncher",return_value=launcher),\
+                        patch("bsgo_offline.easy_launcher.make_server",side_effect=[OSError("occupied"),server]) as make,\
+                        patch("bsgo_offline.easy_launcher.Thread",return_value=thread),\
+                        patch("bsgo_offline.easy_launcher.SidePanel") as panel,\
+                        patch("bsgo_offline.easy_launcher.webbrowser.open") as browser,redirect_stdout(io.StringIO()):
+                    lease.return_value.acquire.return_value=True
+                    panel.return_value.open.return_value=opened
+                    panel.return_value.start_hotkeys.return_value={"F8":True}
+                    self.assertEqual(main(),0)
+                    self.assertEqual(make.call_args_list[0].args[1],8765)
+                    self.assertEqual(make.call_args_list[1].args[1],0)
+                    self.assertIs(make.call_args_list[1].kwargs["dock_adapter"],panel.return_value)
+                    panel.return_value.start_hotkeys.assert_called_once_with(server.hotkey_pause)
+                    panel.return_value.open.assert_called_once_with("http://127.0.0.1:9001/")
+                    self.assertEqual(browser.call_count,browser_calls)
+                    launcher.retry_connection.assert_called_once()
+                    panel.return_value.close.assert_called_once()
 
 
 if __name__=="__main__":unittest.main()
