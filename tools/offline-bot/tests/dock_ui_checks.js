@@ -31,13 +31,13 @@ for(const id of ['c-safe','c-corridor','c-heading','c-point'])el(id).tag='input'
 
 // Server state the fake fetch serves; scenarios mutate these between polls.
 const S={startup:null,actions:null,dock:{hotkeys:{sequence:0,last:null,registered:{F8:true,F9:true,F10:true,F11:true}},window:{mode:'beside_right'}},
-  game:{ship:{},target:{present:false}},down:false,replies:{}};
+  game:{ship:{},target:{present:false}},npc:{environment:'simulation',input_authorized:false,phase:'idle',pass_number:0},down:false,replies:{}};
 const posts=[];
 async function fakeFetch(url,options={}){
   if(S.down)throw new Error('connection refused');
   if(options.method==='POST'){const body=JSON.parse(options.body);posts.push({url,body});
     const reply=S.replies[body.action]||{accepted:true};return {json:async()=>reply};}
-  const row={'/api/startup':S.startup,'/api/manual-actions':S.actions,'/api/dock':S.dock,'/api/game-state':S.game}[url];
+  const row={'/api/startup':S.startup,'/api/manual-actions':S.actions,'/api/dock':S.dock,'/api/game-state':S.game,'/api/npc-farm':S.npc}[url];
   if(row===undefined)throw new Error('unexpected '+url);
   return {json:async()=>JSON.parse(JSON.stringify(row))};
 }
@@ -136,6 +136,27 @@ const scenarios={
     // A routine that completes normally adds no failure notice.
     S.actions=readyActions({routines:{...readyActions().routines,approach_current_target:{...idleRoutine,state:'completed'}}});
     el('notice').textContent='';await poll();assert.equal(status().notice,'');
+  },
+  async npc_mode_toggle_hides_mining_and_ignores_mining_keys(){
+    await boot(connected(),readyActions());tick('c-safe');
+    await click('m-npc');
+    assert.equal(el('m-npc').attrs['aria-pressed'],'true');assert.equal(el('m-mining').attrs['aria-pressed'],'false');
+    assert.equal(el('c-safe').checked,false,'switching clears scene checks');
+    for(const a of ['scan_view','approach','auto_scan']) assert.equal(el('k-'+a).hidden,true);
+    assert.equal(el('k-pause').hidden,false,'F8 pause stays');
+    assert.equal(el('checksec').hidden,true);assert.equal(el('findsec').hidden,true);assert.equal(el('npcsec').hidden,false);
+    assert.equal(status().title,'NPC farming · watching only');
+    await ctx.refreshNpc();await poll();assert.equal(el('npc-phase').textContent,'Ready');
+    // Mining hotkeys are neither claimed nor started in NPC mode; F8 still works.
+    S.dock.hotkeys.sequence+=1;S.dock.hotkeys.last={sequence:S.dock.hotkeys.sequence,action:'approach',key:'F10'};await poll();
+    assert.equal(posts.length,0);assert.match(status().notice,/^F10 is an asteroid-mining key/);
+    await press('pause');assert.equal(status().notice,'Paused with F8.');
+    // Back to mining restores the keys.
+    await click('m-mining');assert.equal(el('k-approach').hidden,false);assert.equal(el('npcsec').hidden,true);
+    // A running mining routine blocks switching to NPC.
+    S.actions=readyActions({ownership:{owner:'approach_current_target',state:'active'},routines:{...readyActions().routines,
+      approach_current_target:{...idleRoutine,active:true,state:'active'}}});await poll();
+    assert.equal(el('m-npc').disabled,true);await click('m-npc');assert.equal(el('m-npc').attrs['aria-pressed'],'false');
   },
   async status_app_down(){
     await boot(connected(),readyActions());S.down=true;await poll();

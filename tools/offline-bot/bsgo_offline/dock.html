@@ -64,11 +64,19 @@
   .notice { min-height: 18px; color: var(--warn); font-size: 13px; }
   .foot { margin-top: auto; padding: 10px 14px; font-size: 12px; color: var(--t2); display: flex; justify-content: space-between; gap: 8px; }
   .foot button { background: none; border: 0; color: var(--accent); padding: 0; font-size: 12px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 10px 14px 0; padding: 3px; border-radius: 10px; background: var(--s1); border: 1px solid var(--line); }
+  .modes button { min-height: 34px; border: 0; border-radius: 7px; background: none; color: var(--t2); font: 600 13px "Segoe UI", sans-serif; }
+  .modes button[aria-pressed="true"] { background: var(--s2); color: var(--t1); box-shadow: inset 0 0 0 1px var(--accent); }
+  .modes button:disabled { cursor: not-allowed; opacity: .5; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
   <div class="head"><strong>WINGMAN</strong><span class="link" id="attach"><span class="dot"></span>Starting…</span></div>
+  <div class="modes" role="group" aria-label="Activity">
+    <button id="m-mining" type="button" aria-pressed="true">Asteroids</button>
+    <button id="m-npc" type="button" aria-pressed="false">NPC farm</button>
+  </div>
 
   <section class="sec" aria-live="polite">
     <div class="state">
@@ -101,7 +109,17 @@
     <p class="note" id="checknote">Checks expire when the scene changes.</p>
   </section>
 
-  <section class="sec">
+  <section class="sec" id="npcsec" hidden>
+    <h2>NPC farming</h2>
+    <p class="note" style="margin:0 0 8px">Live NPC farming isn't available yet: the app can't tell NPCs from players or follow a chosen NPC from the screen. Nothing here sends game input.</p>
+    <div class="rows">
+      <div><span class="r">Offline rehearsal</span><span id="npc-phase">—</span></div>
+      <div><span class="r">Last pass</span><span id="npc-pass">—</span></div>
+    </div>
+    <p class="note">Run the rehearsal from the full dashboard.</p>
+  </section>
+
+  <section class="sec" id="findsec">
     <h2 id="findtitle">This view</h2>
     <div class="rows" id="rows"><div><span class="r">Press F9 to scan the asteroids in view.</span></div></div>
   </section>
@@ -156,6 +174,9 @@ const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleStrin
 
 let startup=null, actions=null, game=null, dock=null, statusOk=false, inFlight=false;
 let seenHotkey=null, checks={visible:null,target:null}, noticeUntil=0, lastActive=null;
+let mode='mining', npc=null;
+try { if(localStorage.getItem('wingman-mode')==='npc') mode='npc'; } catch {}
+const NPC_PHASE={idle:'Ready',discovering:'Discovering targets',returning:'Returning to target',waiting:'Holding selection',complete:'Pass complete',paused:'Paused',blocked:'Stopped for a check'};
 
 function notice(text,seconds=6){ $('notice').textContent=text||''; noticeUntil=Date.now()+seconds*1000; }
 async function getJson(url){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),1500);
@@ -266,6 +287,8 @@ function render(){
     title=connecting?'Finding the game…':'Waiting for game';
     line=human(startup?.reason)||'Open the game window.';
     if(startup?.retry_available && !connecting) act={kind:'retry',text:'Find game window'};
+  } else if(mode==='npc'){
+    tone='warn'; mark='i'; title='NPC farming · watching only'; line='Ship readings are live. F8 still pauses everything.';
   } else if(layout?.control_supported===false){
     tone='warn'; mark='i'; title='Watching only';
     const size=startup?.game?.client_size; line=`The game window is ${size?size.join(' × '):'an unsupported size'}. Actions need 2560 × 1440.`;
@@ -295,7 +318,15 @@ function render(){
     el.querySelector('small').textContent=r.running?'Running · press again to stop':r.ok?'Ready':r.why;
   }
   const canAct=connected() && layout?.control_supported!==false && ctl.enabled===true;
-  $('checksec').hidden=!canAct || !!active;
+  const npcMode=mode==='npc';
+  $('checksec').hidden=npcMode || !canAct || !!active;
+  for(const action of Object.keys(ROUTINE)) $('k-'+action).hidden=npcMode;
+  $('findsec').hidden=npcMode; $('npcsec').hidden=!npcMode;
+  $('m-mining').setAttribute('aria-pressed',String(!npcMode)); $('m-npc').setAttribute('aria-pressed',String(npcMode));
+  // Never switch away from a running mining routine; stop it first.
+  $('m-npc').disabled=!npcMode && !!active; $('m-npc').title=$('m-npc').disabled?'Stop the running action first':'';
+  $('npc-phase').textContent=npc?(NPC_PHASE[npc.phase]||human(npc.phase)):'Status unavailable';
+  $('npc-pass').textContent=npc?.pass_number?`Pass ${npc.pass_number}`:'None yet';
 
   const visible=routines().scan_nearby_unscanned?.visible_scan;
   const statuses={selecting:'Selecting…',scanning:'Scanning…',already_scanned:'Already scanned',selection_unverified:'Could not select',outside_scanner_range:'Out of range',scan_sent_result_unverified:'Result unreadable',scan_color_observed:'Scanned'};
@@ -319,7 +350,7 @@ function render(){
   else $('target').textContent=connected()?'No target selected.':'Target appears here when the game is connected.';
 
   const reg=dock?.hotkeys?.registered||{}, missing=Object.keys(reg).filter(k=>reg[k]===false);
-  $('hotkeys').textContent=!dock?'Hotkeys unavailable':missing.length?`${missing.join(', ')} in use by another app`:'F8–F11 work in game';
+  $('hotkeys').textContent=!dock?'Hotkeys unavailable':missing.length?`${missing.join(', ')} in use by another app`:npcMode?'F8 pauses in game':'F8–F11 work in game';
 }
 
 /* ---------- polling ---------- */
@@ -338,7 +369,10 @@ async function refresh(){
     if(hk){ if(seenHotkey===null || hk.sequence<seenHotkey) seenHotkey=hk.sequence; // first poll or restarted server: never replay
       else if(hk.sequence>seenHotkey){ seenHotkey=hk.sequence; const last=hk.last;
         if(last?.action==='pause'){ clearChecks(); notice('Paused with F8.'); }
-        else if(last && ROUTINE[last.action]) claimHotkey(last); } }
+        else if(last && ROUTINE[last.action]){
+          // Mining keys do nothing in NPC mode; leave the press for nobody rather than act on it.
+          if(mode==='npc') notice(`${last.key||'That key'} is an asteroid-mining key. Switch to Asteroids to use it.`);
+          else claimHotkey(last); } } }
   } catch { statusOk=false; }
   render();
 }
@@ -350,6 +384,18 @@ $('stateaction').addEventListener('click',stateAction);
 $('c-safe').addEventListener('change',e=>{ if(e.target.checked) bindCheck(); else clearChecks(); render(); });
 for(const id of ['c-corridor','c-heading','c-point']) $(id).addEventListener('change',render);
 $('full').addEventListener('click',()=>window.open('/','wingman-dashboard'));
+function setMode(next){
+  if(next===mode) return;
+  if(next==='npc' && activeRoutine()){ notice('Stop the running action before switching to NPC farming.'); return; }
+  mode=next; clearChecks(); try { localStorage.setItem('wingman-mode',mode); } catch {}
+  if(mode==='npc') refreshNpc();
+  render();
+}
+async function refreshNpc(){ if(mode!=='npc') return;
+  try { const d=await getJson('/api/npc-farm'); npc=d&&d.environment==='simulation'?d:null; } catch { npc=null; } }
+$('m-mining').addEventListener('click',()=>setMode('mining'));
+$('m-npc').addEventListener('click',()=>setMode('npc'));
+setInterval(refreshNpc,1000); refreshNpc();
 refresh(); refreshGame();
 setInterval(refresh,400); setInterval(refreshGame,1000);
 </script>

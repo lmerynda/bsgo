@@ -532,7 +532,15 @@ be enabled, and the **Ship stopped, scene clear** check must be ticked. That tic
 binds the server's current scene token, and Approach also needs its three
 checks. A check clears when the scene changes, and after every start. Hotkeys never
 send game input themselves. `/api/dock` reports hotkey registration, the last
-press, and the panel's placement.
+press, and the panel's placement. Each press is claimed by exactly one open panel
+(`POST /api/dock` `claim_hotkey`), so a second panel cannot stop what the first
+started.
+
+An **Asteroids | NPC farm** switch at the top of the panel picks the activity,
+remembered per panel. NPC farm hides the mining keys, checks and scan list,
+shows the offline rehearsal's status read-only and keeps F8 and ship readings.
+F9–F11 do nothing in that mode, and switching is refused while a mining action
+runs. Live NPC farming is still unavailable.
 
 Passive observation now uses exact-HWND Windows Graphics Capture, with the
 Windows packages pinned in `requirements.txt`. An overlapping cockpit window

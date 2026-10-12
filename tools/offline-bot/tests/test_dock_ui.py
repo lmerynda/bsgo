@@ -37,6 +37,9 @@ class DockUiTests(unittest.TestCase):
     def test_routine_failure_and_focus_wait_are_reported(self):
         self.run_scenario("routine_failure_is_reported_not_silent")
 
+    def test_npc_mode_toggle_hides_mining_and_ignores_mining_keys(self):
+        self.run_scenario("npc_mode_toggle_hides_mining_and_ignores_mining_keys")
+
     def test_unreachable_app_is_reported(self):
         self.run_scenario("status_app_down")
 
