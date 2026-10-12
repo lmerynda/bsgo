@@ -539,8 +539,13 @@ started.
 An **Asteroids | NPC farm** switch at the top of the panel picks the activity,
 remembered per panel. NPC farm hides the mining keys, checks and scan list,
 shows the offline rehearsal's status read-only and keeps F8 and ship readings.
-F9–F11 do nothing in that mode, and switching is refused while a mining action
-runs. Live NPC farming is still unavailable.
+In that mode F9 toggles **Auto-fight** (`npc_fight`), an experimental live loop:
+X (select next enemy), a random 1–2 s wait, G (fire all), another 1–2 s wait,
+repeat. It needs actions enabled but no scene ticks, because nothing in it reads
+the image: the game decides what X selects and what G fires at, so use it only
+in a safe spot. Every key goes through the guarded native dispatcher; the game
+losing focus, a refused key, F8 or a second F9 ends it. F10/F11 do nothing in
+NPC mode, and switching activity is refused while either side's action runs.
 
 Passive observation now uses exact-HWND Windows Graphics Capture, with the
 Windows packages pinned in `requirements.txt`. An overlapping cockpit window

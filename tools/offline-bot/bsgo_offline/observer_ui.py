@@ -25,7 +25,7 @@ HTML = Path(__file__).with_name("observer.html")
 DOCK_HTML = Path(__file__).with_name("dock.html")
 MAX_JSON_BYTES = 8 * 1024 * 1024
 MANUAL_ROUTINES = ("scan_nearby_unscanned", "auto_scan_selected", "scan_selected",
-                   "approach_current_target")
+                   "approach_current_target", "npc_fight")
 
 
 class _DashboardHTTPServer(ThreadingHTTPServer):

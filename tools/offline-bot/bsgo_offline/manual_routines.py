@@ -98,6 +98,10 @@ class GuardedManualRoutines:
     def supports_visible_scan(self):
         return self.frame_size == (2560, 1440)
 
+    @property
+    def supports_npc_fight(self):
+        return self.frame_size == (2560, 1440)
+
     def __init__(self, *, source_factory, recognizer_factory, dispatcher_factory,
                  profile, window_id, frame_size, configuration=None, scope="native",
                  wheel_point=None, flight_point_assessed=False, sample_seconds=5.,
@@ -117,6 +121,11 @@ class GuardedManualRoutines:
         legs = []
         def dispatcher(backend, journal):
             return self.dispatcher_factory(DeliveryGatedBackend(backend, may_deliver, on_delivery), journal)
+        if name == "npc_fight":
+            from .npc_fight import run_npc_fight
+            on_progress(output)
+            return run_npc_fight(output, dispatcher_factory=dispatcher, configuration=self.configuration,
+                profile=self.profile, frame_size=self.frame_size, cancel_file=cancel_file, scope=self.scope)
         if name == "scan_nearby_unscanned":
             from .visible_scan_probe import run_visible_scan_pass
             on_progress(output)

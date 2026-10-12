@@ -23,7 +23,7 @@ const text=v=>({textContent:String(v)});
 const elements={};
 function el(id){return elements[id]||=new Element('div',id);}
 // Build the static children the script queries inside each key button.
-for(const [action,key] of [['scan_view','F9'],['approach','F10'],['auto_scan','F11']]){
+for(const [action,key] of [['scan_view','F9'],['approach','F10'],['auto_scan','F11'],['npc_fight','F9']]){
   const b=el('k-'+action),label=new Element('span'),kbd=new Element('kbd'),small=new Element('small');
   label.className='label';kbd.own=key;b.children=[label,kbd,small];}
 {const b=el('k-pause'),label=new Element('span'),kbd=new Element('kbd');label.className='label';kbd.own='F8';b.children=[label,kbd];}
@@ -63,7 +63,7 @@ const readyActions=(extra={})=>({actual_mode:'manual',mode_pending:false,paused:
   ownership:{owner:null,state:'idle'},
   visible_assessment_context:{token:'vis-1',context_key:'scene-A',expires_at:115},
   assessment_context:{token:'tgt-1',context_key:'portrait-A',expires_at:115,wheel_point:[1200,700]},
-  routines:{scan_nearby_unscanned:{...idleRoutine},approach_current_target:{...idleRoutine},auto_scan_selected:{...idleRoutine}},...extra});
+  routines:{scan_nearby_unscanned:{...idleRoutine},approach_current_target:{...idleRoutine},auto_scan_selected:{...idleRoutine},npc_fight:{...idleRoutine}},...extra});
 async function boot(startup,actions){S.startup=startup;S.actions=actions;vm.runInContext(script,ctx);await flush();}
 
 const scenarios={
@@ -145,12 +145,26 @@ const scenarios={
     for(const a of ['scan_view','approach','auto_scan']) assert.equal(el('k-'+a).hidden,true);
     assert.equal(el('k-pause').hidden,false,'F8 pause stays');
     assert.equal(el('checksec').hidden,true);assert.equal(el('findsec').hidden,true);assert.equal(el('npcsec').hidden,false);
-    assert.equal(status().title,'NPC farming · watching only');
+    assert.equal(status().title,'NPC farm ready');assert.equal(small('npc_fight'),'Ready');
     await ctx.refreshNpc();await poll();assert.equal(el('npc-phase').textContent,'Ready');
     // Mining hotkeys are neither claimed nor started in NPC mode; F8 still works.
     S.dock.hotkeys.sequence+=1;S.dock.hotkeys.last={sequence:S.dock.hotkeys.sequence,action:'approach',key:'F10'};await poll();
-    assert.equal(posts.length,0);assert.match(status().notice,/^F10 is an asteroid-mining key/);
+    assert.equal(posts.length,0,'F10 is neither claimed nor started');assert.match(status().notice,/^F10 is an asteroid-mining key/);
     await press('pause');assert.equal(status().notice,'Paused with F8.');
+    // F9 in NPC mode is Auto-fight: claimed, then started with no scene token.
+    await press('scan_view');
+    assert.deepEqual(posts.slice(-2),[{url:'/api/dock',body:{action:'claim_hotkey',sequence:S.dock.hotkeys.sequence}},
+      {url:'/api/manual-actions',body:{action:'start',routine:'npc_fight',request:{}}}]);
+    assert.equal(status().notice,'Auto-fight on.');
+    // While running, Asteroids is locked and F9 stops it.
+    S.actions=readyActions({ownership:{owner:'npc_fight',state:'active'},routines:{...readyActions().routines,
+      npc_fight:{...idleRoutine,active:true,state:'active'}}});await poll();
+    assert.equal(status().title,'Auto-fight on');assert.equal(el('m-mining').disabled,true);assert.equal(label('npc_fight'),'Stop Auto-fight');
+    await press('scan_view');assert.deepEqual(posts.at(-1),{url:'/api/manual-actions',body:{action:'stop',routine:'npc_fight'}});
+    // Paused actions refuse Auto-fight without posting a start.
+    S.actions=readyActions({paused:true});S.startup=connected({enabled:false,paused:true,acknowledgment_token:'a'});await poll();
+    const before=posts.length;await click('k-npc_fight');assert.equal(posts.length,before);assert.equal(status().notice,'Enable actions first.');
+    S.actions=readyActions();S.startup=connected();await poll();
     // Back to mining restores the keys.
     await click('m-mining');assert.equal(el('k-approach').hidden,false);assert.equal(el('npcsec').hidden,true);
     // A running mining routine blocks switching to NPC.

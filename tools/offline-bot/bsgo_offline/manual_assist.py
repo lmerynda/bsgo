@@ -17,7 +17,9 @@ from .selected_scan_toggle import SelectedScanToggle, ScanToggleDecision
 ROUTINES = {"scan_nearby_unscanned": ("toggle", "selection_and_scanner"),
             "auto_scan_selected": ("toggle", "scanner"),
             "scan_selected": ("once", "scanner"),
-            "approach_current_target": ("once", "navigation")}
+            "approach_current_target": ("once", "navigation"),
+            # Experimental: X/G loop with no image gating; see npc_fight.py.
+            "npc_fight": ("toggle", "targeting_and_weapons")}
 TARGET_FIELDS = ("speed", "distance", "asteroid_selected", "target_identity",
                  "target_portrait", "target_max_hp", "hull_current", "hull_max")
 
@@ -351,7 +353,12 @@ class ManualAssistController:
                 blocked = blocked or "stop_selected_scan_toggle_before_other_action"
             if toggle_draining:
                 blocked = blocked or "selected_scan_toggle_stopping"
-            if name == "scan_nearby_unscanned":
+            if name == "npc_fight":
+                blocked = blocked or (None if getattr(self.runner, "supports_npc_fight", False)
+                                      else "npc_fight_not_available")
+                waiting = None
+                active = owner == name
+            elif name == "scan_nearby_unscanned":
                 capable = getattr(self.runner, "supports_visible_scan", False)
                 try:
                     scene = scan_scene_reading(self.snapshot_provider(), self.clock(), allow_selected=True)
@@ -380,6 +387,7 @@ class ManualAssistController:
             item = last.get(name, {})
             routines[name] = {"kind": kind, "input_scope": scope,
                 "available": self.runner is not None and (name != "scan_nearby_unscanned" or getattr(self.runner, "supports_visible_scan", False))
+                    and (name != "npc_fight" or getattr(self.runner, "supports_npc_fight", False))
                     and (name != "auto_scan_selected" or self.selection_track_provider is not None), "ready": blocked is None,
                 "start_allowed": not pause and not closed and self.runner is not None
                     and owner is None and blocked is None and not toggle_enabled,
@@ -446,6 +454,8 @@ class ManualAssistController:
         request = request or {}
         if not isinstance(request, dict):
             return {"accepted": False, "reason": "invalid_action_request", "state": self.actions_snapshot()}
+        if name == "npc_fight":
+            return self._start_npc_fight()
         observation, reading, reason, token = self._current(for_scan=name in ('scan_selected','auto_scan_selected','scan_nearby_unscanned'),
             for_visible=name=='scan_nearby_unscanned')
         rejection = self._pause_reason()
@@ -521,6 +531,29 @@ class ManualAssistController:
             return {"accepted": False, "reason": "input_owner_conflict", "state": self.actions_snapshot()}
         return {"accepted": True, "reason": "arming", "state": self.actions_snapshot()}
 
+    def _start_npc_fight(self):
+        """No scene token: the loop is image-blind; pause, ownership and focus still gate it."""
+        rejection = self._pause_reason()
+        with self._lock:
+            if self._closed:
+                rejection = rejection or "controller_closed"
+            if self.runner is None or not getattr(self.runner, "supports_npc_fight", False):
+                rejection = rejection or "npc_fight_not_available"
+            if self._job is not None or self._toggle.enabled or self._toggle_thread and self._toggle_thread.is_alive():
+                rejection = rejection or "input_owner_conflict"
+            if rejection is None:
+                job_id = "manual-assist-" + uuid4().hex
+                job = {"name": "npc_fight", "id": job_id, "state": "arming",
+                    "cancel": self.directory / (job_id + ".cancel"), "stop": Event(),
+                    "input_acknowledged": False, "status_path": None, "pin": None, "assessment": {},
+                    "deadline": self.clock() + self.arming_seconds}
+                self._job = job
+                job["thread"] = Thread(target=self._run, args=(job,), daemon=True, name="manual-assist-npc_fight")
+                job["thread"].start()
+        if rejection:
+            return {"accepted": False, "reason": rejection, "state": self.actions_snapshot()}
+        return {"accepted": True, "reason": "arming", "state": self.actions_snapshot()}
+
     def _run(self, job):
         result = None
         error = None
@@ -540,7 +573,9 @@ class ManualAssistController:
             while True:
                 if job["stop"].is_set() or self._pause_reason():
                     raise RuntimeError("action_canceled_before_input")
-                if job['name'] == 'scan_nearby_unscanned':
+                if job['name'] == 'npc_fight':
+                    pass  # image-blind by design; foreground and pause are still required below
+                elif job['name'] == 'scan_nearby_unscanned':
                     current = scan_scene_reading(self.snapshot_provider(), self.clock(), allow_selected=True)
                     if not current or current['context'] != job['pin']['context']:
                         raise RuntimeError('requested_stopped_scene_changed')

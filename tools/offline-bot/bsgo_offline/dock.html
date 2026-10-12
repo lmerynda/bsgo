@@ -111,12 +111,12 @@
 
   <section class="sec" id="npcsec" hidden>
     <h2>NPC farming</h2>
-    <p class="note" style="margin:0 0 8px">Live NPC farming isn't available yet: the app can't tell NPCs from players or follow a chosen NPC from the screen. Nothing here sends game input.</p>
-    <div class="rows">
+    <div class="keys"><button class="key" id="k-npc_fight"><span class="label">Auto-fight</span><kbd>F9</kbd><small></small></button></div>
+    <p class="note">Experimental: presses X (next enemy), waits 1–2 s, presses G (fire all), waits 1–2 s, repeats. It does not check what X selects, so use it in a safe spot. It stops if the game loses focus.</p>
+    <div class="rows" style="margin-top:8px">
       <div><span class="r">Offline rehearsal</span><span id="npc-phase">—</span></div>
       <div><span class="r">Last pass</span><span id="npc-pass">—</span></div>
     </div>
-    <p class="note">Run the rehearsal from the full dashboard.</p>
   </section>
 
   <section class="sec" id="findsec">
@@ -140,7 +140,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const ROUTINE={scan_view:'scan_nearby_unscanned',approach:'approach_current_target',auto_scan:'auto_scan_selected'};
-const LABEL={scan_nearby_unscanned:'Scanning this view',approach_current_target:'Approaching target',auto_scan_selected:'Auto-scan on',scan_selected:'Scanning target'};
+const LABEL={npc_fight:'Auto-fight',scan_nearby_unscanned:'Scanning this view',approach_current_target:'Approaching target',auto_scan_selected:'Auto-scan on',scan_selected:'Scanning target'};
 const WORDS={
   game_connection_not_attached:'The game is not connected.',controller_not_attached:'The game is not connected.',
   game_client_dimensions_not_control_validated:'Actions need the game at 2560 × 1440.',
@@ -257,10 +257,33 @@ async function trigger(action,source){
   } catch { notice('Start request did not get an answer. Use F8 if anything may be moving.'); }
   finally { inFlight=false; clearChecks(); refresh(); }
 }
-async function claimHotkey(last){
+async function claimHotkey(last,run){
   // Only the panel the server hands this press to acts on it.
   let d=null; try { d=await post('/api/dock',{action:'claim_hotkey',sequence:last.sequence}); } catch { d=null; }
-  if(d?.accepted) trigger(last.action,'hotkey');
+  if(d?.accepted) (run||(()=>trigger(last.action,'hotkey')))();
+}
+function npcReadiness(){
+  const r=routines().npc_fight||{}, active=activeRoutine();
+  if(active==='npc_fight') return {ok:true,running:true};
+  if(!connected()) return {ok:false,why:'Waiting for the game.'};
+  if(startup?.game?.startup_layout?.control_supported===false) return {ok:false,why:human('game_client_dimensions_not_control_validated')};
+  if(control().enabled!==true || actions?.paused!==false) return {ok:false,why:'Enable actions first.'};
+  if(actions?.actual_mode!=='manual' || actions?.mode_pending) return {ok:false,why:human('manual_mode_required')};
+  if(active) return {ok:false,why:`${LABEL[active]||'Another action'} is running.`};
+  if(r.available!==true || r.ready!==true) return {ok:false,why:human(r.reason)||'Not available.'};
+  return {ok:true};
+}
+async function npcTrigger(source){
+  if(inFlight) return;
+  const ready=npcReadiness(); inFlight=true;
+  try {
+    if(ready.running){ const d=await post('/api/manual-actions',{action:'stop',routine:'npc_fight'}); notice(d.accepted?'Stopping Auto-fight.':human(d.reason||d.error)); }
+    else if(!ready.ok) notice(`${source==='hotkey'?'F9: ':''}${ready.why}`);
+    else { const d=await post('/api/manual-actions',{action:'start',routine:'npc_fight',request:{}});
+      if(d.accepted) lastActive='npc_fight';
+      notice(d.accepted?'Auto-fight on.':human(d.reason||d.error)); }
+  } catch { notice('No answer from the app. Use F8 if anything may be running.'); }
+  finally { inFlight=false; refresh(); }
 }
 async function stateAction(){
   const kind=$('stateaction').dataset.kind; if(!kind || inFlight) return; inFlight=true;
@@ -287,13 +310,15 @@ function render(){
     title=connecting?'Finding the game…':'Waiting for game';
     line=human(startup?.reason)||'Open the game window.';
     if(startup?.retry_available && !connecting) act={kind:'retry',text:'Find game window'};
-  } else if(mode==='npc'){
-    tone='warn'; mark='i'; title='NPC farming · watching only'; line='Ship readings are live. F8 still pauses everything.';
   } else if(layout?.control_supported===false){
     tone='warn'; mark='i'; title='Watching only';
     const size=startup?.game?.client_size; line=`The game window is ${size?size.join(' × '):'an unsupported size'}. Actions need 2560 × 1440.`;
     act={kind:'fit',text:'Fit game to 2560 × 1440'};
   } else if(startup?.features?.mining?.enabled===false){ tone='warn'; mark='i'; title='Mining is off'; line='Turn mining on in the full dashboard.'; }
+  else if(mode==='npc' && active==='npc_fight'){
+    const r=routines().npc_fight||{}; tone='live'; mark='▶'; title='Auto-fight on';
+    line=r.state==='arming'?human(r.waiting_for)||'Starting…':'X → G every few seconds. F9 or F8 stops it.';
+  }
   else if(active){
     const r=routines()[active]||{}; tone='live'; mark='▶'; title=LABEL[active]||'Working';
     line=human(r.waiting_for||r.expected_next_step||r.phase||r.state)||'Working…';
@@ -301,7 +326,8 @@ function render(){
   } else if(ctl.enabled!==true){
     tone='warn'; mark='II'; title='Actions paused'; line='Nothing acts until you enable actions. F8 pauses again.';
     act={kind:'enable',text:'Enable actions',disabled:!ctl.acknowledgment_token};
-  } else { tone='ok'; mark='✓'; title='Ready'; line='Tick the scene check, then press F9, F10 or F11.'; }
+  } else if(mode==='npc'){ tone='ok'; mark='✓'; title='NPC farm ready'; line='Press F9 to start Auto-fight. F8 pauses everything.'; }
+  else { tone='ok'; mark='✓'; title='Ready'; line='Tick the scene check, then press F9, F10 or F11.'; }
   $('badge').className='badge '+tone; $('badge').textContent=mark; $('title').textContent=title; $('line').textContent=line;
   const sa=$('stateaction'); sa.hidden=!act; if(act){ sa.textContent=act.text; sa.dataset.kind=act.kind; sa.disabled=!!act.disabled||inFlight; }
 
@@ -325,6 +351,12 @@ function render(){
   $('m-mining').setAttribute('aria-pressed',String(!npcMode)); $('m-npc').setAttribute('aria-pressed',String(npcMode));
   // Never switch away from a running mining routine; stop it first.
   $('m-npc').disabled=!npcMode && !!active; $('m-npc').title=$('m-npc').disabled?'Stop the running action first':'';
+  $('m-mining').disabled=npcMode && !!active; $('m-mining').title=$('m-mining').disabled?'Stop Auto-fight first':'';
+  const nf=npcReadiness(), fk=$('k-npc_fight');
+  fk.classList.toggle('running',!!nf.running); fk.classList.toggle('ready',!!nf.ok && !nf.running);
+  fk.disabled=inFlight; fk.setAttribute('aria-disabled',String(!nf.ok));
+  fk.querySelector('.label').textContent=nf.running?'Stop Auto-fight':'Auto-fight';
+  fk.querySelector('small').textContent=nf.running?'Running · press again to stop':nf.ok?'Ready':nf.why;
   $('npc-phase').textContent=npc?(NPC_PHASE[npc.phase]||human(npc.phase)):'Status unavailable';
   $('npc-pass').textContent=npc?.pass_number?`Pass ${npc.pass_number}`:'None yet';
 
@@ -350,7 +382,7 @@ function render(){
   else $('target').textContent=connected()?'No target selected.':'Target appears here when the game is connected.';
 
   const reg=dock?.hotkeys?.registered||{}, missing=Object.keys(reg).filter(k=>reg[k]===false);
-  $('hotkeys').textContent=!dock?'Hotkeys unavailable':missing.length?`${missing.join(', ')} in use by another app`:npcMode?'F8 pauses in game':'F8–F11 work in game';
+  $('hotkeys').textContent=!dock?'Hotkeys unavailable':missing.length?`${missing.join(', ')} in use by another app`:npcMode?'F8 pause · F9 Auto-fight work in game':'F8–F11 work in game';
 }
 
 /* ---------- polling ---------- */
@@ -371,7 +403,8 @@ async function refresh(){
         if(last?.action==='pause'){ clearChecks(); notice('Paused with F8.'); }
         else if(last && ROUTINE[last.action]){
           // Mining keys do nothing in NPC mode; leave the press for nobody rather than act on it.
-          if(mode==='npc') notice(`${last.key||'That key'} is an asteroid-mining key. Switch to Asteroids to use it.`);
+          if(mode==='npc' && last.action==='scan_view') claimHotkey(last,()=>npcTrigger('hotkey'));
+          else if(mode==='npc') notice(`${last.key||'That key'} is an asteroid-mining key. Switch to Asteroids to use it.`);
           else claimHotkey(last); } } }
   } catch { statusOk=false; }
   render();
@@ -386,7 +419,7 @@ for(const id of ['c-corridor','c-heading','c-point']) $(id).addEventListener('ch
 $('full').addEventListener('click',()=>window.open('/','wingman-dashboard'));
 function setMode(next){
   if(next===mode) return;
-  if(next==='npc' && activeRoutine()){ notice('Stop the running action before switching to NPC farming.'); return; }
+  if(activeRoutine()){ notice(next==='npc'?'Stop the running action before switching to NPC farming.':'Stop Auto-fight before switching to Asteroids.'); return; }
   mode=next; clearChecks(); try { localStorage.setItem('wingman-mode',mode); } catch {}
   if(mode==='npc') refreshNpc();
   render();
@@ -395,6 +428,7 @@ async function refreshNpc(){ if(mode!=='npc') return;
   try { const d=await getJson('/api/npc-farm'); npc=d&&d.environment==='simulation'?d:null; } catch { npc=null; } }
 $('m-mining').addEventListener('click',()=>setMode('mining'));
 $('m-npc').addEventListener('click',()=>setMode('npc'));
+$('k-npc_fight').addEventListener('click',()=>npcTrigger('button'));
 setInterval(refreshNpc,1000); refreshNpc();
 refresh(); refreshGame();
 setInterval(refresh,400); setInterval(refreshGame,1000);
