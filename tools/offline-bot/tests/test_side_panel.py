@@ -1,9 +1,10 @@
 """Side panel placement, hotkey routing, and dashboard routes without real windows."""
 import json
+from urllib.error import HTTPError
 from threading import Thread
 import unittest
 from unittest.mock import Mock
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from bsgo_offline.dock_window import DockFollower, PANEL_TITLE, GAME_TITLE, dock_placement, open_panel
 from bsgo_offline.hotkeys import GlobalHotkeys, HotkeyEvents
@@ -93,6 +94,20 @@ class HotkeyTests(unittest.TestCase):
         self.assertEqual(pause.call_count, 1)
         self.assertEqual(events.snapshot()["sequence"], 2)
 
+    def test_each_press_is_claimed_by_exactly_one_panel(self):
+        now = [10.]
+        events = HotkeyEvents(clock=lambda: now[0])
+        self.assertEqual(events.claim(1)["reason"], "hotkey_press_superseded")
+        events.record("F9")
+        self.assertEqual(events.claim(1), {"accepted": True, "reason": "hotkey_press_claimed", "action": "scan_view"})
+        self.assertEqual(events.claim(1)["reason"], "hotkey_press_already_handled")
+        events.record("F10")
+        self.assertEqual(events.claim(1)["reason"], "hotkey_press_superseded")
+        now[0] = 14.
+        self.assertEqual(events.claim(2)["reason"], "hotkey_press_expired")
+        for bad in (True, "2", None):
+            self.assertFalse(events.claim(bad)["accepted"])
+
     def test_failing_pause_is_reported_not_raised(self):
         hotkeys = GlobalHotkeys(HotkeyEvents(), Mock(side_effect=RuntimeError("x")), user32=object())
         self.assertEqual(hotkeys.handle("F8")["outcome"], "pause_failed:RuntimeError")
@@ -115,6 +130,18 @@ class RouteTests(unittest.TestCase):
                     state = json.load(response)
                 self.assertEqual(state["hotkeys"]["sequence"], 0)
                 self.assertEqual(state["window"]["mode"], "beside_right")
+                panel.events.record("F9")
+                def claim(body):
+                    request = Request(base + "/api/dock", data=json.dumps(body).encode(), method="POST",
+                        headers={"Content-Type": "application/json", "Origin": base})
+                    try:
+                        with urlopen(request, timeout=3) as response:
+                            return json.load(response)
+                    except HTTPError as error:
+                        return json.load(error)
+                self.assertTrue(claim({"action": "claim_hotkey", "sequence": 1})["accepted"])
+                self.assertFalse(claim({"action": "claim_hotkey", "sequence": 1})["accepted"])
+                self.assertEqual(claim({"action": "claim_hotkey", "sequence": "1"}), {"error": "invalid_dock_request"})
                 self.assertTrue(server.hotkey_pause()["accepted"])
                 launcher.pause_actions.assert_called_once_with()
             finally:

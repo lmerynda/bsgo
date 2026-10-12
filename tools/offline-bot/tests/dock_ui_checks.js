@@ -120,6 +120,23 @@ const scenarios={
     s=status();assert.equal(s.title,'Auto-scan on');assert.match(s.line,/3 scanned so far/);
     assert.equal(label('auto_scan'),'Turn auto-scan off');assert.equal(small('auto_scan'),'Running · press again to stop');
   },
+  async routine_failure_is_reported_not_silent(){
+    await boot(connected(),readyActions());tick('c-safe');
+    // The routine fails before the next poll sees it running.
+    await click('k-scan_view');assert.equal(starts().length,1);
+    S.actions=readyActions({routines:{...readyActions().routines,scan_nearby_unscanned:{...idleRoutine,state:'blocked',
+      error:'RuntimeError: arming_expired_before_input'}}});
+    await poll();
+    assert.equal(status().title,'Ready');
+    assert.equal(status().notice,'Scanning this view stopped: The game window was not in front in time. Click into the game, then try again.');
+    // While arming, the panel says what it is waiting for.
+    S.actions=readyActions({ownership:{owner:'approach_current_target',state:'arming'},routines:{...readyActions().routines,
+      approach_current_target:{...idleRoutine,active:true,state:'arming',waiting_for:'waiting_for_game_focus'}}});
+    await poll();assert.equal(status().line,'Click into the game window to let it start.');
+    // A routine that completes normally adds no failure notice.
+    S.actions=readyActions({routines:{...readyActions().routines,approach_current_target:{...idleRoutine,state:'completed'}}});
+    el('notice').textContent='';await poll();assert.equal(status().notice,'');
+  },
   async status_app_down(){
     await boot(connected(),readyActions());S.down=true;await poll();
     assert.equal(status().title,'App not responding');
@@ -199,12 +216,18 @@ const scenarios={
       routines:{...readyActions().routines,scan_nearby_unscanned:{active:true}}}));
     await poll();assert.equal(posts.length,0,'presses before load are never replayed');assert.equal(read('seenHotkey'),5);
     await press('scan_view');
-    assert.deepEqual(posts,[{url:'/api/manual-actions',body:{action:'stop',routine:'scan_nearby_unscanned'}}]);
+    assert.deepEqual(posts,[{url:'/api/dock',body:{action:'claim_hotkey',sequence:6}},
+      {url:'/api/manual-actions',body:{action:'stop',routine:'scan_nearby_unscanned'}}]);
     S.actions=readyActions();await poll();
     await press('scan_view');assert.equal(starts().length,0);assert.match(status().notice,/^F9: Tick/);
     tick('c-safe');await press('scan_view');
     assert.deepEqual(starts().map(p=>p.body.request.assessment_token),['vis-1']);
     await poll();assert.equal(starts().length,1,'one press starts once');
+    // A press another panel already claimed is never acted on here.
+    S.replies.claim_hotkey={accepted:false,reason:'hotkey_press_already_handled'};
+    tick('c-safe');await press('scan_view');assert.equal(starts().length,1,'unclaimed press never starts');
+    assert.equal(el('c-safe').checked,true,'an unclaimed press leaves this panel untouched');
+    delete S.replies.claim_hotkey;
     // F8 shows a notice and clears checks, never POSTing a start.
     const before=posts.length;tick('c-safe');await press('pause');
     assert.equal(posts.length,before);assert.equal(status().notice,'Paused with F8.');assert.equal(el('c-safe').checked,false);

@@ -136,19 +136,25 @@ const WORDS={
   cancel_requested:'Stopped.',view_changed_restart_scan:'The view moved; scan again.',
   fresh_stationary_full_hull_scene_required:'Needs a still view with full hull.',
   manual_actions_already_paused:'Already paused.',manual_actions_paused_ack:'Paused.',
+  waiting_for_game_focus:'Click into the game window to let it start.',
+  arming_expired_before_input:'The game window was not in front in time. Click into the game, then try again.',
+  requested_stopped_scene_changed:'The view changed before it started. Tick the check and try again.',
+  requested_target_or_context_changed:'The target changed before it started. Try again.',
+  action_canceled_before_input:'Stopped before any input.',
   game_monitor_too_small_for_validated_size:'This monitor is too small for a 2560 × 1440 game window.',
   game_window_maximized:'Restore the game window (not maximized), then try again.',
   game_window_minimized:'Restore the game window, then try again.',
   game_window_size_not_applied:'The game did not accept the new size. Check its windowed resolution.',
   game_window_not_found:'No game window found.',game_window_not_unique:'Keep one game window open.',
 };
-const human=code=>{ if(!code) return ''; const text=String(code); if(WORDS[text]) return WORDS[text];
+const human=code=>{ if(!code) return ''; const text=String(code).replace(/^[A-Za-z]*Error: /,''); if(WORDS[text]) return WORDS[text];
+  if(/^game_window_guard_failed/.test(text)) return /occluded/i.test(text)?'Something is covering the game window.':'The game window changed.';
   if(/^source_failure/.test(text)) return /geometry changed/i.test(text)?'The game window was moved or resized.':'Lost the game image.';
   if(/\s/.test(text)) return text; const s=text.replace(/[_:]+/g,' ').trim(); return s.charAt(0).toUpperCase()+s.slice(1)+'.'; };
 const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleString('en-US'):'—';
 
 let startup=null, actions=null, game=null, dock=null, statusOk=false, inFlight=false;
-let seenHotkey=null, checks={visible:null,target:null}, noticeUntil=0;
+let seenHotkey=null, checks={visible:null,target:null}, noticeUntil=0, lastActive=null;
 
 function notice(text,seconds=6){ $('notice').textContent=text||''; noticeUntil=Date.now()+seconds*1000; }
 async function getJson(url){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),1500);
@@ -224,9 +230,15 @@ async function trigger(action,source){
   inFlight=true;
   try {
     const d=await post('/api/manual-actions',{action:'start',routine:name,request:{assessment_token:checks[kind].token,supervisor_assessment}});
+    if(d.accepted) lastActive=name;
     notice(d.accepted?`${LABEL[name]}.`:human(d.reason||d.error));
   } catch { notice('Start request did not get an answer. Use F8 if anything may be moving.'); }
   finally { inFlight=false; clearChecks(); refresh(); }
+}
+async function claimHotkey(last){
+  // Only the panel the server hands this press to acts on it.
+  let d=null; try { d=await post('/api/dock',{action:'claim_hotkey',sequence:last.sequence}); } catch { d=null; }
+  if(d?.accepted) trigger(last.action,'hotkey');
 }
 async function stateAction(){
   const kind=$('stateaction').dataset.kind; if(!kind || inFlight) return; inFlight=true;
@@ -314,12 +326,18 @@ async function refresh(){
   try {
     const [s,a,d]=await Promise.all([getJson('/api/startup'),getJson('/api/manual-actions'),getJson('/api/dock').catch(()=>null)]);
     startup=s; actions=a.routines?a:null; dock=d&&d.hotkeys?d:null; statusOk=true;
+    // A routine that ends on its own reports how it ended; never fall silently back to Ready.
+    const active=activeRoutine();
+    if(active) lastActive=active;
+    else if(lastActive){ const r=routines()[lastActive]||{};
+      if(['blocked','faulted'].includes(r.state)) notice(`${LABEL[lastActive]||'Action'} stopped: ${human(r.error||r.result?.reason||r.reason)}`,15);
+      if(r.state && r.state!=='idle') lastActive=null; } // a just-started routine may not show as running yet
     expireChecks(); // drop stale scene bindings before a hotkey can use them
     const hk=dock?.hotkeys;
     if(hk){ if(seenHotkey===null || hk.sequence<seenHotkey) seenHotkey=hk.sequence; // first poll or restarted server: never replay
       else if(hk.sequence>seenHotkey){ seenHotkey=hk.sequence; const last=hk.last;
         if(last?.action==='pause'){ clearChecks(); notice('Paused with F8.'); }
-        else if(last && ROUTINE[last.action]) trigger(last.action,'hotkey'); } }
+        else if(last && ROUTINE[last.action]) claimHotkey(last); } }
   } catch { statusOk=false; }
   render();
 }

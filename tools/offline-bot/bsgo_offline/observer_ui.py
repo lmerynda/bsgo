@@ -642,7 +642,8 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 self._json(403, {"error": "invalid_origin"})
                 return
             path = urlsplit(self.path).path
-            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup", "/api/features", "/api/npc-farm"):
+            if path not in ("/api/control-mode", "/api/manual-actions", "/api/startup", "/api/features", "/api/npc-farm",
+                            "/api/dock"):
                 self._json(404, {"error": "not_found"})
                 return
             if self.headers.get("Content-Type") != "application/json":
@@ -659,6 +660,16 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
             try:
                 if path == '/api/npc-farm':
                     decision = npc_demo.command(data)
+                elif path == '/api/dock':
+                    claim = getattr(dock_adapter, 'claim_hotkey', None)
+                    if (not isinstance(data, dict) or set(data) != {'action', 'sequence'}
+                            or data['action'] != 'claim_hotkey' or type(data['sequence']) is not int):
+                        self._json(400, {'error': 'invalid_dock_request'})
+                        return
+                    if not callable(claim):
+                        self._json(503, {'error': 'side_panel_not_attached'})
+                        return
+                    decision = {**claim(data['sequence']), 'state': {}}
                 elif path == '/api/features':
                     if (not isinstance(data, dict) or set(data) != {'feature', 'enabled'}
                             or data['feature'] != 'mining' or type(data['enabled']) is not bool):

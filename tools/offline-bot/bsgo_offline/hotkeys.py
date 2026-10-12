@@ -21,6 +21,7 @@ class HotkeyEvents:
         self._lock = Lock()
         self._sequence = 0
         self._last = None
+        self._claimed = 0
         self._registered = {key: None for key in KEY_ACTIONS}
 
     def record(self, key, outcome=None):
@@ -29,6 +30,24 @@ class HotkeyEvents:
             self._last = {"sequence": self._sequence, "key": key, "action": KEY_ACTIONS[key],
                           "at": self.clock(), "outcome": outcome}
             return dict(self._last)
+
+    def claim(self, sequence, max_age=3.):
+        """Hand the latest press to exactly one panel; every other panel is refused.
+
+        Several panels can be open at once (a reopened window, a panel left over
+        from a restarted server). Without a single claim, one press would start a
+        routine in one panel and stop it again in another.
+        """
+        with self._lock:
+            last = self._last
+            if type(sequence) is not int or not last or last["sequence"] != sequence:
+                return {"accepted": False, "reason": "hotkey_press_superseded"}
+            if self._claimed >= sequence:
+                return {"accepted": False, "reason": "hotkey_press_already_handled"}
+            if not 0 <= self.clock() - last["at"] <= max_age:
+                return {"accepted": False, "reason": "hotkey_press_expired"}
+            self._claimed = sequence
+            return {"accepted": True, "reason": "hotkey_press_claimed", "action": last["action"]}
 
     def set_registered(self, key, value):
         with self._lock:

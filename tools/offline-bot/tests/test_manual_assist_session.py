@@ -200,7 +200,13 @@ class ManualSessionTests(unittest.TestCase):
                 patch("bsgo_offline.native_input.NativeInputDispatcher") as dispatch_class:
             bound,source,recognizer,dispatcher,ready,handover=native_binding(17,42,PROFILE)
             self.assertIsNone(handover)
+            in_dpi=[]
+            api.dpi_context.return_value.__enter__=lambda *a:in_dpi.append(True)
+            api.dpi_context.return_value.__exit__=lambda *a:in_dpi.append(False)
+            api.ensure_unoccluded.side_effect=lambda g:self.assertEqual(in_dpi[-1:],[True],
+                "occlusion hit-test must run in the physical-pixel DPI context")
             self.assertIsNone(ready())
+            api.ensure_unoccluded.assert_called_once_with(geometry)
             source(.5,action=False)
             self.assertFalse(capture_class.call_args.kwargs["require_foreground"])
             self.assertTrue(capture_class.call_args.kwargs["background_window"])
@@ -232,6 +238,24 @@ class ManualSessionTests(unittest.TestCase):
         focus.reset_mock()
         self.assertFalse(handover("start")["accepted"])
         focus.assert_not_called()
+
+    def test_focus_handover_raises_an_occluded_game_and_ready_still_guards_occlusion(self):
+        geometry=WindowGeometry(17,42,"game",(4,3),(0,0))
+        current,covered=[0],[True]
+        def focus(hwnd):
+            current[0]=hwnd
+            covered[0]=False
+            return True
+        def unoccluded(actual):
+            if covered[0]:
+                raise ValueError("occluded")
+        handover=ExactWindowHandover(geometry,inspect=lambda h,p:geometry,
+            foreground=lambda:current[0],focus=focus,unoccluded=unoccluded)
+        self.assertIn("occluded",handover.ready())
+        self.assertTrue(handover("start")["accepted"])
+        self.assertIsNone(handover.ready())
+        covered[0]=True
+        self.assertIn("occluded",handover.ready(),"input stays blocked while covered")
 
 
 if __name__=="__main__": unittest.main()

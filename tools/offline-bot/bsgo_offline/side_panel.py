@@ -18,6 +18,9 @@ class SidePanel:
         return {"hotkeys": self.events.snapshot(), "window": dict(self.follower.last),
                 "window_reason": self.window_reason}
 
+    def claim_hotkey(self, sequence):
+        return self.events.claim(sequence)
+
     def start_hotkeys(self, on_pause):
         self.hotkeys = self.hotkeys_factory(self.events, on_pause)
         return self.hotkeys.start()

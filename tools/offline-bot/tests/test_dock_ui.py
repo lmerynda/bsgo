@@ -34,6 +34,9 @@ class DockUiTests(unittest.TestCase):
     def test_ready_and_active_routine_labels_and_stop(self):
         self.run_scenario("status_ready_and_active")
 
+    def test_routine_failure_and_focus_wait_are_reported(self):
+        self.run_scenario("routine_failure_is_reported_not_silent")
+
     def test_unreachable_app_is_reported(self):
         self.run_scenario("status_app_down")
 

@@ -114,7 +114,8 @@ class ExactWindowHandover:
             actual = self.inspect(self.geometry.hwnd, self.geometry.pid)
             if actual != self.geometry:
                 raise ValueError("exact_game_window_geometry_or_title_changed")
-            self.unoccluded(actual)
+            # Raising the game is how an overlapping window stops covering it;
+            # ready() still requires an unoccluded client before any input.
             if self.foreground() != self.geometry.hwnd:
                 if not self.focus(self.geometry.hwnd):
                     raise ValueError("exact_game_window_focus_request_failed")
@@ -265,8 +266,12 @@ def native_binding(hwnd, pid, profile, *, allow_focus_handover=False):
         function = api.user32.SetForegroundWindow
         function.argtypes, function.restype = [ctypes.c_void_p], ctypes.c_int32
         return bool(function(window))
+    def unoccluded(actual):
+        # Geometry is in physical pixels; hit-testing must use the same space.
+        with api.dpi_context():
+            api.ensure_unoccluded(actual)
     handover = ExactWindowHandover(geometry,inspect=lambda h,p:inspect_window(h,expected_pid=p),
-        foreground=api.foreground_hwnd,focus=focus,unoccluded=api.ensure_unoccluded)
+        foreground=api.foreground_hwnd,focus=focus,unoccluded=unoccluded)
     def source(interval, *, action=True):
         if action and not layout.control_supported:
             raise ValueError(layout.control_reason)
