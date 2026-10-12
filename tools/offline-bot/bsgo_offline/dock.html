@@ -149,7 +149,8 @@ const WORDS={
 };
 const human=code=>{ if(!code) return ''; const text=String(code).replace(/^[A-Za-z]*Error: /,''); if(WORDS[text]) return WORDS[text];
   if(/^game_window_guard_failed/.test(text)) return /occluded/i.test(text)?'Something is covering the game window.':'The game window changed.';
-  if(/^source_failure/.test(text)) return /geometry changed/i.test(text)?'The game window was moved or resized.':'Lost the game image.';
+  if(/^source_failure/.test(text)) return /geometry changed/i.test(text)?'The game window was moved or resized.':
+    /not foreground/i.test(text)?'The game lost focus. Keep the game in front while an action runs.':'Lost the game image.';
   if(/\s/.test(text)) return text; const s=text.replace(/[_:]+/g,' ').trim(); return s.charAt(0).toUpperCase()+s.slice(1)+'.'; };
 const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleString('en-US'):'—';
 

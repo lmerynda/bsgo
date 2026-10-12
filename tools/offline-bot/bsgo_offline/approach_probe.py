@@ -361,11 +361,14 @@ def run_approach_probe(output, *, source_factory, recognizer_factory,
             snapshot = store.wait_for_sequence(observed_sequence, .025)
             now = time.monotonic()
             if snapshot:
+                # A failed capture republishes the last acquisition; name its
+                # cause (for example the game losing focus) rather than the gap.
+                capture_failure = snapshot.reason if not snapshot.healthy and snapshot.reason else None
                 if snapshot.sequence != observed_sequence + 1:
-                    blocker = blocker or "uninspected_observation_sequence"
+                    blocker = blocker or capture_failure or "uninspected_observation_sequence"
                     stop_ship("observation_gap")
                 if snapshot.acquisition_sequence <= previous_acquisition_sequence:
-                    blocker = blocker or "repeated_or_reordered_acquisition"
+                    blocker = blocker or capture_failure or "repeated_or_reordered_acquisition"
                     stop_ship("acquisition_gap")
                 observed_sequence = snapshot.sequence
                 previous_acquisition_sequence = snapshot.acquisition_sequence

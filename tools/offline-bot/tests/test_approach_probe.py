@@ -522,6 +522,22 @@ class ApproachProbeTests(unittest.TestCase):
             self.assertEqual(ship.speed, 0)
             self.assertTrue(source.closed)
 
+    def test_capture_failure_during_baseline_names_its_cause_and_sends_no_input(self):
+        # Live October 12: the game lost focus during the baseline; the result
+        # said repeated_or_reordered_acquisition instead of the capture error.
+        class FocusLostSource(PixelSource):
+            def next_sample(self, stop):
+                if self.sequence >= 1:
+                    raise RuntimeError("Target window is not foreground")
+                return super().next_sample(stop)
+        with scratch_directory() as directory:
+            result, ship, source, dispatchers = self.run_fixture(directory,
+                source_factory=lambda ship: FocusLostSource(ship))
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("Target window is not foreground", result["reason"])
+            self.assertEqual(result["acceleration_requests"], [])
+            self.assertEqual(dispatchers, [])
+
     def test_existing_cancel_marker_prevents_all_input(self):
         with scratch_directory() as directory:
             marker = directory / "stop.request"
