@@ -284,8 +284,11 @@ class ManualAssistController:
                     observation["layout_calibration"] = plain(calibration)
         if token_reading:
             scene = token_reading.get("scan_scope") == "stopped_scene"
+            # The portrait raster varies between captures of one unchanged
+            # target, so it is compared with same_target's tolerance at start
+            # rather than hashed exactly into the scene key.
             names = ("context", "hull_max", "scan_scope") if scene else ("context", "target_identity", "target_max_hp",
-                "target_portrait", "hull_max", "view_revision", "selection_revision", "selection_track_id")
+                "hull_max", "view_revision", "selection_revision", "selection_track_id")
             stable = {name: token_reading[name] for name in names}
             key = hashlib.sha256(json.dumps(stable, sort_keys=True).encode()).hexdigest()
             token_id = hashlib.sha256((key + str(snapshot.sequence) + str(snapshot.acquired_at)).encode()).hexdigest()
@@ -467,7 +470,8 @@ class ManualAssistController:
             if name == "auto_scan_selected" and self.selection_track_provider is None:
                 rejection = rejection or "selected_scan_continuity_provider_not_attached"
             if (issued is None or not token or issued["token"]["context_key"] != token["context_key"]
-                    or not 0 <= self.clock() - issued["token"]["acquired_at"] < self.arming_seconds):
+                    or not 0 <= self.clock() - issued["token"]["acquired_at"] < self.arming_seconds
+                    or token.get("scan_scope") == "selected_target" and not (reading and same_target(issued["reading"], reading))):
                 rejection = rejection or "fresh_target_assessment_token_required"
             assessment = request.get("supervisor_assessment", {})
             required = ("clear_corridor", "aligned_heading", "safe_stopped_scene", "flight_point") if name == "approach_current_target" else ("safe_stopped_scene",)

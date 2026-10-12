@@ -146,6 +146,31 @@ class ManualLeaseTests(unittest.TestCase):
             moving=ManualAssistController(directory/"moving", snapshot_provider=lambda:snapshot(speed=5), runner=lambda **kw:None)
             self.assertEqual(moving.start_action("approach_current_target")["reason"], "stationary_ship_required")
 
+    def test_portrait_flicker_keeps_the_scene_key_but_a_new_portrait_refuses_start(self):
+        # Live October 12: one unchanged selected asteroid produced four portrait
+        # rasters in eight seconds, so exact hashing kept invalidating ticks.
+        def with_portrait(portrait, sequence):
+            row=snapshot(sequence=sequence)
+            fields=dict(row.fields)
+            fields["target_portrait"]=FieldValue(portrait,row.acquired_at)
+            return replace(row,fields=fields)
+        flicker=(3,)*140+(4,)*4
+        swapped=(6,)*144
+        for portrait,accepted in ((flicker,True),(swapped,False)):
+            with self.subTest(accepted=accepted),scratch_directory() as directory:
+                current=[snapshot()]
+                controller=ManualAssistController(directory,snapshot_provider=lambda:current[0],paused=False,
+                    runner=lambda *args,**kw:drained(),activation_ready=lambda:None)
+                key=controller.actions_snapshot()["assessment_context"]["context_key"]
+                body=request(controller)
+                current[0]=with_portrait(portrait,2)
+                self.assertEqual(controller.actions_snapshot()["assessment_context"]["context_key"],key)
+                outcome=controller.start_action("approach_current_target",body)
+                self.assertEqual(outcome["accepted"],accepted,outcome["reason"])
+                if not accepted:
+                    self.assertEqual(outcome["reason"],"fresh_target_assessment_token_required")
+                wait_finished(controller)
+
     def test_focus_handover_failure_never_starts_and_cancel_keeps_waiting_truth(self):
         with scratch_directory() as directory:
             calls=[]
