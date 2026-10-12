@@ -295,6 +295,24 @@ class LargeHudTests(unittest.TestCase):
             else:
                 self.assertFalse(field.valid,damage)
 
+    def test_measured_lone_stars_between_title_letters_and_digits_are_scenery(self):
+        # Live October 12, stopped: single star pixels between ASTEROID letters
+        # published a verified "no asteroid", and between digits rejected 4283.
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        im = fixture_image()
+        for name, box in (('title-star-between-letters.png', 'title_box'),
+                          ('distance-4283-star-between-digits.png', 'distance_box')):
+            with Image.open(FIXTURES/name) as crop:
+                im.paste(crop, tuple(data[box][:2]))
+        fields = HudRecognizer(PROFILE)(native(im)).fields
+        self.assertEqual(fields['distance'].value, 4283)
+        self.assertTrue(fields['distance'].valid)
+        self.assertIs(fields['asteroid_selected'].value, True)
+        # A larger blob is not a star: the title stays unverified.
+        ImageDraw.Draw(im).rectangle((data['title_box'][0]+92, data['title_box'][1]+5,
+                                      data['title_box'][0]+93, data['title_box'][1]+6), fill='white')
+        self.assertIsNot(HudRecognizer(PROFILE)(native(im)).fields['asteroid_selected'].value, True)
+
     def test_measured_three_digit_hp_ratio_has_complete_anchored_glyphs(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for damage in (None,'clip_three','remove_three','clip_one','remove_separator',

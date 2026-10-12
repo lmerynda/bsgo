@@ -85,7 +85,9 @@ class LargeHudReader:
         # behind the translucent panel in flight split a valid 4436 this way.
         if not (a[15] & np.convolve(a[14], [1, 1, 1], 'same').astype(bool)).any():
             a[15:] = False
-        gs = pieces(a)
+        # A column-separated speck of 1-3 pixels is a star, not a digit; stars
+        # touching a glyph stay in that glyph and are still rejected below.
+        gs = [piece for piece in pieces(a) if piece[3].sum() > 3]
         if (not 1 <= len(gs) <= 6 or a[:2].any() or a[-2:].any()
                 or a[:, :2].any() or a[:, -2:].any()):
             return None, 'distance_geometry_incomplete', 0.
@@ -397,8 +399,11 @@ class LargeHudReader:
         distance, de, dc = self.distance(image)
         speed, se, sc = self.speed(image)
         title = mask(image, self.data['title_box'])
+        # A lone star pixel between letters is not a ninth letter: every ASTEROID
+        # letter has at least 18 ink pixels, while measured stars light 1-2.
+        letters = [piece for piece in pieces(title) if piece[3].sum() > 3]
         asteroid = bool(title.shape == self.title.shape and np.mean(title != self.title) < .13
-                        and len(pieces(title)) == 8)
+                        and len(letters) == 8)
         hp, he, hc = self.maximum_hp(image) if asteroid else (None, None, 0.)
         current_hp, current_reason, current_confidence = (
             self.current_hp(image, hp) if asteroid else (None, None, 0.))
