@@ -19,7 +19,8 @@ def freeze():
     captures = [p for p in (ROOT / 'tools/hud-reader/runs').rglob('*')
                 if p.suffix.lower() in EXTENSIONS and 'mock-tests' not in p.parts]
     captures += list((ROOT / 'tools/hud-reader/fixtures/live').glob('*.png'))
-    captures += [ROOT / 'tools/hud-reader/sample.png', ROOT / 'logs/mining/2026-09-30-3d-map.png']
+    captures += [ROOT / 'tools/hud-reader/sample.png',
+                 ROOT / 'test-data/vision/bootstrap-20261001/2026-09-30-3d-map.png']
     captures += [Path(p) for p in by_source]
     challenges = {'synthetic-erased-final-digit': 'distance', 'synthetic-missing-decimal': 'speed',
                   'synthetic-absent-speed': 'speed'}
@@ -73,7 +74,7 @@ def freeze():
         rows.append(row)
         by_hash[digest] = row
     # Preserve the exact reader used in the first comparison, avoiding concurrent edits.
-    shutil.copytree(ROOT / 'logs/vision-model-comparison-20261001/baseline', DEST / 'baseline')
+    shutil.copytree(ROOT / 'test-data/vision/bootstrap-20261001/baseline', DEST / 'baseline')
     manifest = {'version': 1, 'frozen_utc': datetime.now(timezone.utc).isoformat(),
                 'label_manifest_sha256': hashlib.sha256(label_bytes).hexdigest(),
                 'scope': 'Non-mock run captures, ten live fixtures, calibration sample, original saved map, and three robustness fixtures. Derived contact sheets, debug crops, and generated runtime assets are excluded.',

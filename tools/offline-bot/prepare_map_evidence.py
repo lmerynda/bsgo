@@ -25,7 +25,7 @@ CASES = (
      ((104,215),(227,140),(134,106),(316,119),(341,287),(358,366))),
     # Frozen-parameter evaluation on an older, different source run. Its
     # smaller contact rasters can legitimately be rejected as unsupported.
-    ('older-map','logs/mining/2026-09-30-3d-map.png',
+    ('older-map','test-data/vision/bootstrap-20261001/2026-09-30-3d-map.png',
      'evaluation',(800,300),
      ((458,9),(249,58),(192,142),(177,157),(118,177),(329,140),
       (451,151),(407,177),(281,232),(219,261),(271,295),(207,329)),

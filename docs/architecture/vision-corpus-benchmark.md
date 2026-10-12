@@ -1,5 +1,7 @@
 # Expanded saved screenshot model benchmark
 
+> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](archive/README.md). New experiment outputs are local runtime artifacts.
+
 Testing stopped at the user's request after all three Qwen models completed their passes. Each completed model received 307 full images and 306 HUD crops, for 1,839 completed-batch requests. FastVLM completed 106 full-image requests before it was stopped; it had no crop pass. SmolVLM was not started. Partial results are retained but excluded from the completed accuracy comparison. The frozen corpus contains 304 real images and three damaged-field fixtures. The 77 independently labeled real frames provide the numeric accuracy comparison; the remaining 227 real images retain model observations without invented ground truth.
 
 The unchanged calibrated CPU reader read both fields correctly on **77/77 labeled frames**, with a median decode-and-read time of **26.3 milliseconds**. The larger model results below replace the accuracy impression from the initial nine-frame sample. No game inputs were sent.
@@ -64,13 +66,13 @@ Runs were sequential by model on the RTX 4070 with 12,282 MiB of device memory. 
 
 - [Frozen corpus and instructions](../../test-data/vision/v1/README.md)
 - [Manifest with original paths, labels, and hashes](../../test-data/vision/v1/manifest.json)
-- [Complete summary](../../logs/vision-corpus-v1/summary.json)
-- [CPU baseline responses](../../logs/vision-corpus-v1/reader-baseline.json)
-- [Runtime environment](../../logs/vision-corpus-v1/environment.json)
+- Complete summary (`logs/vision-corpus-v1/summary.json`)
+- CPU baseline responses (`logs/vision-corpus-v1/reader-baseline.json`)
+- Runtime environment (`logs/vision-corpus-v1/environment.json`)
 - [Benchmark script](../../tools/ollama/benchmark-saved-vision.py)
 - [Dataset freeze script](../../tools/ollama/freeze-vision-dataset.py)
 
-Each started model has a JSONL file containing every completed request, response, image hash, latency, strict score, and diagnostic score, plus a metadata file with its configuration and runtime identity. The old nine-frame experiment remains preserved separately. The [run status](../../logs/vision-corpus-v1/status.json) records the requested stop and partial counts.
+Each started model has a JSONL file containing every completed request, response, image hash, latency, strict score, and diagnostic score, plus a metadata file with its configuration and runtime identity. The old nine-frame experiment remains preserved separately. The run status (`logs/vision-corpus-v1/status.json`) records the requested stop and partial counts.
 
 ```powershell
 & 'tools/model-runtimes/fastvlm-venv/Scripts/python.exe' 'tools/ollama/benchmark-saved-vision.py' --all

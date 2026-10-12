@@ -1,5 +1,7 @@
 # Offline bot experiments
 
+> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](../../docs/architecture/archive/README.md). New experiment outputs are local runtime artifacts.
+
 This Python harness tests the mining application's observation and control boundaries without opening or controlling BSGO. It supports real OCR on saved screenshots, a synthetic receiver that consumes recorded mouse/keyboard requests, and an opt-in native Windows test against its own receiver window. Python remains the current implementation choice. Memory retains recent telemetry, while a separate disk journal records events beyond those recent windows. The synthetic receiver's motion is an invented test model, not measured game physics.
 
 The new `simulate-mining` mode executes one complete cycle with a preselected synthetic asteroid. It uses semantic input intents, local selection tracking, retained gameplay events, pure routines, and bounded stop/pause handling. The original `simulate` mode remains the approach-only compatibility experiment. [Implementation results and limits](../../docs/architecture/mining-runtime-offline-results.md).
@@ -83,7 +85,7 @@ The reproducible no-desktop retention soak uses a real disk journal with mocked 
 & $offlinePython tools/offline-bot/tests/test_history_integration.py --output logs/offline-bot/history-64000 --cycles 24000
 ```
 
-It processes 72,000 ordinary requests, retains 64,000 requests and deliveries in memory, then checks hold release and the cleanup stop pair. See the [saved result](../../logs/offline-bot/history-64000/soak-report.json) and [history validation](../../docs/architecture/offline-bot-experiments.md).
+It processes 72,000 ordinary requests, retains 64,000 requests and deliveries in memory, then checks hold release and the cleanup stop pair. See the saved result (`logs/offline-bot/history-64000/soak-report.json`) and [history validation](../../docs/architecture/offline-bot-experiments.md).
 
 The browser receiver's 256-event cap and native receiver fixture's 1,024-event cap remain limits on those test surfaces, separate from the application's rolling histories and disk trace.
 

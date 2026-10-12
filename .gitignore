@@ -27,3 +27,11 @@ node_modules/
 /tools/offline-bot/tests/*-scratch-*/
 /logs/offline-bot/test-temp/
 /tools/hud-reader/.bsgo-hud-perf-*/
+
+# Runtime captures, traces, reports, and machine-specific launcher state.
+# Curated evidence and reproducible inputs belong in docs/ and test-data/.
+/logs/
+/tools/hud-reader/runs/manual-*/
+
+# Local brainstorming draft, intentionally excluded by its design brief.
+/docs/design/mining-control-center-concept-v1.png

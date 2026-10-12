@@ -1,23 +1,25 @@
 # Decision windows and local model selection
 
+> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](archive/README.md). New experiment outputs are local runtime artifacts.
+
 Three to six seconds is not an established acceptable decision time for the mining application. The first Qwen3-VL tests measured screenshot descriptions, not the application's full recognition and action loop. Motion control needs a deadline derived from closing distance and stopping behavior; choosing a target while stopped can have a longer window. Model selection should follow the task and its deadline.
 
 This research was checked on October 1, 2026. It combines publisher model cards with small local diagnostics on the RTX 4070 through Ollama 0.35.0. A subsequent [saved screenshot comparison](vision-model-comparison.md) exercised five models, including the smaller Qwen, FastVLM, and SmolVLM candidates. The remaining candidates in this research are untested on this desktop.
 
 ## What the first timings actually measured
 
-The [first scene tests](../../logs/ollama-qwen3-vl-20261001/instruct-brief/results.json) used full 2560 by 1440 images and generated 81 and 91 output tokens. Their wall times were 3.117 and 5.640 seconds, while Ollama reported 1.048 and 3.595 seconds internally. The first reused 3605 of 3652 prompt tokens; the second reused only four. Neither timing is a latency distribution for new gameplay frames.
+The first scene tests (`logs/ollama-qwen3-vl-20261001/instruct-brief/results.json`) used full 2560 by 1440 images and generated 81 and 91 output tokens. Their wall times were 3.117 and 5.640 seconds, while Ollama reported 1.048 and 3.595 seconds internally. The first reused 3605 of 3652 prompt tokens; the second reused only four. Neither timing is a latency distribution for new gameplay frames.
 
 The model misread a selected distance of 2011 as 2014. The earlier structured HUD request repeated itself and exhausted its output limit. A coherent description therefore does not establish usable state extraction or decision quality.
 
-Two [narrower diagnostic requests](../../logs/decision-window-research-20261001/results.json) used the same Qwen3-VL 4B Instruct model:
+Two narrower diagnostic requests (`logs/decision-window-research-20261001/results.json`) used the same Qwen3-VL 4B Instruct model:
 
 | Request | Native curl time | Ollama time | Interpretation |
 | --- | --- | --- | --- |
 | Classify another saved full screenshot using one screen label | 5.123 s | 4.907 s, including 2.594 s loading and 2.194 s prompt evaluation | Four output tokens reduce generation work, but fresh image processing still dominates. |
 | Choose the nearer of two already scanned water candidates from text state | 0.469 s | 0.265 s | Removing the image and returning one candidate ID is much cheaper. This example is trivial enough to implement with a rule. |
 
-A [paired transport check](../../logs/decision-window-research-20261001/paired-transport.json) submitted the same image request through PowerShell and native curl. Both reused 3635 prompt tokens and returned `SPACE_FLIGHT`. PowerShell took 2.383 seconds with 0.296 seconds reported by Ollama; curl took 0.318 seconds with 0.112 seconds reported by Ollama. The excess was about 2.087 versus 0.206 seconds. This identifies a substantial cost in the PowerShell request path; it does not identify the underlying HTTP cause or prove the future Python client has that cost.
+A paired transport check (`logs/decision-window-research-20261001/paired-transport.json`) submitted the same image request through PowerShell and native curl. Both reused 3635 prompt tokens and returned `SPACE_FLIGHT`. PowerShell took 2.383 seconds with 0.296 seconds reported by Ollama; curl took 0.318 seconds with 0.112 seconds reported by Ollama. The excess was about 2.087 versus 0.206 seconds. This identifies a substantial cost in the PowerShell request path; it does not identify the underlying HTTP cause or prove the future Python client has that cost.
 
 These are individual diagnostics. The model was loaded for the text and paired requests, the paired image was cached, and the text scenario exercised almost no reasoning. Capture, new image preprocessing, state publication, input dispatch, and observed action effects remain outside these measurements. No game input was sent.
 

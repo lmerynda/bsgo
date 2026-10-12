@@ -1,16 +1,18 @@
 # Saved screenshot model comparison
 
+> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](archive/README.md). New experiment outputs are local runtime artifacts.
+
 The [expanded benchmark](vision-corpus-benchmark.md) now covers all 77 independently labeled frames for the three Qwen models. Remaining expanded tests were stopped at the user's request. This document preserves the initial nine-frame comparison.
 
 Qwen3.5 0.8B is the most promising small-model candidate in this first numeric HUD comparison. It read distance and speed correctly on all nine focused crops with a median request time of 0.256 seconds. Qwen3-VL 4B Instruct reached the same clear-image accuracy at 0.699 seconds. The frozen calibrated CPU reader also read all nine pairs correctly, with image decoding and recognition taking a median 0.0132 seconds.
 
 The malformed-image challenge changes the conclusion: both Qwen models sometimes accepted incomplete digits as real values. The small model reported speed zero when the speed indicator was erased. These models remain candidates for contextual interpretation; this experiment does not justify allowing their numeric readings to control the ship.
 
-The runs were performed on October 1, 2026, on the desktop RTX 4070. No game inputs were sent. Model outputs, source labels, runtime metadata, and timings are preserved in the [experiment directory](../../logs/vision-model-comparison-20261001/summary.json).
+The runs were performed on October 1, 2026, on the desktop RTX 4070. No game inputs were sent. Model outputs, source labels, runtime metadata, and timings are preserved in the experiment directory (`logs/vision-model-comparison-20261001/summary.json`).
 
 ## Inputs and task
 
-The [frozen dataset](../../logs/vision-model-comparison-20261001/dataset.json) contains nine real screenshots from eight source groups in the existing HUD accuracy manifest. It includes stopped and moving readings, speeds from zero to 44, and an asteroid and a non-asteroid target. Source labels include existing development and held-out splits; this is a development comparison, not a new independent held-out accuracy estimate.
+The frozen dataset (`logs/vision-model-comparison-20261001/dataset.json`) contains nine real screenshots from eight source groups in the existing HUD accuracy manifest. It includes stopped and moving readings, speeds from zero to 44, and an asteroid and a non-asteroid target. Source labels include existing development and held-out splits; this is a development comparison, not a new independent held-out accuracy estimate.
 
 Each model received the same request: return only JSON with the selected target distance and actual ship speed, using null for unreadable values. Expected readings were never included in requests. Output was bounded at 96 tokens. The test compared original 2560 by 1440 screenshots with an 810 by 556 composite of two regions: target HUD and ship speed. Crops were enlarged three times with nearest-neighbor resampling and labeled by region; the original files remain unchanged. Crop boxes and transforms are recorded in the dataset.
 
@@ -41,7 +43,7 @@ Three existing synthetic validation fixtures erase a distance digit, remove the 
 | Speed decimal removed | Unknown speed | Invalid response | Accepted zero |
 | Speed erased | Unknown speed | Accepted zero | Returned null |
 
-The [frozen CPU reader](../../logs/vision-model-comparison-20261001/reader-baseline.json) rejected the affected field in all three challenge fixtures. Model responses and baseline reasons are retained in the [challenge record](../../logs/vision-model-comparison-20261001/malformed-challenge.json). A value of zero is particularly significant: absence of a speed indicator must not become evidence that the ship is stopped.
+The frozen CPU reader (`logs/vision-model-comparison-20261001/reader-baseline.json`) rejected the affected field in all three challenge fixtures. Model responses and baseline reasons are retained in the challenge record (`logs/vision-model-comparison-20261001/malformed-challenge.json`). A value of zero is particularly significant: absence of a speed indicator must not become evidence that the ship is stopped.
 
 ## Request overhead and runtime identity
 
