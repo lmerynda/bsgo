@@ -14,7 +14,7 @@ HTML = Path(__file__).resolve().parents[1] / 'bsgo_offline' / 'observer.html'
 class ModesUiTests(unittest.TestCase):
     def test_selection_never_activates_and_pause_remains_available_during_start(self):
         script = re.search(r'(?s)<script>(.*?)</script>', HTML.read_text(encoding='utf-8')).group(1)
-        script = script.replace('  refreshLive();\n  setInterval(renderLive,250);\n})();',
+        script = script.replace('  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();',
             '  globalThis.ui={set:(s,m,a)=>{startup=s;mode=m;actions=a;renderLive();},selectMode,selectAction,requestMode,requestAction,requestStartup,captureAssessment,renderLive};\n})();')
         harness = r'''
 const assert=require('node:assert/strict'),elements={},requests=[];

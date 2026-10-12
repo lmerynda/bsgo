@@ -14,7 +14,7 @@ class AutoScanUiTests(unittest.TestCase):
     def test_visible_scene_assessment_survives_portrait_changes_and_stop_shows_results(self):
         html = Path(__file__).resolve().parents[1] / 'bsgo_offline' / 'observer.html'
         script = re.search(r'(?s)<script>(.*?)</script>', html.read_text(encoding='utf-8')).group(1)
-        script = script.replace('  refreshLive();\n  setInterval(renderLive,250);\n})();',
+        script = script.replace('  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();',
             '  globalThis.show=(s,m,a)=>{startup=s;mode=m;actions=a;renderLive();};'
             '\n globalThis.assess=()=>captureAssessment("scan_nearby_unscanned");\n})();')
         harness = '''
@@ -62,7 +62,7 @@ console.log(JSON.stringify({assessed,active,stopped}));
     def test_watch_can_be_armed_without_target_and_stop_survives_blocked_readings(self):
         html = Path(__file__).resolve().parents[1] / "bsgo_offline" / "observer.html"
         script = re.search(r"(?s)<script>(.*?)</script>", html.read_text(encoding="utf-8")).group(1)
-        script = script.replace('  refreshLive();\n  setInterval(renderLive,250);\n})();',
+        script = script.replace('  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();',
             '  globalThis.show=(s,m,a)=>{selectedAction="auto_scan_selected";startup=s;mode=m;actions=a;renderLive();};'
             '\n  globalThis.assess=()=>captureAssessment("auto_scan_selected");\n})();')
         harness = '''

@@ -57,7 +57,7 @@ class SelectedScanDisplayTests(unittest.TestCase):
     def test_cockpit_current_evidence_clears_on_target_loss_and_stale_images(self):
         html = Path(__file__).resolve().parents[1] / "bsgo_offline" / "observer.html"
         script = re.search(r"(?s)<script>(.*?)</script>", html.read_text(encoding="utf-8")).group(1)
-        script = script.replace('  refreshLive();\n  setInterval(renderLive,250);\n})();',
+        script = script.replace('  refreshLive();\n  refreshGameState();\n  setInterval(renderLive,250);\n})();',
             '  globalThis.show=(s,m,a)=>{startup=s;mode=m;actions=a;renderLive();};\n})();')
         harness = '''
 const elements={};

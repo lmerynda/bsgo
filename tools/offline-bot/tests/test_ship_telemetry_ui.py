@@ -15,8 +15,9 @@ class ShipTelemetryUiTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node unavailable')
     def test_native_display_fallback_freshness_and_numeric_rejection(self):
         script = re.search(r'(?s)<script>(.*?)</script>',HTML.read_text(encoding='utf-8')).group(1)
-        script = script.replace('  refreshLive();\n  setInterval(renderLive,250);\n})();',
-            '  globalThis.show=(s,m,a)=>{startup=s;mode=m;actions=a;renderLive();};\n})();')
+        # The dashboard also polls shared game state; the archived preview does not.
+        script = re.sub(r'  refreshLive\(\);\n(?:  refreshGameState\(\);\n)?  setInterval\(renderLive,250\);\n\}\)\(\);',
+            lambda _: '  globalThis.show=(s,m,a)=>{startup=s;mode=m;actions=a;renderLive();};\n})();', script)
         harness = '''
 const elements={};
 globalThis.document={getElementById(id){return elements[id] ||= {

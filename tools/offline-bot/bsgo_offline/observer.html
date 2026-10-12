@@ -392,8 +392,7 @@
     const fields=current?.fields || {};
     const noAsteroid=liveField(current,'asteroid_selected')===false;
     const issues=Object.entries(fields).filter(([name,field]) => {
-      if (!['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp','asteroid_selected','target_identity','selected_marker_scan_state','selected_scan_resource'].includes(name)) return false;
-      if (['speed','hull_current','hull_max'].includes(name) && displayField(current,name)!==null) return false;
+      if (!['distance','speed','hull_current','hull_max','target_current_hp','target_max_hp','asteroid_selected','target_identity','target_portrait','selected_marker_scan_state','selected_scan_resource'].includes(name)) return false;
       if (!miningEnabled && !['speed','hull_current','hull_max'].includes(name)) return false;
       return liveField(current,name)===null || semanticReason(name,field?.value,fields);
     });
