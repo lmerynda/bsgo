@@ -1,4 +1,5 @@
 """Cross-boundary checks using saved pixels and journals, never desktop input."""
+import fixture_data  # noqa: F401  restores packed test images first
 from dataclasses import replace
 from pathlib import Path
 from threading import Event

@@ -1,4 +1,5 @@
 """Later live numeric crops, excluded from font calibration and labeled visually."""
+import fixture_data  # noqa: F401  restores packed test images first
 from pathlib import Path
 import unittest
 

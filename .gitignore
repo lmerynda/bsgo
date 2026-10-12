@@ -29,9 +29,20 @@ node_modules/
 /tools/hud-reader/.bsgo-hud-perf-*/
 
 # Runtime captures, traces, reports, and machine-specific launcher state.
-# Curated evidence and reproducible inputs belong in docs/ and test-data/.
+# logs/ is a junction to E:/workspace/bsgo/logs on the author's machine.
 /logs/
-/tools/hud-reader/runs/manual-*/
 
-# Local brainstorming draft, intentionally excluded by its design brief.
-/docs/design/mining-control-center-concept-v1.png
+# No images or captured data in the repository. The app's own runtime images
+# and the packed test fixtures are the only exceptions; tests restore their
+# images from tools/test-fixtures (see restore.py) into these ignored paths.
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.webp
+*.gif
+!/tools/offline-bot/bsgo_offline/data/**
+!/tools/test-fixtures/sheets/*.png
+/test-data/
+/tools/hud-reader/runs/
+/tools/test-fixtures/.restored

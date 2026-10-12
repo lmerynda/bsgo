@@ -1,5 +1,6 @@
 """Architecture tests: no game, no native input, no inference server."""
 from __future__ import annotations
+import fixture_data  # noqa: F401  restores packed test images first
 
 from dataclasses import FrozenInstanceError
 from contextlib import contextmanager

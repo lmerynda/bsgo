@@ -1,4 +1,5 @@
 """Scanner-only evidence does not widen navigation authority."""
+import fixture_data  # noqa: F401  restores packed test images first
 from dataclasses import replace
 import hashlib
 import json

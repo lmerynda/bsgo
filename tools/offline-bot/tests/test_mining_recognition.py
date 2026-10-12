@@ -1,3 +1,4 @@
+import fixture_data  # noqa: F401  restores packed test images first
 from pathlib import Path
 from threading import Event
 import unittest

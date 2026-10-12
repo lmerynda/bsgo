@@ -1,4 +1,5 @@
 """Saved real faults and bounded contamination/occlusion regressions."""
+import fixture_data  # noqa: F401  restores packed test images first
 import unittest
 from PIL import Image, ImageDraw
 from hud_reader import HudReader, ROOT

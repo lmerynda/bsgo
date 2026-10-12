@@ -1,4 +1,5 @@
 """Measured native target pixels plus rejection and shared-state freshness."""
+import fixture_data  # noqa: F401  restores packed test images first
 from dataclasses import replace
 from pathlib import Path
 import unittest

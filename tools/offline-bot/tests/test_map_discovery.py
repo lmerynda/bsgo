@@ -1,4 +1,5 @@
 """Native map-glyph evaluation and synthetic transport, with no game input."""
+import fixture_data  # noqa: F401  restores packed test images first
 import hashlib
 import json
 from pathlib import Path

@@ -1,4 +1,5 @@
 """Post-relaunch pixel calibration; saved labels and independent fault cases."""
+import fixture_data  # noqa: F401  restores packed test images first
 import time
 import unittest
 from PIL import Image, ImageDraw

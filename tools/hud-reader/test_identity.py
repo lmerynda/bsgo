@@ -1,4 +1,5 @@
 """Actual failed-preflight frame pair plus independent target-change/fault cases."""
+import fixture_data  # noqa: F401  restores packed test images first
 import json, unittest
 from pathlib import Path
 from PIL import Image, ImageDraw

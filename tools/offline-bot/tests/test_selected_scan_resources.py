@@ -1,4 +1,5 @@
 """Native resource-color regressions, plumbing, and rejection boundaries."""
+import fixture_data  # noqa: F401  restores packed test images first
 from dataclasses import replace
 import json
 from pathlib import Path

@@ -3,6 +3,7 @@
 Relocated fixtures verify geometry and rejection; they do not establish live
 numeric accuracy for another resolution or font raster.
 """
+import fixture_data  # noqa: F401  restores packed test images first
 import unittest
 
 from PIL import Image, ImageDraw

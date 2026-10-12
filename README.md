@@ -18,4 +18,6 @@ This project collects skills and observations for learning to play BSGO automati
 - [276 Exrun safe zone](docs/navigation/276-exrun-safe-zone.md): ring/sector operating boundary, updated October 1, 2026.
 - Future scenarios such as combat can have their own skill.
 
+Test images live packed in [tools/test-fixtures](tools/test-fixtures/restore.py): one sprite sheet plus an index. Test modules that need them import `fixture_data`, which restores them to their original (git-ignored) paths. The repository keeps no other images or captured data; runtime output goes to `logs/`.
+
 Use both skills for mining navigation. The current game UI and the user's corrections govern equipment and controls.

@@ -1,0 +1,6890 @@
+{
+ "files": [
+  "test-data/vision/v1/manifest.json",
+  "test-data/vision/v3-reward-notices/manifest.json"
+ ],
+ "images": {
+  "test-data/vision/v1/images/12081dc0eb8776bb8cb9b20e91d61b3dda63855c6e4d164f23271b2987b66977.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      880,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "test-data/vision/v1/images/4393160ade1ffc4f7d130c0cfc86a7f5520e4c82f312e8c13da8046d77eb9852.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1008,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "test-data/vision/v1/images/4a3db997fdd0090b76cc9b6b2800e5ebca048214ca6a413fda1dcc361e705017.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1136,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "test-data/vision/v1/images/f16c7b7e924580b0cca6a3e04dd3fcba3e70128bd49577123eccf91f064de347.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1264,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire008-099.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      424,
+      1050,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire008-100.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      864,
+      1050,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire008-101.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1304,
+      1050,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire008-102.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1152,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire008-103.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      440,
+      1152,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire009-049.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      880,
+      1152,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire009-050.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1320,
+      1152,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire009-051.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1232,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire009-052.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      440,
+      1232,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire009-053.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      880,
+      1232,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire009-054.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1320,
+      1232,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire010-069.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1312,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire010-070.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      440,
+      1312,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire010-071.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      880,
+      1312,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire010-072.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1320,
+      1312,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire010-073.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1392,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "test-data/vision/v3-reward-notices/fire010-074.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      440,
+      1392,
+      440,
+      80
+     ],
+     "box": [
+      0,
+      0,
+      440,
+      80
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    440,
+    80
+   ]
+  },
+  "tools/hud-reader/fixtures/calibration/box4k-speed-1p3.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1132,
+      1697,
+      80,
+      26
+     ],
+     "box": [
+      0,
+      0,
+      80,
+      26
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    80,
+    26
+   ]
+  },
+  "tools/hud-reader/fixtures/calibration/box4k-speed-1p4.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1212,
+      1697,
+      80,
+      26
+     ],
+     "box": [
+      0,
+      0,
+      80,
+      26
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    80,
+    26
+   ]
+  },
+  "tools/hud-reader/fixtures/calibration/box4k-speed-1p6.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1292,
+      1697,
+      80,
+      26
+     ],
+     "box": [
+      0,
+      0,
+      80,
+      26
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    80,
+    26
+   ]
+  },
+  "tools/hud-reader/fixtures/calibration/hp-3770-current.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1057,
+      1840,
+      64,
+      14
+     ],
+     "box": [
+      0,
+      0,
+      64,
+      14
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    64,
+    14
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/distance-1677.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      936,
+      1726,
+      87,
+      19
+     ],
+     "box": [
+      0,
+      0,
+      87,
+      19
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    87,
+    19
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/distance-4283-star-between-digits.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1023,
+      1726,
+      87,
+      19
+     ],
+     "box": [
+      0,
+      0,
+      87,
+      19
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    87,
+    19
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/distance-4436-flight-star-row15.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1110,
+      1726,
+      87,
+      19
+     ],
+     "box": [
+      0,
+      0,
+      87,
+      19
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    87,
+    19
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/distance-516-star-below.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1197,
+      1726,
+      87,
+      19
+     ],
+     "box": [
+      0,
+      0,
+      87,
+      19
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    87,
+    19
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/distance.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1284,
+      1726,
+      87,
+      19
+     ],
+     "box": [
+      0,
+      0,
+      87,
+      19
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    87,
+    19
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-0-3724.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1371,
+      1726,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1000-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1522,
+      1726,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1087-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1673,
+      1726,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1233-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1824,
+      1726,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1329-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1365-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      151,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1411-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      302,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1438-3097.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      453,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1513-3724.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      604,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1615-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      755,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1742-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      906,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1806-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1057,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1871-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1208,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1904-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1359,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-1937-3724.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1510,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2054-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1661,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-213-3724.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1812,
+      1750,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2244-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2301-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      151,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2330-3097.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      302,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2446-4102.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      453,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2459-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      604,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2459-4500.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      755,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-248-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      906,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2560-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1057,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-26-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1208,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2641-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1359,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2684-3097.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1510,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-277-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1661,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2857-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1812,
+      1768,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-2966-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3060-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      151,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3097-3097.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      302,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3190-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      453,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3284-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      604,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3335-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      755,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3408-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      906,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-351-4015.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1057,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3682-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1208,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3743-3781.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1359,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-3788-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1510,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-395-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1661,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-403-3097.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1812,
+      1786,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-4033-4033.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-4046-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      151,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-4166-4166.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      302,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-4384-4384.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      453,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-4500-4500.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      604,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-499-3724.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      755,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-610-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      906,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-722-4046.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1057,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-816-3788.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1208,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp-872-3724.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1359,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hp.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1510,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hull-1638-5005.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1661,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hull-1742-5005.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1812,
+      1804,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hull-2127-5005.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hull-3295-5005.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      151,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/hull-5005-5005.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      302,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/own-hp.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      453,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-0p0-star-far.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1737,
+      1622,
+      97,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      97,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    97,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-0p0-star-near.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1834,
+      1622,
+      97,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      97,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    97,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-0p0-star-right.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1931,
+      1622,
+      97,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      97,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    97,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-0p0.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      194,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-0p1.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      270,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-0p7.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      346,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-10p7.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1697,
+      97,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      97,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    97,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-1p0.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      422,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-1p1.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      498,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-1p3.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      574,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-1p9.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      650,
+      1697,
+      76,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      76,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    76,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/speed-33p0-star-margin.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      97,
+      1697,
+      97,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      97,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    97,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/title-star-between-letters.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1121,
+      1840,
+      107,
+      11
+     ],
+     "box": [
+      0,
+      0,
+      107,
+      11
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    107,
+    11
+   ]
+  },
+  "tools/hud-reader/fixtures/largehud-20261003/title.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1228,
+      1840,
+      107,
+      11
+     ],
+     "box": [
+      0,
+      0,
+      107,
+      11
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    107,
+    11
+   ]
+  },
+  "tools/hud-reader/fixtures/live/live-01.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1152,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1392,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/fixtures/live/live-02.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1440,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1520,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/fixtures/live/live-03.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1728,
+      0,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1648,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/fixtures/live/live-09.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1776,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/0-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      604,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/0-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      755,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/0-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      726,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/1-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      906,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/1-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1057,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/1-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      784,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/2-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1208,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/2-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1359,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/2-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      842,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/3-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1510,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/3-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1661,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/3-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      900,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/4-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1812,
+      1822,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/4-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/4-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      958,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/5-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      151,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/5-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      302,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/5-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1016,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/6-energy.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      453,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/6-hull.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      604,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261007/6-speed.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1074,
+      1697,
+      58,
+      29
+     ],
+     "box": [
+      0,
+      0,
+      58,
+      29
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    58,
+    29
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261011/own-bars-7.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      695,
+      1622,
+      192,
+      50
+     ],
+     "box": [
+      0,
+      0,
+      192,
+      50
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    192,
+    50
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261011/own-bars-8.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      887,
+      1622,
+      192,
+      50
+     ],
+     "box": [
+      0,
+      0,
+      192,
+      50
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    192,
+    50
+   ]
+  },
+  "tools/hud-reader/fixtures/ship-telemetry-20261011/own-bars-9.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1079,
+      1622,
+      192,
+      50
+     ],
+     "box": [
+      0,
+      0,
+      192,
+      50
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    192,
+    50
+   ]
+  },
+  "tools/hud-reader/fixtures/synthetic/hp-ambiguity.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1904,
+      1392,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/miner-line02-3970-20261002/frame-1790906633724-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      0,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/miner-line04-water3511-b/frame-1790907845429-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      128,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/miner-line04-water3813-a/frame-1790907450090-016.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1152,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      256,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-1510/frame-1790867455787-011.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1440,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      384,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-1517/frame-1790867886210-003.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1728,
+      150,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      512,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2013/frame-1790885606183-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      640,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2013/frame-1790885606183-001.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      768,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2013/frame-1790885606183-002.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      896,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2019/frame-1790885963460-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1024,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2019/frame-1790885963460-001.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1152,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1152,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2024/frame-1790886260489-004.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1440,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1280,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2028/frame-1790886491767-020.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1728,
+      300,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1408,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2051/frame-1790887874238-010.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1536,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2057-stopped/frame-1790888178781-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1664,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2136/frame-1790890600348-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1792,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2140/frame-1790890836456-002.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1920,
+      1472,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2150/frame-1790891459902-004.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1152,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      0,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2200/frame-1790891997879-013.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1440,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      128,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/mining-20261001-2346/frame-1790898415825-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1728,
+      450,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      256,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/restart-calibration-20261001/capture-1.jpg": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      384,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/restart-calibration-20261001/capture-2.jpg": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      512,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/restart-calibration-20261001/capture-3.jpg": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      640,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/route-depth-20261001-2045/02-planetoid.jpg": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      768,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-four-live-2309/frame-1790809793199-001.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1152,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      896,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-four-live-2309/frame-1790809793199-002.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1440,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1024,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-human-approval-2252/frame-1790808363195-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1728,
+      600,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1152,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-page-live-0012/frame-1790813557046-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1280,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-page-water-0018/frame-1790813998678-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1408,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-separator-live-2252/frame-1790808721870-001.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1536,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-separator-live-2252/frame-1790808721870-002.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1664,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-speed-live-2303/frame-1790809416784-001.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1152,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1792,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-static-0114/frame-1790817218587-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1440,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      1920,
+      1547,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-static-0121/frame-1790817668601-012.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1728,
+      750,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      0,
+      1622,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-water-0125/frame-1790817952724-005.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      900,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      128,
+      1622,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-water-dry-2226/frame-1790807205672-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      288,
+      900,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      256,
+      1622,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/runs/sol-water-live-2227/frame-1790807274365-000.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      576,
+      900,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      384,
+      1622,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/hud-reader/sample.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      864,
+      900,
+      288,
+      150
+     ],
+     "box": [
+      686,
+      28,
+      974,
+      178
+     ],
+     "sheet": "sheet-01.png"
+    },
+    {
+     "at": [
+      512,
+      1622,
+      128,
+      75
+     ],
+     "box": [
+      1336,
+      1088,
+      1464,
+      1163
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected-target/asteroid-4674-range-1421.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1152,
+      900,
+      312,
+      139
+     ],
+     "box": [
+      0,
+      0,
+      312,
+      139
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    312,
+    139
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/exrun-dim-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1464,
+      900,
+      125,
+      110
+     ],
+     "box": [
+      0,
+      0,
+      125,
+      110
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    125,
+    110
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan36-scanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1589,
+      900,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan36-scanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1271,
+      1622,
+      66,
+      45
+     ],
+     "box": [
+      0,
+      0,
+      66,
+      45
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    66,
+    45
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan36-unscanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1695,
+      900,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan36-unscanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1337,
+      1622,
+      66,
+      45
+     ],
+     "box": [
+      0,
+      0,
+      66,
+      45
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    66,
+    45
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan37-scanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1801,
+      900,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan37-scanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1627,
+      1622,
+      55,
+      40
+     ],
+     "box": [
+      0,
+      0,
+      55,
+      40
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    55,
+    40
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan37-unscanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1907,
+      900,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan37-unscanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1682,
+      1622,
+      55,
+      40
+     ],
+     "box": [
+      0,
+      0,
+      55,
+      40
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    55,
+    40
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan38-scanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1050,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan38-scanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1403,
+      1622,
+      56,
+      44
+     ],
+     "box": [
+      0,
+      0,
+      56,
+      44
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    56,
+    44
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan38-unscanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      106,
+      1050,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_markers/scan38-unscanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1459,
+      1622,
+      56,
+      44
+     ],
+     "box": [
+      0,
+      0,
+      56,
+      44
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    56,
+    44
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_resources/scan19-scanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      212,
+      1050,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_resources/scan19-scanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1515,
+      1622,
+      56,
+      44
+     ],
+     "box": [
+      0,
+      0,
+      56,
+      44
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    56,
+    44
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_resources/scan25-scanned-marker.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      318,
+      1050,
+      106,
+      102
+     ],
+     "box": [
+      0,
+      0,
+      106,
+      102
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    106,
+    102
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/selected_scan_resources/scan25-scanned.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1571,
+      1622,
+      56,
+      44
+     ],
+     "box": [
+      0,
+      0,
+      56,
+      44
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    56,
+    44
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/stationary_scanner/target-hp-3180.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      755,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/stationary_scanner/target-hp-4685.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      906,
+      1840,
+      151,
+      18
+     ],
+     "box": [
+      0,
+      0,
+      151,
+      18
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    151,
+    18
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/map-close-corner.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      640,
+      1622,
+      55,
+      55
+     ],
+     "box": [
+      0,
+      0,
+      55,
+      55
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    55,
+    55
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-00.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1372,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-01.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1396,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-02.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1420,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-03.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1444,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-04.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1468,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-05.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1492,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-06.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1516,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-background_or_noncontact-07.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1540,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-00.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1564,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-01.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1588,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-02.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1612,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-03.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1636,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-04.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1660,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-05.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1684,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-06.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1708,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-07.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1732,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-08.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1756,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-09.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1780,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-10.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1804,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/older-map-visible_contact_glyph-11.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1828,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-background_or_noncontact-00.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1852,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-background_or_noncontact-01.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1876,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-background_or_noncontact-02.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1900,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-background_or_noncontact-03.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1924,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-background_or_noncontact-04.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1948,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-background_or_noncontact-05.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1972,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-00.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      1996,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-01.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      2020,
+      1697,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-02.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      0,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-03.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      24,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-04.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      48,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-05.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      72,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-06.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      96,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-07.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      120,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-08.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      144,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-09.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      168,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-10.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      192,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/overview-visible_contact_glyph-11.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      216,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-background_or_noncontact-00.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      240,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-background_or_noncontact-01.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      264,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-background_or_noncontact-02.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      288,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-background_or_noncontact-03.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      312,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-background_or_noncontact-04.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      336,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-background_or_noncontact-05.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      360,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-00.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      384,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-01.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      408,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-02.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      432,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-03.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      456,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-04.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      480,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-05.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      504,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-06.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      528,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-07.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      552,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-08.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      576,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-09.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      600,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-10.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      624,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-11.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      648,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-12.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      672,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-13.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      696,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-14.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      720,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-15.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      744,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-16.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      768,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-17.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      792,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-18.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      816,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-19.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      840,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-20.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      864,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-21.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      888,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/system_map_contacts/recovery-visible_contact_glyph-22.png": {
+   "frame": false,
+   "parts": [
+    {
+     "at": [
+      912,
+      1726,
+      24,
+      24
+     ],
+     "box": [
+      0,
+      0,
+      24,
+      24
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    24,
+    24
+   ]
+  }
+ }
+}

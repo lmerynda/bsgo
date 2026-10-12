@@ -1,4 +1,5 @@
 """Manually read moving frames and independently drawn speed/fault coverage."""
+import fixture_data  # noqa: F401  restores packed test images first
 import json, unittest
 from PIL import Image, ImageDraw
 from hud_reader import HudReader, ROOT, SPEED

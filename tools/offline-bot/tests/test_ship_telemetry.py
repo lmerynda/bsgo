@@ -1,4 +1,5 @@
 """Native combat HUD crops and damaged/absent readout rejection."""
+import fixture_data  # noqa: F401  restores packed test images first
 import hashlib
 import json
 from pathlib import Path

@@ -1,0 +1,520 @@
+{
+  "version": 3,
+  "field": "reward_notice",
+  "scope": "Visible notification text only",
+  "privacy": "Notification-only crops; no chat, player identity, account or cargo UI",
+  "evaluation_scope": "Retrospective separate source run; same session/layout; no prospective holdout",
+  "rows": [
+    {
+      "id": "fire009-049",
+      "file": "fire009-049.png",
+      "sha256": "6f753f070959bdb890cc76b9f3c4ed27f6cfc27108e1b15483cf62118cfb9e97",
+      "source": "logs/mining/live-20261003/continuous-fire-009/failed-recognition/observation-00000049.png",
+      "source_sha256": "d8167254994a93ed89c332bbbdff20ae0197f8cdd73689e82cc70220ecd08500",
+      "source_sidecar_sha256": "d9dc981a4113c28fc18b4aea1014a8cc294b8ac69b6e0edc4155dd89f9e6d826",
+      "source_run": "continuous-fire-009",
+      "run_id": "de0cb2737b224c7e8ae1540770756a23",
+      "acquisition_sequence": 49,
+      "acquired_at": 353051.437,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire009-050",
+      "file": "fire009-050.png",
+      "sha256": "fd7340570becc8e03b1d0343fd5fb3d03b65bd3d8a1042dbf1d632cd6d5e33d6",
+      "source": "logs/mining/live-20261003/continuous-fire-009/failed-recognition/observation-00000050.png",
+      "source_sha256": "e65a5c3bdda4638e2ccc4045a2ff8c7b9d251742790599f62c180ea9c2a7bc0f",
+      "source_sidecar_sha256": "807679162423aa9bd0282752fef0d39fbff39438c985a108ccc0ca72638da236",
+      "source_run": "continuous-fire-009",
+      "run_id": "de0cb2737b224c7e8ae1540770756a23",
+      "acquisition_sequence": 50,
+      "acquired_at": 353051.859,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire009-051",
+      "file": "fire009-051.png",
+      "sha256": "420815b52e067be5628fc465bfbbd1bba249392650515b5bc4fb7e2f5cefd54b",
+      "source": "logs/mining/live-20261003/continuous-fire-009/failed-recognition/observation-00000051.png",
+      "source_sha256": "9b357bb2a06cf6c217f53a28262d15975c557925ce465f96a191383ff174d837",
+      "source_sidecar_sha256": "806d42b034d00fb0f387a51083e401137d9d241a3760d50d859a180de9e62666",
+      "source_run": "continuous-fire-009",
+      "run_id": "de0cb2737b224c7e8ae1540770756a23",
+      "acquisition_sequence": 51,
+      "acquired_at": 353052.25,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire009-052",
+      "file": "fire009-052.png",
+      "sha256": "34372790eaec54026bbc49d83121386bcf2f9875ec16a794f4d2ddda2a0c8de0",
+      "source": "logs/mining/live-20261003/continuous-fire-009/failed-recognition/observation-00000052.png",
+      "source_sha256": "068ea750e2c81369e98a4b6aebf627abaa00fe3897606b31e0b380216c40b263",
+      "source_sidecar_sha256": "959d21922cc0363b8c4b27d3c85958b820212189e2001eb125b91f174e728d97",
+      "source_run": "continuous-fire-009",
+      "run_id": "de0cb2737b224c7e8ae1540770756a23",
+      "acquisition_sequence": 52,
+      "acquired_at": 353052.656,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire009-053",
+      "file": "fire009-053.png",
+      "sha256": "9b7d54fd30a6934d04ca9ec1ead192591b9acda729231af3fee5b2ff6403de6b",
+      "source": "logs/mining/live-20261003/continuous-fire-009/failed-recognition/observation-00000053.png",
+      "source_sha256": "e104c3282417c3607aa320416e1444dc36194614f3697f9cffc844225ec65dbc",
+      "source_sidecar_sha256": "63828c59610119dbe6abee9a05dcf1cd38fe39f446c85e485189245974078727",
+      "source_run": "continuous-fire-009",
+      "run_id": "de0cb2737b224c7e8ae1540770756a23",
+      "acquisition_sequence": 53,
+      "acquired_at": 353053.062,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": {
+        "resource": "Water",
+        "amount": 1237
+      },
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire009-054",
+      "file": "fire009-054.png",
+      "sha256": "57d465d18c40c0fa3298ea233e6d87f098f56c07c8d3d52c7830d402dd98edc1",
+      "source": "logs/mining/live-20261003/continuous-fire-009/failed-recognition/observation-00000054.png",
+      "source_sha256": "4e63728d51198168dc036b058ef579d6251325c6f78a6708f4d5bea9f549c6a2",
+      "source_sidecar_sha256": "b47dab027636bf2db996b2499e3506c54f2d56d9e93498e799430210b7176d9a",
+      "source_run": "continuous-fire-009",
+      "run_id": "de0cb2737b224c7e8ae1540770756a23",
+      "acquisition_sequence": 54,
+      "acquired_at": 353053.484,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": {
+        "resource": "Water",
+        "amount": 1237
+      },
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire010-069",
+      "file": "fire010-069.png",
+      "sha256": "7e7e01bd410c799019939611969b8d4fab8f37da00d41a2e3f481101737f0692",
+      "source": "logs/mining/live-20261003/continuous-fire-010/failed-recognition/observation-00000069.png",
+      "source_sha256": "0a962c79411171a469224cb3d2f634f3088018e7ea2cfab04110c0fd7f88398d",
+      "source_sidecar_sha256": "b20b37de88d14e917ddf5af2cce7916291d81d0088a3b8c818acab981b75e3e0",
+      "source_run": "continuous-fire-010",
+      "run_id": "f2d0ee20672143f8b203b1b8542c4a3d",
+      "acquisition_sequence": 69,
+      "acquired_at": 353214.546,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire010-070",
+      "file": "fire010-070.png",
+      "sha256": "ca0c6420afba95676620b59919c46a5dde0ae1ebf10fb813294d1a987adf4033",
+      "source": "logs/mining/live-20261003/continuous-fire-010/failed-recognition/observation-00000070.png",
+      "source_sha256": "4b5888b6d296a63b9de15b5967e30ae3fce2566d60a8319f9bb8225bfb8c4e2f",
+      "source_sidecar_sha256": "4b23115983032b59e305dd830e9426eb3a3ad55943febfebc48d109eafcc31fc",
+      "source_run": "continuous-fire-010",
+      "run_id": "f2d0ee20672143f8b203b1b8542c4a3d",
+      "acquisition_sequence": 70,
+      "acquired_at": 353214.953,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire010-071",
+      "file": "fire010-071.png",
+      "sha256": "1a02aee4e70cfee4e50a677fcd47af0d79aac10924bc4debcf79b31be1b466fb",
+      "source": "logs/mining/live-20261003/continuous-fire-010/failed-recognition/observation-00000071.png",
+      "source_sha256": "7536f2199bbf4bf65da82a60324eb67a35f1c0a389d24f6227c7c0a0736b74d9",
+      "source_sidecar_sha256": "7720412c2a9cde40a10b2656f7666184b2e50f71553a598ebac3b76a5f137a5e",
+      "source_run": "continuous-fire-010",
+      "run_id": "f2d0ee20672143f8b203b1b8542c4a3d",
+      "acquisition_sequence": 71,
+      "acquired_at": 353215.359,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire010-072",
+      "file": "fire010-072.png",
+      "sha256": "eede0bf170c65d00a41a73625284112e0981f04b4752bd1e07dc4ce0c7817acd",
+      "source": "logs/mining/live-20261003/continuous-fire-010/failed-recognition/observation-00000072.png",
+      "source_sha256": "742ec4ffb2974e4e5e44dfa0d8546d8c1f546fef0b9cf37d69963ab2f57950fa",
+      "source_sidecar_sha256": "7d7b9e2b192f4145fa71f98d89a63d2f941eaa633d99c961b2fc1bd07f4f3bd2",
+      "source_run": "continuous-fire-010",
+      "run_id": "f2d0ee20672143f8b203b1b8542c4a3d",
+      "acquisition_sequence": 72,
+      "acquired_at": 353215.765,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire010-073",
+      "file": "fire010-073.png",
+      "sha256": "0e29216394bb3f6a88305f5f0a77e262b96406b11777cd12bdfc02aa894b0515",
+      "source": "logs/mining/live-20261003/continuous-fire-010/failed-recognition/observation-00000073.png",
+      "source_sha256": "e8dd4f19c51413353535c8fd7bcb34a1d115fcda180a5e4e64959b0843f48b41",
+      "source_sidecar_sha256": "f92dba49415dd40155b881b3950fa9a65f100b2bfcb05ca59c1e7975b8791bf0",
+      "source_run": "continuous-fire-010",
+      "run_id": "f2d0ee20672143f8b203b1b8542c4a3d",
+      "acquisition_sequence": 73,
+      "acquired_at": 353216.171,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": {
+        "resource": "Tylium",
+        "amount": 5936
+      },
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire010-074",
+      "file": "fire010-074.png",
+      "sha256": "2832a6b060f6825a43cf78e24365a70944d916e50cb18f6825809b2d7e8fb15d",
+      "source": "logs/mining/live-20261003/continuous-fire-010/failed-recognition/observation-00000074.png",
+      "source_sha256": "8c2e041a543f4e0b2de1e44f50e06c6cbb25488899f5c2e8b0ca6bb7267666e7",
+      "source_sidecar_sha256": "d0568c74a8bc3befc81cfaee51778871c1473dbefc758c5f2b30918a6f99db53",
+      "source_run": "continuous-fire-010",
+      "run_id": "f2d0ee20672143f8b203b1b8542c4a3d",
+      "acquisition_sequence": 74,
+      "acquired_at": 353216.578,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "development",
+      "expected": {
+        "resource": "Tylium",
+        "amount": 5936
+      },
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire008-099",
+      "file": "fire008-099.png",
+      "sha256": "3b3e9efce758fb7c91d5b63ccbac577b3cd1d68be2a9fb4f46ae572a55656cb3",
+      "source": "logs/mining/live-20261003/continuous-fire-008/failed-recognition/observation-00000099.png",
+      "source_sha256": "9a5e8ef9e8848c5d688222c9e8caf85ca8b6ff70a226c72415308c8fd098708c",
+      "source_sidecar_sha256": "d4558983e38bd258aa4ca58d7946c010224b4b9447b99ed72ebbfe5138a1f08e",
+      "source_run": "continuous-fire-008",
+      "run_id": "badc52aad4b04f5c8010f19d7d243996",
+      "acquisition_sequence": 99,
+      "acquired_at": 352118.593,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "evaluation",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire008-100",
+      "file": "fire008-100.png",
+      "sha256": "bb1d5f5593e6ded553a01f705f96f11d9ea5ba67851e3c2b9d32020bc0e35b0b",
+      "source": "logs/mining/live-20261003/continuous-fire-008/failed-recognition/observation-00000100.png",
+      "source_sha256": "53dad3d5c527fac741aa698c1893522b820604420c7179d7fd9808d208b3d37b",
+      "source_sidecar_sha256": "ddb8d5cf69b4495e177fb4386d0837758907b052b825f17bdef9aa417b153da2",
+      "source_run": "continuous-fire-008",
+      "run_id": "badc52aad4b04f5c8010f19d7d243996",
+      "acquisition_sequence": 100,
+      "acquired_at": 352118.984,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "evaluation",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire008-101",
+      "file": "fire008-101.png",
+      "sha256": "dbcd78a44e092ac36fcfba0cebfbd974914b4bddeadf62b3ec416774bc23d52d",
+      "source": "logs/mining/live-20261003/continuous-fire-008/failed-recognition/observation-00000101.png",
+      "source_sha256": "0835266b706936a58800700a76cf264d12789e33ef63ec7dfb6f3cbcd0aac1b7",
+      "source_sidecar_sha256": "2f60c57608504bd0a0803375c3e96a8221847c51da26717fd8c686126a153f4d",
+      "source_run": "continuous-fire-008",
+      "run_id": "badc52aad4b04f5c8010f19d7d243996",
+      "acquisition_sequence": 101,
+      "acquired_at": 352119.39,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "evaluation",
+      "expected": null,
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire008-102",
+      "file": "fire008-102.png",
+      "sha256": "c9944e5b440958a97704ef8a0249878b71a17acd3d599b2bbf67c77e75d2c6ab",
+      "source": "logs/mining/live-20261003/continuous-fire-008/failed-recognition/observation-00000102.png",
+      "source_sha256": "f77391e3b7847acc8282a92272470680b8e6eed8ab6bae8b29fd93c063bdd206",
+      "source_sidecar_sha256": "101428e5a1998550f7c01b7c2f8ab501a82c94d503fb8a86c2342e59ca33979e",
+      "source_run": "continuous-fire-008",
+      "run_id": "badc52aad4b04f5c8010f19d7d243996",
+      "acquisition_sequence": 102,
+      "acquired_at": 352119.781,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "evaluation",
+      "expected": {
+        "resource": "Tylium",
+        "amount": 7597
+      },
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    },
+    {
+      "id": "fire008-103",
+      "file": "fire008-103.png",
+      "sha256": "b67f9ae059f1c12fcaa4c44b737776aa129cff6c061f727da5fc6565fb21edde",
+      "source": "logs/mining/live-20261003/continuous-fire-008/failed-recognition/observation-00000103.png",
+      "source_sha256": "02edd8d68ba59e56f7ee87d0e005b453e11fa0793a594d32e595e4256d7dc7bc",
+      "source_sidecar_sha256": "b544fb7b1f70870cfa140cf3cc90d0a3b0ae289d3e048a58b426b25efb1f46bb",
+      "source_run": "continuous-fire-008",
+      "run_id": "badc52aad4b04f5c8010f19d7d243996",
+      "acquisition_sequence": 103,
+      "acquired_at": 352120.187,
+      "clock": "source_process_monotonic",
+      "layout": "largehud-20261003",
+      "source_size": [
+        2560,
+        1440
+      ],
+      "crop_box": [
+        1060,
+        230,
+        1500,
+        310
+      ],
+      "split": "evaluation",
+      "expected": {
+        "resource": "Tylium",
+        "amount": 7597
+      },
+      "annotation_basis": "Direct visual review of original notification pixels; no reader predictions",
+      "attribution": "not_labeled",
+      "inventory_total": "not_labeled"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import fixture_data  # noqa: F401  restores packed test images first
 import json
 from pathlib import Path
 import unittest
