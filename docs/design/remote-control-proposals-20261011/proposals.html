@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Three directions for the BSGO game control app</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0f13; color: #e9eef2; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width: 1400px; margin: 0 auto; padding: 28px 28px 80px; }
+  .page > header h1 { font: 600 28px/1.2 Bahnschrift, "Segoe UI", sans-serif; margin: 0 0 6px; }
+  .page > header p { margin: 0; color: #9fb0bd; max-width: 900px; }
+  .switch { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 22px 0 18px; }
+  .switch .label { color: #9fb0bd; font-size: 13px; margin-right: 4px; }
+  .seg { display: inline-flex; border: 1px solid #2c3a45; border-radius: 10px; overflow: hidden; }
+  .seg button { background: #141c23; color: #c9d5de; border: 0; padding: 10px 16px; font: inherit; font-size: 14px; cursor: pointer; min-height: 44px; }
+  .seg button + button { border-left: 1px solid #2c3a45; }
+  .seg button[aria-pressed="true"] { background: #e9eef2; color: #0b0f13; font-weight: 600; }
+  .seg button:focus-visible { outline: 3px solid #7cc4ff; outline-offset: -3px; }
+  .proposal { display: none; }
+  .proposal.on { display: block; }
+  .pitch { display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; margin: 6px 0 18px; }
+  .pitch h2 { font: 600 22px/1.25 Bahnschrift, "Segoe UI", sans-serif; margin: 0 0 6px; }
+  .pitch p { margin: 0 0 8px; color: #c2ced7; }
+  .pitch ul { margin: 0; padding-left: 18px; color: #c2ced7; }
+  .pitch li { margin-bottom: 4px; }
+  .pitch .tradeoff { border-left: 3px solid #3a4a56; padding-left: 14px; }
+  .pitch .tradeoff b { color: #e9eef2; }
+  .stage { border: 1px solid #222c34; border-radius: 14px; padding: 18px; background: #080b0e; overflow-x: auto; }
+  .caption { color: #8797a3; font-size: 13px; margin-top: 10px; }
+  .game { background: #000 url("../../../test-data/vision/v1/images/25922c9ca88f72ada9c547e092cd2f4b056d5c8717c75b6021266c54d33a22cf.png") center/cover no-repeat; }
+
+  /* Visibility by simulated state */
+  body[data-state="running"] [data-show]:not([data-show~="running"]),
+  body[data-state="needs"] [data-show]:not([data-show~="needs"]),
+  body[data-state="offline"] [data-show]:not([data-show~="offline"]) { display: none !important; }
+  body[data-state="offline"] .A-game .game, body[data-state="offline"] .C-thumb { filter: grayscale(1) brightness(.25); }
+
+  /* ================= A: Mission console ================= */
+  .A { --bg:#111417; --s1:#191d21; --s2:#21262b; --line:#2f363d; --t1:#f1ede6; --t2:#b4ada3; --amber:#f2b45a; --green:#7fd19a; --red:#f08a84;
+       width: 1280px; height: 760px; background: var(--bg); color: var(--t1); border-radius: 10px; overflow: hidden;
+       display: grid; grid-template-rows: 60px 1fr 168px; font-family: Bahnschrift, "Segoe UI", sans-serif; }
+  .A-top { display: flex; align-items: center; gap: 18px; padding: 0 18px; border-bottom: 1px solid var(--line); background: var(--s1); }
+  .A-brand { font-size: 18px; font-weight: 600; letter-spacing: .02em; }
+  .A-brand small { color: var(--t2); font-weight: 400; margin-left: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px; background: var(--s2); border: 1px solid var(--line); font-size: 14px; color: var(--t1); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: none; }
+  .dot.amber { background: var(--amber); } .dot.red { background: var(--red); }
+  .A-auth { margin-left: auto; color: var(--t2); font-size: 14px; }
+  .A-auth b { color: var(--t1); font-weight: 600; }
+  .A-pause { min-height: 44px; padding: 0 22px; border-radius: 10px; border: 2px solid var(--red); background: #3a1f1d; color: #ffd9d6; font: 600 16px Bahnschrift, sans-serif; }
+  .A-pause kbd { font: 12px Consolas, monospace; opacity: .8; margin-left: 8px; border: 1px solid #7d4440; border-radius: 4px; padding: 1px 5px; }
+  .A-main { display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
+  .A-game { position: relative; padding: 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .A-game .game { background-size: contain; flex: 1; border-radius: 6px; border: 1px solid var(--line); }
+  .A-game .meta { display: flex; justify-content: space-between; font-size: 13px; color: var(--t2); }
+  .A-offline { position: absolute; inset: 14px 14px 40px; display: grid; place-content: center; text-align: center; gap: 12px; }
+  .A-offline h3 { margin: 0; font-size: 24px; font-weight: 600; }
+  .A-offline p { margin: 0; color: var(--t2); max-width: 420px; }
+  .A-offline button { justify-self: center; min-height: 44px; padding: 0 22px; border-radius: 10px; border: 0; background: var(--amber); color: #201505; font: 600 16px Bahnschrift, sans-serif; }
+  .A-mission { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; background: var(--s1); }
+  .A-eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--t2); }
+  .A-goal { display: flex; justify-content: space-between; align-items: baseline; }
+  .A-goal strong { font-size: 20px; font-weight: 600; }
+  .A-goal a { color: var(--amber); font-size: 14px; text-decoration: none; }
+  .A-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .A-steps li { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; color: var(--t2); font-size: 15px; }
+  .A-steps li .n { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; }
+  .A-steps li.done { color: var(--t1); } .A-steps li.done .n { background: #2b3d31; border-color: #4f7a5c; color: var(--green); }
+  .A-steps li.now { background: #2d2617; color: var(--t1); outline: 1px solid #6b5326; } .A-steps li.now .n { background: var(--amber); color: #201505; border: 0; }
+  .A-steps li.block { background: #331d1b; outline: 1px solid #7a3d38; color: var(--t1); } .A-steps li.block .n { background: var(--red); color: #2a0d0b; border: 0; }
+  .A-steps li em { font-style: normal; font-size: 13px; color: var(--t2); }
+  .A-now { border-radius: 10px; padding: 12px 14px; background: var(--s2); border: 1px solid var(--line); }
+  .A-now p { margin: 4px 0 0; font-size: 17px; }
+  .A-now.needs { border-color: #7a3d38; background: #2a1918; }
+  .A-cta { margin-top: auto; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .A-cta button { min-height: 48px; border-radius: 10px; font: 600 17px Bahnschrift, sans-serif; border: 1px solid var(--line); background: var(--s2); color: var(--t1); padding: 0 16px; }
+  .A-cta .primary { background: var(--amber); color: #201505; border: 0; }
+  .A-cta .primary:disabled { background: #3b352b; color: #8a8174; }
+  .A-bottom { display: grid; grid-template-columns: 1fr 380px; border-top: 1px solid var(--line); min-height: 0; }
+  .A-find { padding: 10px 14px; overflow: hidden; }
+  .A-find table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .A-find th { text-align: left; font-weight: 400; color: var(--t2); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; padding: 4px 8px; }
+  .A-find td { padding: 6px 8px; border-top: 1px solid var(--line); }
+  .A-find tr.best td { background: #1f2a22; }
+  .tag { font-size: 12px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--t2); }
+  .tag.ok { color: var(--green); border-color: #3f6a4c; }
+  .A-log { padding: 10px 16px; background: var(--s1); border-left: 1px solid var(--line); font-size: 13px; color: var(--t2); overflow: hidden; }
+  .A-log div { padding: 3px 0; } .A-log b { color: var(--t1); font-weight: 400; font-variant-numeric: tabular-nums; margin-right: 8px; }
+  .A-tiles { display: flex; gap: 22px; font-size: 13px; color: var(--t2); }
+  .A-tiles b { display: block; color: var(--t1); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ================= B: Companion strip ================= */
+  .B { width: 1280px; height: 760px; position: relative; border-radius: 10px; overflow: hidden; display: grid; grid-template-columns: 1fr 300px; background: #000; }
+  .B-gamewin { position: relative; }
+  .B-gamewin .title { position: absolute; top: 0; left: 0; right: 0; height: 28px; background: #1e1e1e; color: #ccc; font: 12px "Segoe UI"; display: flex; align-items: center; padding: 0 10px; }
+  .B-gamewin .game { background-size: contain; position: absolute; inset: 28px 0 0 0; }
+  .B-dock { --t1:#eaf2f7; --t2:#a7b8c4; --line:#2a3944; --ok:#6fe0b0; --warn:#ffcf70; --bad:#ff8f8f; --accent:#79c7ff;
+            background: #0f171d; border-left: 1px solid #2a3944; color: var(--t1); display: flex; flex-direction: column; font-family: "Segoe UI", system-ui, sans-serif; }
+  .B-head { padding: 12px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+  .B-head strong { font: 600 15px Bahnschrift, sans-serif; letter-spacing: .03em; }
+  .B-head .attach { margin-left: auto; font-size: 12px; color: var(--t2); }
+  .B-state { padding: 16px 14px; display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+  .ring { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font: 600 15px Bahnschrift, sans-serif; background: conic-gradient(var(--ok) 0 62%, #24323c 62% 100%); position: relative; }
+  .ring::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: #0f171d; }
+  .ring span { position: relative; z-index: 1; }
+  .ring.warn { background: conic-gradient(var(--warn) 0 100%); } .ring.bad { background: conic-gradient(#3a4a55 0 100%); }
+  .B-state h3 { margin: 0; font: 600 18px Bahnschrift, sans-serif; }
+  .B-state p { margin: 2px 0 0; font-size: 13px; color: var(--t2); }
+  .B-keys { padding: 12px 14px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+  .B-key { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: #15212a; color: var(--t1); font: 15px "Segoe UI", sans-serif; text-align: left; }
+  .B-key kbd { font: 12px Consolas, monospace; border: 1px solid #3a4c59; border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; color: var(--t2); }
+  .B-key.stop { border-color: #7a3b3b; background: #2a1517; color: #ffd6d6; font-weight: 600; }
+  .B-key.go { border-color: #2f6b55; background: #12271f; }
+  .B-sec { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .B-sec h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--t2); font-weight: 600; }
+  .B-rows { display: grid; gap: 6px; font-size: 14px; }
+  .B-rows div { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; font-variant-numeric: tabular-nums; }
+  .B-rows .r { color: var(--t2); }
+  .B-vitals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; color: var(--t2); }
+  .B-vitals b { display: block; color: var(--t1); font-size: 16px; font-variant-numeric: tabular-nums; }
+  .bar { height: 4px; border-radius: 2px; background: #24323c; margin-top: 4px; overflow: hidden; } .bar i { display: block; height: 100%; background: var(--ok); }
+  .B-foot { margin-top: auto; padding: 10px 14px; font-size: 12px; color: var(--t2); display: flex; justify-content: space-between; }
+  .B-foot a { color: var(--accent); text-decoration: none; }
+  .B-toast { position: absolute; left: 24px; bottom: 24px; width: 380px; background: rgba(15,23,29,.94); border: 1px solid #6b5326; border-left: 4px solid #ffcf70; border-radius: 10px; padding: 12px 14px; color: #eaf2f7; font: 14px "Segoe UI", sans-serif; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+  .B-toast b { display: block; font: 600 15px Bahnschrift, sans-serif; margin-bottom: 2px; }
+  .B-toast .acts { display: flex; gap: 8px; margin-top: 10px; }
+  .B-toast button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #3a4c59; background: #15212a; color: #eaf2f7; font: inherit; }
+  .B-toast button.p { background: #ffcf70; color: #241803; border: 0; font-weight: 600; }
+  .B-mark { position: absolute; border: 2px dashed rgba(121,199,255,.0); }
+
+  /* ================= C: Remote pocket ================= */
+  .C { display: flex; gap: 34px; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
+  .phone { width: 340px; height: 720px; border-radius: 42px; padding: 12px; background: #1b1b1d; box-shadow: inset 0 0 0 2px #333, 0 20px 50px rgba(0,0,0,.6); }
+  .screen { height: 100%; border-radius: 32px; overflow: hidden; background: #f4f2ee; color: #1c1d1f; display: flex; flex-direction: column; font-family: "Segoe UI", system-ui, sans-serif; position: relative; }
+  .C-status { height: 34px; display: flex; justify-content: space-between; align-items: center; padding: 0 22px; font-size: 13px; font-weight: 600; }
+  .C-head { padding: 6px 18px 10px; }
+  .C-head small { color: #6c6a66; font-size: 13px; }
+  .C-head h3 { margin: 2px 0 0; font: 600 24px/1.15 Bahnschrift, sans-serif; }
+  .C-thumb { margin: 0 14px; height: 168px; border-radius: 18px; position: relative; overflow: hidden; }
+  .C-thumb .age { position: absolute; left: 10px; bottom: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; padding: 3px 8px; border-radius: 99px; }
+  .C-card { margin: 12px 14px 0; background: #fff; border-radius: 18px; padding: 14px 16px; box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+  .C-card .k { font-size: 12px; color: #6c6a66; text-transform: uppercase; letter-spacing: .08em; }
+  .C-card .v { font: 600 20px Bahnschrift, sans-serif; margin-top: 2px; }
+  .C-card p { margin: 4px 0 0; font-size: 14px; color: #3d3c3a; }
+  .C-progress { height: 8px; background: #e7e3dc; border-radius: 4px; margin-top: 10px; overflow: hidden; } .C-progress i { display: block; height: 100%; width: 62%; background: #1f8a5b; border-radius: 4px; }
+  .C-vitals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 14px 0; }
+  .C-vitals div { background: #fff; border-radius: 14px; padding: 10px 12px; font-size: 12px; color: #6c6a66; }
+  .C-vitals b { display: block; font: 600 17px Bahnschrift, sans-serif; color: #1c1d1f; font-variant-numeric: tabular-nums; }
+  .C-actions { margin: auto 14px 14px; display: grid; gap: 8px; }
+  .C-actions button { min-height: 56px; border-radius: 18px; border: 0; font: 600 18px Bahnschrift, sans-serif; }
+  .C-actions .pause { background: #c8372d; color: #fff; }
+  .C-actions .resume { background: #1f8a5b; color: #fff; }
+  .C-actions .sec { background: #e7e3dc; color: #1c1d1f; }
+  .C-alert { margin: 12px 14px 0; background: #fff3d6; border: 1px solid #e8c26a; border-radius: 18px; padding: 14px 16px; font-size: 14px; }
+  .C-alert b { display: block; font: 600 17px Bahnschrift, sans-serif; margin-bottom: 2px; }
+  .C-feed { margin: 8px 14px 0; display: grid; gap: 8px; overflow: hidden; }
+  .C-item { background: #fff; border-radius: 16px; padding: 12px 14px; display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+  .C-item .ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; color: #fff; }
+  .C-item small { display: block; color: #6c6a66; font-size: 12px; }
+  .C-item time { font-size: 12px; color: #6c6a66; }
+  .C-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #e2ded7; background: #faf9f6; padding: 8px 0 16px; font-size: 12px; text-align: center; color: #6c6a66; }
+  .C-tabs .on { color: #1c1d1f; font-weight: 600; }
+  .C-sum { margin: 12px 14px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .C-sum div { background: #fff; border-radius: 16px; padding: 12px 14px; font-size: 12px; color: #6c6a66; }
+  .C-sum b { display: block; font: 600 22px Bahnschrift, sans-serif; color: #1c1d1f; font-variant-numeric: tabular-nums; }
+  .C-chart { margin: 12px 14px 0; background: #fff; border-radius: 18px; padding: 14px 16px; }
+  .C-chart .bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; margin-top: 10px; }
+  .C-chart .bars i { flex: 1; background: #1f8a5b; border-radius: 4px 4px 0 0; opacity: .85; }
+  .C-chart .axis { display: flex; justify-content: space-between; font-size: 11px; color: #6c6a66; margin-top: 4px; }
+
+  .C-slot { background: #fff; border-radius: 16px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; font-size: 14px; }
+  .C-slot b { font: 600 16px Bahnschrift, sans-serif; }
+  .C-slot small { grid-column: 1 / -1; color: #6c6a66; font-size: 12px; }
+  .C-slot .sw { width: 44px; height: 26px; border-radius: 13px; background: #1f8a5b; position: relative; }
+  .C-slot .sw::after { content: ""; position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+  .C-slot .sw.off { background: #cfcac2; } .C-slot .sw.off::after { right: auto; left: 3px; }
+  .C-rules { margin: 12px 14px 0; background: #fff; border-radius: 16px; padding: 12px 14px; font-size: 13px; color: #3d3c3a; }
+  .C-rules div { display: flex; justify-content: space-between; padding: 4px 0; }
+  .C-rules span:last-child { color: #6c6a66; }
+  .compare { margin-top: 36px; }
+  .compare h2 { font: 600 22px Bahnschrift, sans-serif; margin: 0 0 10px; }
+  .compare table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .compare th, .compare td { text-align: left; padding: 10px 12px; border-top: 1px solid #222c34; vertical-align: top; }
+  .compare th { color: #9fb0bd; font-weight: 600; }
+</style>
+</head>
+<body data-state="running">
+<div class="page">
+  <header>
+    <h1>Three directions for the BSGO game control app</h1>
+    <p>Static design proposals dated 2026-10-11. Each one uses a saved game capture from <code>test-data/vision/v1</code>. Readings, findings, and timings are illustrative. They are not live results. Use the state switch to see how each direction handles a normal run, a run that needs you, and a lost game connection.</p>
+  </header>
+
+  <div class="switch">
+    <span class="label">Proposal</span>
+    <div class="seg" id="propSeg">
+      <button aria-pressed="true" data-p="A">A · Mission console</button>
+      <button aria-pressed="false" data-p="B">B · Companion dock</button>
+      <button aria-pressed="false" data-p="C">C · Remote pocket</button>
+    </div>
+    <span class="label" style="margin-left:18px">State</span>
+    <div class="seg" id="stateSeg">
+      <button aria-pressed="true" data-s="running">Running</button>
+      <button aria-pressed="false" data-s="needs">Needs you</button>
+      <button aria-pressed="false" data-s="offline">Game not found</button>
+    </div>
+  </div>
+
+  <!-- ===================== A ===================== -->
+  <section class="proposal on" id="A">
+    <div class="pitch">
+      <div>
+        <h2>A · Mission console: tell it the goal and watch the plan</h2>
+        <p>The app is organised around a <b>mission</b>, such as “Mine Water near the outpost until the hold is full”, rather than individual routines. The mission is shown as a short plan. The app highlights the current step and names any blocker on the step it affects. Scan, approach, and mine become stages of one run instead of separate buttons.</p>
+        <ul>
+          <li>The header has one sentence of status, one owner (“You” or “App”), and a large Pause bound to a hotkey.</li>
+          <li>The game view stays large. When the game is missing, it becomes the place to recover.</li>
+          <li>Findings are shown in a sortable table, with the best target highlighted, next to a plain-language activity log.</li>
+          <li>Diagnostics move to a separate screen for engineers and stay out of the operating view.</li>
+        </ul>
+      </div>
+      <div class="tradeoff">
+        <p><b>Best for:</b> the Autopilot future, long unattended runs, and explaining what the bot is doing.</p>
+        <p><b>Costs:</b> the controller needs a mission and phase model, which partly exists in <code>mission.py</code> and <code>execution_status.py</code>. It also duplicates the game image on the same monitor.</p>
+        <p><b>Replaces:</b> the feature tabs, mode tabs, enable checkbox, scope chips, auto-scan button, action tabs, and Start/Stop. One mission picker and one Start button do the same job.</p>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="A">
+        <div class="A-top">
+          <div class="A-brand">Wingman <small>BSGO</small></div>
+          <span class="pill" data-show="running"><span class="dot"></span>Mining · scanning rock 3 of 7</span>
+          <span class="pill" data-show="needs"><span class="dot amber"></span>Waiting for you · target is out of range</span>
+          <span class="pill" data-show="offline"><span class="dot red"></span>Game window not found</span>
+          <div class="A-auth" data-show="running">Flying: <b>App</b> · since 14:02</div>
+          <div class="A-auth" data-show="needs">Flying: <b>You</b> · app paused at step 3</div>
+          <div class="A-auth" data-show="offline">Flying: <b>You</b> · app has no control</div>
+          <button class="A-pause">Pause <kbd>F8</kbd></button>
+        </div>
+        <div class="A-main">
+          <div class="A-game">
+            <div class="game"></div>
+            <div class="A-offline" data-show="offline">
+              <h3>Open BSGO to continue</h3>
+              <p>The app can't find a visible game window. Start the game or restore it from the taskbar. The app reconnects automatically.</p>
+              <button>Find game window</button>
+            </div>
+            <div class="meta"><span data-show="running needs">Live · 60 fps · captured 0.2 s ago</span><span data-show="offline">Last image: 14:31 · reconnecting every 5 s</span><span>Sector 276 Exrun</span></div>
+          </div>
+          <div class="A-mission">
+            <div>
+              <div class="A-eyebrow">Mission</div>
+              <div class="A-goal"><strong>Mine Water until hold full</strong><a href="#">Change</a></div>
+            </div>
+            <ol class="A-steps">
+              <li class="done"><span class="n">✓</span>Stop in a safe spot<em>done</em></li>
+              <li class="done"><span class="n">✓</span>Scan visible asteroids<em>7 found</em></li>
+              <li class="now" data-show="running"><span class="n">3</span>Choose best Water rock<em>3 / 7</em></li>
+              <li class="block" data-show="needs"><span class="n">!</span>Approach target<em>out of range</em></li>
+              <li class="now" data-show="offline" style="opacity:.6"><span class="n">3</span>Choose best Water rock<em>paused</em></li>
+              <li><span class="n">4</span>Approach to 800 m<em></em></li>
+              <li><span class="n">5</span>Mine with guns 3–6<em></em></li>
+              <li><span class="n">6</span>Repeat until hold full<em>62%</em></li>
+            </ol>
+            <div class="A-now" data-show="running">
+              <div class="A-eyebrow">Now</div>
+              <p>Scanning a 1,416-unit asteroid 2.1 km ahead. Next comes the closest Water rock.</p>
+            </div>
+            <div class="A-now needs" data-show="needs">
+              <div class="A-eyebrow">Needs you</div>
+              <p>The best Water rock is 4.6 km away. That is outside the safe zone limit. Pick another rock, or fly closer and resume.</p>
+            </div>
+            <div class="A-now" data-show="offline">
+              <div class="A-eyebrow">Paused</div>
+              <p>The mission is saved at step 3. It continues after the game window is back and you press Resume.</p>
+            </div>
+            <div class="A-cta">
+              <button class="primary" data-show="running">Running…</button>
+              <button class="primary" data-show="needs">Resume mission</button>
+              <button class="primary" data-show="offline" disabled>Resume mission</button>
+              <button>Stop</button>
+            </div>
+          </div>
+        </div>
+        <div class="A-bottom">
+          <div class="A-find">
+            <table>
+              <thead><tr><th>Asteroid</th><th>Resource</th><th>Amount</th><th>Range</th><th>Checked</th></tr></thead>
+              <tbody>
+                <tr class="best"><td>Rock 1416 ★</td><td>Water</td><td>4,168</td><td>2.1 km</td><td><span class="tag ok" data-show="running needs">verified 4 s ago</span><span class="tag" data-show="offline">checked 14:28 · stale</span></td></tr>
+                <tr><td>Rock 205</td><td>Titanium</td><td>3,456</td><td>2.6 km</td><td><span class="tag ok" data-show="running needs">verified 11 s ago</span><span class="tag" data-show="offline">checked 14:29 · stale</span></td></tr>
+                <tr><td>Rock 9523</td><td>Water</td><td>—</td><td>4.6 km</td><td><span class="tag">outside zone</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="A-log">
+            <div class="A-tiles" style="margin-bottom:8px"><span><b>3,120</b>Water this run</span><span><b>62%</b>Hold</span><span><b>28 min</b>Run time</span></div>
+            <div><b>14:29</b>Scanned rock 205 · Titanium 3,456</div>
+            <div><b>14:28</b>Scanned rock 1416 · Water 4,168</div>
+            <div><b>14:27</b>Stopped. Camera steady.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">1280 × 760 desktop window. Amber marks the current step, red marks a blocked step, and green marks completed or verified items. Each colour also has a text label.</p>
+  </section>
+
+  <!-- ===================== B ===================== -->
+  <section class="proposal" id="B">
+    <div class="pitch">
+      <div>
+        <h2>B · Companion dock: a slim panel docked beside the real game</h2>
+        <p>The app stops copying the game image and docks as a 300 px panel snapped to the side of the BSGO window. You play in the game itself and the dock acts as your co-pilot. Global hotkeys handle the common actions, so you rarely need to leave the game. Alerts appear as toasts near the game.</p>
+        <ul>
+          <li>The ring at the top combines status and progress, with one line of text below it.</li>
+          <li>Each of the four actions shows its hotkey. Pause is always the first action.</li>
+          <li>The panel shows the three most useful findings and the three ship readings that matter: hull, energy, and hold.</li>
+          <li>Everything else, including history, diagnostics, and settings, opens in a separate window.</li>
+        </ul>
+      </div>
+      <div class="tradeoff">
+        <p><b>Best for:</b> Assist mode while you are still flying, one-monitor setups, and getting the most game pixels.</p>
+        <p><b>Costs:</b> it needs a native always-on-top window or a docking helper. The browser page alone cannot snap to the game. Global hotkeys must not clash with game keys.</p>
+        <p><b>Removes:</b> the duplicated game view, the five-tile instrument strip, and the long scrolling rail.</p>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="B">
+        <div class="B-gamewin"><div class="title">BSGO — Battlestar Galactica Online</div><div class="game"></div>
+          <div class="B-toast" data-show="needs">
+            <b>Target out of range</b>
+            The best Water rock is 4.6 km away, outside your safe zone. Fly closer or skip it.
+            <div class="acts"><button class="p">Skip to next rock</button><button>I'll fly closer</button></div>
+          </div>
+        </div>
+        <aside class="B-dock">
+          <div class="B-head"><strong>WINGMAN</strong><span class="attach" data-show="running needs">● docked to BSGO</span><span class="attach" data-show="offline" style="color:#ff8f8f">○ game not found</span></div>
+          <div class="B-state">
+            <div class="ring" data-show="running"><span>62%</span></div>
+            <div class="ring warn" data-show="needs"><span>!</span></div>
+            <div class="ring bad" data-show="offline"><span>—</span></div>
+            <div data-show="running"><h3>Auto-scanning</h3><p>Rock 3 of 7 · you're flying</p></div>
+            <div data-show="needs"><h3>Your call</h3><p>Target out of range · paused</p></div>
+            <div data-show="offline"><h3>Waiting for game</h3><p>Open BSGO and the dock will snap on.</p></div>
+          </div>
+          <div class="B-keys">
+            <button class="B-key stop">Pause everything <kbd>F8</kbd></button>
+            <button class="B-key go" data-show="running offline">Scan this view <kbd>F9</kbd></button>
+            <button class="B-key go" data-show="needs">Skip to next rock <kbd>F9</kbd></button>
+            <button class="B-key">Approach best rock <kbd>F10</kbd></button>
+            <button class="B-key">Toggle auto-scan <kbd>F11</kbd></button>
+          </div>
+          <div class="B-sec">
+            <h4>Best nearby</h4>
+            <div class="B-rows">
+              <div><span>Water · 4,168</span><span class="r">2.1 km</span><span style="color:#6fe0b0">✓</span></div>
+              <div><span>Titanium · 3,456</span><span class="r">2.6 km</span><span style="color:#6fe0b0">✓</span></div>
+              <div><span>Water · —</span><span class="r">4.6 km</span><span class="r">out</span></div>
+            </div>
+          </div>
+          <div class="B-sec">
+            <h4>Ship</h4>
+            <div class="B-vitals">
+              <div>Hull<b>100%</b><div class="bar"><i style="width:100%"></i></div></div>
+              <div>Energy<b>328</b><div class="bar"><i style="width:100%"></i></div></div>
+              <div>Hold<b>62%</b><div class="bar"><i style="width:62%;background:#79c7ff"></i></div></div>
+            </div>
+          </div>
+          <div class="B-foot"><span>Session 28 min · 3,120 Water</span><a href="#">More ›</a></div>
+        </aside>
+      </div>
+    </div>
+    <p class="caption">The game window (left) is untouched, and the app dock (right) sits outside it. In “Needs you”, a toast appears in the corner of the game area. The toast would be a separate overlay window, not pixels drawn into the game.</p>
+  </section>
+
+  <!-- ===================== C ===================== -->
+  <section class="proposal" id="C">
+    <div class="pitch">
+      <div>
+        <h2>C · Remote pocket: check on the run and intervene from another device</h2>
+        <p>This direction treats the app as true <b>remote game control</b>. The PC runs the bot, and you check it from your phone, tablet, or a second screen on the LAN. The phone gives a quick status view, sends alerts that need a decision, and offers a large Pause. Setup and diagnostics stay on the desktop.</p>
+        <ul>
+          <li><b>Now:</b> a live thumbnail, one status sentence, run progress, three vitals, and Pause and Resume buttons in thumb reach.</li>
+          <li><b>Alerts:</b> a feed of decisions and events, each with a single action.</li>
+          <li><b>Summary:</b> what the session produced, shown as a reward-per-time chart.</li>
+          <li>Light theme for daylight readability on a phone. The game stays dark, and the app does not need to match it.</li>
+        </ul>
+      </div>
+      <div class="tradeoff">
+        <p><b>Best for:</b> long Autopilot or NPC-farm sessions where you are away from the PC.</p>
+        <p><b>Costs:</b> it needs a LAN-reachable server with authentication or pairing (it is loopback-only today), push notifications, and a safe remote-stop contract. Remote input raises safety stakes, so Pause must be confirmed and acknowledged.</p>
+        <p><b>Pairs with:</b> A or B on the desktop. C is a second surface, not a replacement.</p>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="C">
+        <div class="phone"><div class="screen">
+          <div class="C-status"><span>14:30</span><span>●●● 5G</span></div>
+          <div class="C-head"><small>Wingman · Gaming PC</small>
+            <h3 data-show="running">Mining Water</h3><h3 data-show="needs">Needs your decision</h3><h3 data-show="offline">Game closed</h3></div>
+          <div class="C-thumb game"><span class="age" data-show="running needs">Live · 1 s ago</span><span class="age" data-show="offline">Last seen 14:31</span></div>
+          <div class="C-card" data-show="running"><div class="k">Now</div><div class="v">Scanning rock 3 of 7</div><p>Hold 62% · about 17 min to full</p><div class="C-progress"><i></i></div></div>
+          <div class="C-alert" data-show="needs"><b>Target out of range</b>The best rock is 4.6 km away, outside the safe zone. The app paused and you have control.</div>
+          <div class="C-alert" data-show="offline" style="background:#fde3e1;border-color:#e59b94"><b>BSGO window disappeared</b>The app has stopped and holds no control. Restart the game on the PC to continue.</div>
+          <div class="C-vitals"><div>Hull<b>100%</b></div><div>Energy<b>328</b></div><div>Water<b>3,120</b></div></div>
+          <div class="C-actions">
+            <button class="pause" data-show="running">Pause bot</button>
+            <button class="resume" data-show="needs">Skip to next rock</button>
+            <button class="sec" data-show="needs">Keep paused</button>
+            <button class="sec" data-show="offline">Notify me when it's back</button>
+          </div>
+          <div class="C-tabs"><span class="on">Now</span><span>Alerts</span><span>Schedule</span><span>Summary</span></div>
+        </div></div>
+
+        <div class="phone"><div class="screen">
+          <div class="C-status"><span>14:30</span><span>●●● 5G</span></div>
+          <div class="C-head"><small>Today</small><h3>Alerts</h3></div>
+          <div class="C-feed">
+            <div class="C-item"><span class="ic" style="background:#d49a1d">!</span><span>Target out of range<small>Waiting for your decision</small></span><time>14:30</time></div>
+            <div class="C-item"><span class="ic" style="background:#1f8a5b">✓</span><span>Rock 1416 scanned<small>Water 4,168 · 2.1 km</small></span><time>14:28</time></div>
+            <div class="C-item"><span class="ic" style="background:#1f8a5b">✓</span><span>Hold reached 50%<small>2,540 Water</small></span><time>14:19</time></div>
+            <div class="C-item"><span class="ic" style="background:#c8372d">■</span><span>Paused by you<small>from phone · acknowledged 0.4 s</small></span><time>14:11</time></div>
+            <div class="C-item"><span class="ic" style="background:#5a6670">i</span><span>Run started<small>Mine Water until hold full</small></span><time>14:02</time></div>
+          </div>
+          <div class="C-tabs" style="margin-top:auto"><span>Now</span><span class="on">Alerts</span><span>Schedule</span><span>Summary</span></div>
+        </div></div>
+
+        <div class="phone"><div class="screen">
+          <div class="C-status"><span>14:30</span><span>●●● 5G</span></div>
+          <div class="C-head"><small>Gaming PC · runs while you're away</small><h3>Schedule</h3></div>
+          <div class="C-feed">
+            <div class="C-slot"><b>NPC farm · Raiders</b><span class="sw"></span><small>Tonight 22:00–02:00 · 2–8 s between passes</small></div>
+            <div class="C-slot"><b>Mine Water</b><span class="sw"></span><small>Sat 09:00 · until hold full · then dock</small></div>
+            <div class="C-slot"><b>Mine Titanium</b><span class="sw off"></span><small>Weekdays 18:00 · 1 h · paused by you</small></div>
+          </div>
+          <div class="C-rules">
+            <div><span>Stop if hull below</span><span>60%</span></div>
+            <div><span>Stop if an enemy player is near</span><span>Always</span></div>
+            <div><span>If game closes</span><span>Stop and notify</span></div>
+            <div><span>Notify me</span><span>Decisions + stops</span></div>
+          </div>
+          <div class="C-actions"><button class="resume">+ New scheduled run</button></div>
+          <div class="C-tabs"><span>Now</span><span>Alerts</span><span class="on">Schedule</span><span>Summary</span></div>
+        </div></div>
+
+        <div class="phone"><div class="screen">
+          <div class="C-status"><span>14:30</span><span>●●● 5G</span></div>
+          <div class="C-head"><small>Session · 28 min</small><h3>Summary</h3></div>
+          <div class="C-sum"><div>Water<b>3,120</b></div><div>Per hour<b>6,690</b></div><div>Rocks mined<b>4</b></div><div>Interventions<b>1</b></div></div>
+          <div class="C-chart"><div class="C-card k" style="padding:0;box-shadow:none;margin:0">Water per 5 min</div>
+            <div class="bars"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:20%"></i><i style="height:70%"></i><i style="height:90%"></i></div>
+            <div class="axis"><span>14:02</span><span>14:30</span></div></div>
+          <div class="C-actions"><button class="sec">Open full report on PC</button></div>
+          <div class="C-tabs"><span>Now</span><span>Alerts</span><span>Schedule</span><span class="on">Summary</span></div>
+        </div></div>
+      </div>
+    </div>
+    <p class="caption">Four tabs on a phone: Now, Alerts, Schedule, and Summary. The state switch changes the first screen. Numbers are illustrative.</p>
+  </section>
+
+  <section class="compare">
+    <h2>How the three compare</h2>
+    <table>
+      <tr><th></th><th>A · Mission console</th><th>B · Companion dock</th><th>C · Remote pocket</th></tr>
+      <tr><td>Mental model</td><td>“Give it a goal, watch the plan.”</td><td>“A co-pilot next to my game.”</td><td>“Check on the bot from my phone.”</td></tr>
+      <tr><td>Primary mode</td><td>Autopilot</td><td>Assist</td><td>Monitoring Autopilot or NPC farm</td></tr>
+      <tr><td>Game image</td><td>Mirrored, large</td><td>Not mirrored; the real window is used</td><td>Thumbnail</td></tr>
+      <tr><td>Main control</td><td>Mission picker + Start/Resume</td><td>Hotkeys F8–F11</td><td>Pause / decision buttons</td></tr>
+      <tr><td>Build effort</td><td>Medium: restructure the page and add a mission model</td><td>Medium–high: native docking window and global hotkeys</td><td>High: LAN access, authentication, notifications, remote-stop safety</td></tr>
+      <tr><td>Reuses today's code</td><td>Most of it</td><td>Controller and observation API</td><td>Controller, status API, history</td></tr>
+    </table>
+  </section>
+</div>
+<script>
+  const props = document.querySelectorAll('#propSeg button');
+  props.forEach(b => b.addEventListener('click', () => {
+    props.forEach(x => x.setAttribute('aria-pressed', x === b));
+    document.querySelectorAll('.proposal').forEach(s => s.classList.toggle('on', s.id === b.dataset.p));
+  }));
+  const states = document.querySelectorAll('#stateSeg button');
+  states.forEach(b => b.addEventListener('click', () => {
+    states.forEach(x => x.setAttribute('aria-pressed', x === b));
+    document.body.dataset.state = b.dataset.s;
+  }));
+</script>
+</body>
+</html>

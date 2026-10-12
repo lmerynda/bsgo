@@ -12,6 +12,10 @@ The [October 11 design critique](cockpit-critique-20261011/critique.md) reviews 
 
 This is a reviewable refinement; it does not supersede the selected direction or change the production UI. The October 7 implementation record is historical: later changes added visible scanning and NPC rehearsal, so current capability claims should be checked against current source.
 
+## Product directions (October 11, evening)
+
+The [product-level critique](remote-control-proposals-20261011/critique.md) asks what the app should be, beyond fixes to the existing layout. Its [interactive mockups](remote-control-proposals-20261011/proposals.html) compare three directions in Running, Needs-you, and Game-not-found states: **A · Mission console**, **B · Companion dock**, and **C · Remote pocket**. **Selected 2026-10-11: [B + C together](remote-control-proposals-20261011/selected-direction.md).** The Companion dock is the in-game helper, and the Remote pocket is the remote control for scheduled farming. Both run on one shared core. The mockups are design proposals; production is not yet changed.
+
 ## Preserved proposals
 
 All eight original Astra concept images are retained in Git under [cockpit-astra-20261007](cockpit-astra-20261007/README.md). Keep them as inspiration when real verification identifies a better arrangement; selecting a direction does not discard the alternatives.
