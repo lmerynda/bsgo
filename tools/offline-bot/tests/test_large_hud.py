@@ -278,6 +278,23 @@ class LargeHudTests(unittest.TestCase):
             else:
                 self.assertFalse(field.valid,damage)
 
+    def test_measured_flight_star_on_row_15_is_scenery_not_a_glyph(self):
+        # Live approach frame, October 12: a star one row below the glyphs split
+        # a valid 4436 and aborted the approach. Touching glyph ink still rejects.
+        data = json.loads((ROOT/'largehud-calibration.json').read_text())
+        for damage in (None,'touch_glyph'):
+            im = fixture_image()
+            with Image.open(FIXTURES/'distance-4436-flight-star-row15.png') as crop:
+                im.paste(crop,tuple(data['distance_box'][:2]))
+            if damage == 'touch_glyph':
+                ImageDraw.Draw(im).point((data['distance_box'][0]+38,data['distance_box'][1]+15),fill='white')
+            field = HudRecognizer(PROFILE)(native(im)).fields['distance']
+            if damage is None:
+                self.assertEqual(field.value,4436)
+                self.assertTrue(field.valid)
+            else:
+                self.assertFalse(field.valid,damage)
+
     def test_measured_three_digit_hp_ratio_has_complete_anchored_glyphs(self):
         data = json.loads((ROOT/'largehud-calibration.json').read_text())
         for damage in (None,'clip_three','remove_three','clip_one','remove_separator',

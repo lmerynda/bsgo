@@ -81,8 +81,10 @@ class LargeHudReader:
         # Complete native distance glyphs end at row14. A wholly empty row15
         # proves any lower pixels are separate scenery, such as the measured
         # star below516. Keep connected intrusions for the geometry rejection.
-        if not a[15].any():
-            a[16:] = False
+        # Row-15 ink touching no row-14 glyph ink is scenery too: a star passing
+        # behind the translucent panel in flight split a valid 4436 this way.
+        if not (a[15] & np.convolve(a[14], [1, 1, 1], 'same').astype(bool)).any():
+            a[15:] = False
         gs = pieces(a)
         if (not 1 <= len(gs) <= 6 or a[:2].any() or a[-2:].any()
                 or a[:, :2].any() or a[:, -2:].any()):
