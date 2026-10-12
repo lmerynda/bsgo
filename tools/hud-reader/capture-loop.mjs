@@ -4,7 +4,7 @@ import { performance } from 'node:perf_hooks';
 import path from 'node:path';
 const root=path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/,'$1'));
 
-export async function runCaptureLoop({sky,window,count=10,intervalMs=2000,outputDirectory=path.join(root,'runs'),
+export async function runCaptureLoop({sky,window,count=10,intervalMs=2000,outputDirectory=path.join(root,'..','..','logs','hud-reader'),
   onObservation=()=>{},onError=()=>{},observer,signal,maxDurationMs=120000,now=()=>performance.now()}={}) {
   if (!Number.isInteger(count)||count<1||count>1000)throw Error('count must be 1..1000');
   if(intervalMs<100)throw Error('intervalMs must be >=100');

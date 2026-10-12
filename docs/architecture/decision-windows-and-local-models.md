@@ -1,10 +1,10 @@
 # Decision windows and local model selection
 
-> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](archive/README.md). New experiment outputs are local runtime artifacts.
+> Historical record: the logs, captures and corpora named below were deleted in the October 12, 2026 cleanup and are no longer in the repository or its history. New runtime output goes to `logs/`.
 
 Three to six seconds is not an established acceptable decision time for the mining application. The first Qwen3-VL tests measured screenshot descriptions, not the application's full recognition and action loop. Motion control needs a deadline derived from closing distance and stopping behavior; choosing a target while stopped can have a longer window. Model selection should follow the task and its deadline.
 
-This research was checked on October 1, 2026. It combines publisher model cards with small local diagnostics on the RTX 4070 through Ollama 0.35.0. A subsequent [saved screenshot comparison](vision-model-comparison.md) exercised five models, including the smaller Qwen, FastVLM, and SmolVLM candidates. The remaining candidates in this research are untested on this desktop.
+This research was checked on October 1, 2026. It combines publisher model cards with small local diagnostics on the RTX 4070 through Ollama 0.35.0. A subsequent saved screenshot comparison (deleted) exercised five models, including the smaller Qwen, FastVLM, and SmolVLM candidates. The remaining candidates in this research are untested on this desktop.
 
 ## What the first timings actually measured
 

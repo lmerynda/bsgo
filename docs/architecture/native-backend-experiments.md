@@ -1,6 +1,6 @@
 # Native capture and input experiments
 
-> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](archive/README.md). New experiment outputs are local runtime artifacts.
+> Historical record: the logs, captures and corpora named below were deleted in the October 12, 2026 cleanup and are no longer in the repository or its history. New runtime output goes to `logs/`.
 
 The standalone Python harness now has Windows capture and input backends, plus a small native receiver application for testing them without the game. Capture runs on the existing recognition thread and publishes immutable state in memory. The receiver is a separate process because this experiment measures delivery across a real application boundary; it does not make a separate recognition service part of the bot architecture.
 

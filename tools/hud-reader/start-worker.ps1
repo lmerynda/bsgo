@@ -3,7 +3,7 @@ param(
     [ValidateRange(30,300)][int]$MaxSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
-$runDirectory = Join-Path $PSScriptRoot ('runs/' + $RunName)
+$runDirectory = Join-Path $PSScriptRoot ('../../logs/hud-reader/' + $RunName)  # logs/ is the runtime data area
 if (Test-Path -LiteralPath $runDirectory) { throw 'Choose a fresh run name; this directory already exists.' }
 $pythonPath = 'C:\Users\lmery\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
 if (!(Test-Path -LiteralPath $pythonPath)) { throw 'Prepared Python runtime is missing.' }

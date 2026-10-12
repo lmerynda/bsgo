@@ -46,7 +46,7 @@ An early acceptance run exposed mapping-proxy transition payloads that the JSON 
 
 The inventory tool verified all **307 frozen input hashes** and grouped the **304 real captures into 50 source groups**. It produced 78 first/last source-group review candidates. These are inventory samples, not 78 new accuracy labels. [Inventory](../../logs/offline-bot/improvement/evidence-inventory/inventory.json).
 
-Four directly reviewed examples now have scene annotations in a separate [v2 mining evidence manifest](../../test-data/vision/v2-mining/manifest.json): flight, hangar and map. They reference frozen original bytes with hashes and are development examples. The v1 images and labels were not modified. These annotations do not label scan completion, mining activation, inventory or rewards.
+Four directly reviewed examples now have scene annotations in a separate v2 mining evidence manifest (deleted): flight, hangar and map. They reference frozen original bytes with hashes and are development examples. The v1 images and labels were not modified. These annotations do not label scan completion, mining activation, inventory or rewards.
 
 The retained screenshots show scanned rock colors, HUD values and combat-log text. They do not yet form an independently labeled, action-linked evaluation set for each new mining field. Color alone does not supply a selected-target locator or the completion time of a requested scan. Damage or disappearance alone does not establish our firing or a reward. A reward line or progress counter must not be treated as an inventory total or repeatedly counted on successive frames.
 
@@ -57,7 +57,7 @@ The next perception work needs labels that identify the selected object and scan
 ## Saved resource-notification reader, October 7, 2026
 
 Task 9 now has a separate CPU reader for visible Water/Tylium notification text.
-The [v3 evidence corpus](../../test-data/vision/v3-reward-notices/README.md)
+The v3 evidence corpus (deleted)
 contains 17 manually reviewed notification-only crops from three retained native
 firing runs. Original hashes, acquisition sequences, monotonic times and crop
 pixels were verified against local diagnostic sidecars. The frozen v1/v2 data

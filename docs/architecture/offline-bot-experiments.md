@@ -1,6 +1,6 @@
 # Offline recognition and input experiments
 
-> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](archive/README.md). New experiment outputs are local runtime artifacts.
+> Historical record: the logs, captures and corpora named below were deleted in the October 12, 2026 cleanup and are no longer in the repository or its history. New runtime output goes to `logs/`.
 
 The Python harness implements independent recognition, immutable published state, a guarded coordinator, recording-only keyboard/mouse input, a synthetic receiver, and cancellable delayed planner proposals. This tests the proposed application boundaries without accessing the game. Python remains the current implementation choice. Recent telemetry now rolls over in memory, while a separate disk journal preserves the event stream when logging succeeds. The real OCR replay and synthetic control model are deliberately separate; the latter's physics are invented test parameters.
 

@@ -46,7 +46,7 @@ All code paths below are relative to `tools/offline-bot/bsgo_offline/` unless st
 | `trace.py` and `artifacts.py` | Nonblocking diagnostic submission, bounded memory, archived traces and reports |
 | `../tests/` | Existing policy, concurrency, input, native mock, history and integration regressions |
 
-Read [the architecture](standalone-mining-app.md), [offline results](offline-bot-experiments.md), [native limits](native-backend-experiments.md), and [the corpus limitations](vision-corpus-benchmark.md). Before a future live task, also read the current project ship-control and mining skills. Do not copy stale key mappings or equipment assumptions out of old logs.
+Read [the architecture](standalone-mining-app.md), [offline results](offline-bot-experiments.md), [native limits](native-backend-experiments.md), and the corpus limitations (deleted). Before a future live task, also read the current project ship-control and mining skills. Do not copy stale key mappings or equipment assumptions out of old logs.
 
 ## Target responsibilities
 

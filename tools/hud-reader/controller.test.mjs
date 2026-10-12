@@ -13,7 +13,7 @@ function frame(distance,speed,index,extra={}) {
     target_portrait:Array(144).fill(2),...extra};
 }
 async function harness(name,frames,options={}) {
-  const directory=path.join(root,'runs','mock-tests',name+'-'+Date.now());
+  const directory=path.join(root,'..','..','logs','hud-reader','mock-tests',name+'-'+Date.now());
   const actions=[];const keys=[];let position=0;
   const sky={
     drag:async()=>{throw Error('Throttle commands must use keyboard shortcuts');},
@@ -97,7 +97,7 @@ test('live mode needs visually verified corridor and heading; G needs wanted res
 });
 
 test('awaits observation hook before another frame',async()=>{
-  const calls=[];const directory=path.join(root,'runs','mock-tests','await-hook-'+Date.now());
+  const calls=[];const directory=path.join(root,'..','..','logs','hud-reader','mock-tests','await-hook-'+Date.now());
   await runCaptureLoop({outputDirectory:directory,count:2,intervalMs:100,observer:async({id})=>{
     calls.push('frame'+id);return{state:{screenshots:[{id:String(id)}]},row:frame(1100,0,id)};
   },onObservation:async(row)=>{calls.push('hook-start');await new Promise(r=>setTimeout(r,20));calls.push('hook-end');}});
@@ -105,7 +105,7 @@ test('awaits observation hook before another frame',async()=>{
 });
 
 test('wrong OCR response request ID is rejected before callback',async()=>{
-  const directory=path.join(root,'runs','mock-tests','correlation-'+Date.now());await fs.mkdir(directory,{recursive:true});
+  const directory=path.join(root,'..','..','logs','hud-reader','mock-tests','correlation-'+Date.now());await fs.mkdir(directory,{recursive:true});
   const png=await fs.readFile(path.join(root,'sample.png'));let hookCalled=false;
   const worker=(async()=>{
     for(let i=0;i<100;i++){
@@ -154,7 +154,7 @@ test('partially acknowledged but stalled deceleration reissues stop',async()=>{
   await assert.rejects(h.run,/Braking stalled/);assert.deepEqual(h.actions,['full','zero','zero','cleanup-snapshot']);
 });
 test('fresh consecutive captures may legitimately reuse screenshot-0',async()=>{
-  const rows=[];const directory=path.join(root,'runs','mock-tests','same-id-'+Date.now());
+  const rows=[];const directory=path.join(root,'..','..','logs','hud-reader','mock-tests','same-id-'+Date.now());
   await runCaptureLoop({outputDirectory:directory,count:3,intervalMs:100,observer:async({id})=>({
     state:{screenshots:[{id:'screenshot-0'}]},row:frame(1100-id*50,id?44:0,id)
   }),onObservation:row=>rows.push(row)});

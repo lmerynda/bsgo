@@ -1,6 +1,6 @@
 # Offline bot experiments
 
-> Historical evidence: original log paths below identify archived records, not current checkout files. Raw packages remain recoverable from Git; see the [artifact policy and recovery guide](../../docs/architecture/archive/README.md). New experiment outputs are local runtime artifacts.
+> Historical record: the logs, captures and corpora named below were deleted in the October 12, 2026 cleanup and are no longer in the repository or its history. New runtime output goes to `logs/`.
 
 This Python harness tests the mining application's observation and control boundaries without opening or controlling BSGO. It supports real OCR on saved screenshots, a synthetic receiver that consumes recorded mouse/keyboard requests, and an opt-in native Windows test against its own receiver window. Python remains the current implementation choice. Memory retains recent telemetry, while a separate disk journal records events beyond those recent windows. The synthetic receiver's motion is an invented test model, not measured game physics.
 
@@ -48,12 +48,12 @@ The new runtime observes stopping after a fault using speed alone, independently
 ## Saved screenshot recognition
 
 A limited offline resource-notification reader and its manually labeled native
-crops are documented in [the v3 corpus](../../test-data/vision/v3-reward-notices/README.md).
+crops were measured on a v3 corpus that has since been deleted; its tests use the packed fixtures.
 Run `evaluate_reward_notices.py` to verify and score them without game access.
 This reader reports visible notice text only; it is not enabled in the default
 runtime and cannot produce inventory deltas, attributed rewards or mission success.
 
-`replay` defaults to the 25-frame `sol-tylium-live-2321` run in the [frozen corpus](../../test-data/vision/v1/README.md). `--source-run`, `--limit`, `--interval`, `--profile`, and `--consumer-delay` configure the experiment. Recognition owns its thread and publishes deeply immutable snapshots into a short-lock shared store. The delayed consumer retrieves already published state and never requests recognition.
+`replay` defaults to the `sol-tylium-live-2321` run of the deleted v1 corpus; only the four frames its tests use survive, restored from `tools/test-fixtures`, so replay is now a test seam rather than a corpus tool. `--source-run`, `--limit`, `--interval`, `--profile`, and `--consumer-delay` configure the experiment. Recognition owns its thread and publishes deeply immutable snapshots into a short-lock shared store. The delayed consumer retrieves already published state and never requests recognition.
 
 Frames are ordered by their original capture names and ordinals, rather than hash filenames. Capture-run boundaries change the session epoch. Acquisition times belong to the synthetic replay schedule; they do not recreate original game rendering timestamps. The explicit original/restart calibration profile is not inferred from successful reads. Invalid current fields remain unknown, with OCR rejection evidence available separately. A normal finite replay preserves its last observation and marks the source exhausted; its age continues to increase. A source or recognizer exception publishes unhealthy state with unknown fields.
 

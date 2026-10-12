@@ -9,7 +9,7 @@ const root=path.dirname(fileURLToPath(import.meta.url));
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 test('retains original screenshots and links an OCR timeout to its current image',async()=>{
-  const directory=path.join(root,'runs','mock-tests','retention-'+Date.now());
+  const directory=path.join(root,'..','..','logs','hud-reader','mock-tests','retention-'+Date.now());
   const original=await fs.readFile(path.join(root,'fixtures','live','live-01.png'));
   let worker;
   const sky={get_window_state:async()=>{
@@ -50,7 +50,7 @@ test('retains original screenshots and links an OCR timeout to its current image
 });
 
 test('injected test observations are distinguishable from real capture inputs',async()=>{
-  const directory=path.join(root,'runs','mock-tests','provenance-'+Date.now());
+  const directory=path.join(root,'..','..','logs','hud-reader','mock-tests','provenance-'+Date.now());
   const result=await runCaptureLoop({outputDirectory:directory,count:1,
     observer:async()=>({state:{screenshots:[{id:'injected'}]},row:{valid:true,reasons:[]}})});
   assert.equal(result.rows[0].source,'injected_observation');

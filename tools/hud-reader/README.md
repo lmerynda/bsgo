@@ -219,14 +219,18 @@ recognition over 780 calls per version measured median **1.55 → 1.10 ms**, p95
 These timings exclude capture and are not a new live-loop measurement. The
 historical raw capture/cycle/control timings are retained separately in the audit.
 
-Run the saved-image audit and measured contamination regressions with:
+Run the measured contamination regressions with:
 
 ```powershell
-& $hudPython tools\hud-reader\accuracy_audit.py
 & $hudPython tools\hud-reader\test_observed_background.py
 ```
 
-The following describes the original development corpus and trials:
+The saved-image accuracy audit, its corpus and results were deleted in the
+October 12, 2026 cleanup; the figures above are a historical record.
+
+The following describes the original development corpus and trials. Those
+captures, results and `calibrate_restart.py` were deleted on October 12, 2026;
+the calibrated fonts they produced remain in the calibration JSON files.
 
 - Added **10 real screenshots**, manually labeled in `fixtures/manifest.json`.
   All 10 distance/speed readings were exact. Four asteroid frames were valid;
@@ -324,7 +328,7 @@ returned window objects:
 globalThis.hudLoop = await import('file:///C:/Projects/bsgo/tools/hud-reader/capture-loop.mjs');
 globalThis.hudResult = await hudLoop.runCaptureLoop({
   sky, window: bsgoWindow, count: 10, intervalMs: 2000,
-  outputDirectory: 'C:/Projects/bsgo/tools/hud-reader/runs/new-trial'
+  outputDirectory: 'C:/Projects/bsgo/logs/hud-reader/new-trial'
 });
 nodeRepl.write(JSON.stringify(hudResult.rows));
 ```
@@ -399,7 +403,7 @@ globalThis.approachModule = await import('file:///C:/Projects/bsgo/tools/hud-rea
 // Read one fresh HUD frame and report the planned action; no game inputs.
 globalThis.approachResult = await approachModule.runApproach({
   sky, window: bsgoWindow, mode: 'dry-run',
-  outputDirectory: 'C:/Projects/bsgo/tools/hud-reader/runs/approach-canary'
+  outputDirectory: 'C:/Projects/bsgo/logs/hud-reader/approach-canary'
 });
 ```
 
@@ -414,7 +418,7 @@ globalThis.approachResult = await approachModule.runApproach({
   brakeAt: 900, intervalMs: 2000, count: 40, maxDurationMs: 90000,
   wantedResource: true, fireWhenBraking: false,
   signal: approachAbort.signal,
-  outputDirectory: 'C:/Projects/bsgo/tools/hud-reader/runs/approach-live-canary'
+  outputDirectory: 'C:/Projects/bsgo/logs/hud-reader/approach-live-canary'
 });
 ```
 
