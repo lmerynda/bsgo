@@ -167,6 +167,62 @@ class EasyLauncherTests(unittest.TestCase):
             self.assertFalse(launcher.startup_snapshot()["action_control"]["enabled"])
             self.assertTrue(launcher.close())
 
+    def test_fit_game_window_resizes_unsupported_client_then_reconnects_paused(self):
+        with scratch_directory() as directory:
+            windows=[WindowGeometry(17,42,GAME_TITLE,(3192,1806),(20,30))]
+            fitted=[]
+            def fit(hwnd,size):
+                fitted.append((hwnd,size))
+                windows[0]=WindowGeometry(17,42,GAME_TITLE,size,(20,30))
+                return size
+            sessions=[]
+            def session(output,**args):
+                sessions.append(args["configuration"]["client_size"])
+                controller=ManualAssistController(output,snapshot_provider=snapshot,paused=True)
+                args["on_ready"](controller,None)
+                cancel=Path(args["cancel_file"])
+                deadline=time.monotonic()+2
+                while not cancel.exists() and time.monotonic()<deadline:time.sleep(.01)
+                controller.close()
+                return {"shutdown":{"recognition":True,"source":True,"manual_actions":True,"observer_server":True},"error":None}
+            launcher=self.create(directory,discover=lambda:list(windows),fit_window=fit,
+                binding=lambda hwnd,*args,**kw:(windows[0],Mock(),lambda:Mock(),Mock(),lambda:None,None),
+                session_runner=session)
+            launcher.retry_connection()
+            deadline=time.monotonic()+2
+            while launcher.startup_snapshot()["phase"]!="connected" and time.monotonic()<deadline:time.sleep(.01)
+            self.assertFalse(launcher.startup_snapshot()["game"]["startup_layout"]["control_supported"])
+            outcome=launcher.fit_game_window()
+            self.assertTrue(outcome["accepted"],outcome)
+            self.assertEqual(fitted,[(17,(2560,1440))])
+            deadline=time.monotonic()+3
+            while len(sessions)<2 and time.monotonic()<deadline:time.sleep(.01)
+            while launcher.startup_snapshot()["phase"]!="connected" and time.monotonic()<deadline:time.sleep(.01)
+            state=launcher.startup_snapshot()
+            self.assertEqual(sessions,[(3192,1806),(2560,1440)])
+            self.assertTrue(state["game"]["startup_layout"]["control_supported"])
+            self.assertFalse(state["action_control"]["enabled"],"fitting never enables actions")
+            self.assertEqual(launcher.fit_game_window()["reason"],"game_window_already_validated_size")
+            self.assertEqual(len(fitted),1)
+            Path(state["game"]["cancel_file"]).write_text("done",encoding="utf-8")
+            wait_done(launcher)
+            self.assertTrue(launcher.close())
+
+    def test_fit_game_window_refusals_keep_session_and_never_resize(self):
+        with scratch_directory() as directory:
+            fit=Mock(side_effect=ValueError("game_monitor_too_small_for_validated_size"))
+            small=WindowGeometry(17,42,GAME_TITLE,(1920,1080),(0,0))
+            for candidates,reason in (([],"game_window_not_found"),([small,small],"game_window_not_unique")):
+                launcher=self.create(directory,discover=lambda:candidates,fit_window=fit)
+                self.assertEqual(launcher.fit_game_window()["reason"],reason)
+                fit.assert_not_called()
+            launcher=self.create(directory,discover=lambda:[small],fit_window=fit)
+            outcome=launcher.fit_game_window()
+            self.assertFalse(outcome["accepted"])
+            self.assertEqual(outcome["reason"],"game_monitor_too_small_for_validated_size")
+            launcher=self.create(directory,discover=lambda:[small],fit_window=lambda hwnd,size:(1920,1080))
+            self.assertEqual(launcher.fit_game_window()["reason"],"game_window_size_not_applied")
+
     def test_failed_worker_shutdown_blocks_retry_even_without_input_owner(self):
         with scratch_directory() as directory:
             binding=Mock(return_value=(GAME,Mock(),lambda:Mock(),Mock(),lambda:None,None))

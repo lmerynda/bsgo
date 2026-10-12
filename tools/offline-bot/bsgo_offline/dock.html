@@ -136,8 +136,14 @@ const WORDS={
   cancel_requested:'Stopped.',view_changed_restart_scan:'The view moved; scan again.',
   fresh_stationary_full_hull_scene_required:'Needs a still view with full hull.',
   manual_actions_already_paused:'Already paused.',manual_actions_paused_ack:'Paused.',
+  game_monitor_too_small_for_validated_size:'This monitor is too small for a 2560 × 1440 game window.',
+  game_window_maximized:'Restore the game window (not maximized), then try again.',
+  game_window_minimized:'Restore the game window, then try again.',
+  game_window_size_not_applied:'The game did not accept the new size. Check its windowed resolution.',
+  game_window_not_found:'No game window found.',game_window_not_unique:'Keep one game window open.',
 };
 const human=code=>{ if(!code) return ''; const text=String(code); if(WORDS[text]) return WORDS[text];
+  if(/^source_failure/.test(text)) return /geometry changed/i.test(text)?'The game window was moved or resized.':'Lost the game image.';
   if(/\s/.test(text)) return text; const s=text.replace(/[_:]+/g,' ').trim(); return s.charAt(0).toUpperCase()+s.slice(1)+'.'; };
 const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleString('en-US'):'—';
 
@@ -226,6 +232,7 @@ async function stateAction(){
   const kind=$('stateaction').dataset.kind; if(!kind || inFlight) return; inFlight=true;
   try {
     if(kind==='retry'){ const d=await post('/api/startup',{action:'retry_connection'}); notice(d.accepted?'Looking for the game window…':human(d.reason)); }
+    if(kind==='fit'){ const d=await post('/api/startup',{action:'fit_game_window'}); notice(d.accepted?'Game window resized. Reconnecting…':human(d.reason)); }
     if(kind==='enable'){ const token=control().acknowledgment_token;
       const d=await post('/api/startup',{action:'enable_manual_actions',acknowledgment_token:token});
       notice(d.accepted?'Actions enabled. F8 pauses at any time.':human(d.reason||d.error)); }
@@ -248,7 +255,8 @@ function render(){
     if(startup?.retry_available && !connecting) act={kind:'retry',text:'Find game window'};
   } else if(layout?.control_supported===false){
     tone='warn'; mark='i'; title='Watching only';
-    const size=startup?.game?.client_size; line=`The game window is ${size?size.join(' × '):'an unsupported size'}. Set it to 2560 × 1440 for actions and ship readings.`;
+    const size=startup?.game?.client_size; line=`The game window is ${size?size.join(' × '):'an unsupported size'}. Actions need 2560 × 1440.`;
+    act={kind:'fit',text:'Fit game to 2560 × 1440'};
   } else if(startup?.features?.mining?.enabled===false){ tone='warn'; mark='i'; title='Mining is off'; line='Turn mining on in the full dashboard.'; }
   else if(active){
     const r=routines()[active]||{}; tone='live'; mark='▶'; title=LABEL[active]||'Working';

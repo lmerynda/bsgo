@@ -683,7 +683,7 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 elif path == "/api/startup":
                     if not isinstance(data, dict) or data.get("action") not in (
                             "retry_connection", "enable_manual_actions", "pause_manual_actions",
-                            "set_focus_handover"):
+                            "set_focus_handover", "fit_game_window"):
                         self._json(400, {"error": "invalid_startup_action"})
                         return
                     action = data["action"]
@@ -698,6 +698,10 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                     with actions_lock:
                         if action == "retry_connection":
                             decision = startup.retry_connection()
+                        elif action == "fit_game_window":
+                            fit = getattr(startup, "fit_game_window", None)
+                            decision = fit() if callable(fit) else {
+                                "accepted": False, "reason": "fit_game_window_unavailable"}
                         elif action == "enable_manual_actions":
                             decision = startup.resume_actions(acknowledgment_token=token)
                         elif action == "set_focus_handover":

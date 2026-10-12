@@ -19,7 +19,7 @@ from .manual_routines import GuardedManualRoutines
 from .observer_ui import UnattachedManualActions,make_server
 from .side_panel import SidePanel
 from .dock_window import DockFollower,open_panel
-from .startup_layout import PROFILE,StartupLayout
+from .startup_layout import CALIBRATED_SIZE,PROFILE,StartupLayout
 from .game_observation import game_state_view
 
 
@@ -59,6 +59,57 @@ def discover_game_windows():
     return candidates
 
 
+def fit_game_client(hwnd,client_size):
+    """Resize the window so its physical client area is client_size.
+
+    A window-manager resize only: no focus change, activation or game input.
+    The window keeps its position unless it would leave its monitor's work area.
+    """
+    from ctypes import wintypes
+    from .native_capture import _get_api
+    user32=ctypes.WinDLL("user32",use_last_error=True)
+    handle=ctypes.c_void_p
+    class MONITORINFO(ctypes.Structure):
+        _fields_=[("cbSize",wintypes.DWORD),("rcMonitor",wintypes.RECT),
+                  ("rcWork",wintypes.RECT),("dwFlags",wintypes.DWORD)]
+    for name,result,args in [
+            ("GetWindowRect",wintypes.BOOL,[handle,ctypes.POINTER(wintypes.RECT)]),
+            ("GetClientRect",wintypes.BOOL,[handle,ctypes.POINTER(wintypes.RECT)]),
+            ("IsZoomed",wintypes.BOOL,[handle]),("IsIconic",wintypes.BOOL,[handle]),
+            ("MonitorFromWindow",handle,[handle,wintypes.DWORD]),
+            ("GetMonitorInfoW",wintypes.BOOL,[handle,ctypes.POINTER(MONITORINFO)]),
+            ("SetWindowPos",wintypes.BOOL,[handle,handle,ctypes.c_int,ctypes.c_int,
+                ctypes.c_int,ctypes.c_int,wintypes.UINT])]:
+        function=getattr(user32,name)
+        function.restype,function.argtypes=result,args
+    width,height=client_size
+    with _get_api().dpi_context():
+        if user32.IsIconic(hwnd):
+            raise ValueError("game_window_minimized")
+        if user32.IsZoomed(hwnd):
+            raise ValueError("game_window_maximized")
+        outer,inner=wintypes.RECT(),wintypes.RECT()
+        if not user32.GetWindowRect(hwnd,ctypes.byref(outer)) or not user32.GetClientRect(hwnd,ctypes.byref(inner)):
+            raise ValueError("game_window_geometry_unreadable")
+        frame_w=(outer.right-outer.left)-inner.right
+        frame_h=(outer.bottom-outer.top)-inner.bottom
+        total_w,total_h=width+frame_w,height+frame_h
+        info=MONITORINFO(cbSize=ctypes.sizeof(MONITORINFO))
+        if not user32.GetMonitorInfoW(user32.MonitorFromWindow(hwnd,2),ctypes.byref(info)):
+            raise ValueError("game_monitor_unreadable")
+        work=info.rcWork
+        if total_w>work.right-work.left or total_h>work.bottom-work.top:
+            raise ValueError("game_monitor_too_small_for_validated_size")
+        left=min(max(outer.left,work.left),work.right-total_w)
+        top=min(max(outer.top,work.top),work.bottom-total_h)
+        # SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER
+        if not user32.SetWindowPos(hwnd,None,left,top,total_w,total_h,0x0004|0x0010|0x0200):
+            raise ValueError("game_window_resize_refused")
+        if not user32.GetClientRect(hwnd,ctypes.byref(inner)):
+            raise ValueError("game_window_geometry_unreadable")
+    return (inner.right,inner.bottom)
+
+
 def _marker_reader(sample,result):
     from .selected_scan_vision import locate_selected_marker,classify_selected_marker
     selected=result.fields.get("asteroid_selected")
@@ -78,11 +129,13 @@ def _marker_reader(sample,result):
 class EasyLauncher:
     """Persistent UI supervisor with at most one drained, pinned game session."""
     def __init__(self,workspace,runs_root,*,pause_file,discover=discover_game_windows,
-                 binding=native_binding,session_runner=run_manual_assist_session,synthetic=False):
+                 binding=native_binding,session_runner=run_manual_assist_session,synthetic=False,
+                 fit_window=fit_game_client):
         self.workspace,self.runs_root=Path(workspace).resolve(),Path(runs_root).resolve()
         self.runs_root.mkdir(parents=True,exist_ok=True)
         self.pause_file=Path(pause_file).resolve()
         self.discover,self.binding,self.session_runner=discover,binding,session_runner
+        self.fit_window=fit_window
         self.synthetic=synthetic
         self.instance_id=uuid4().hex
         self._lock=Lock()
@@ -291,6 +344,50 @@ class EasyLauncher:
                 self._thread.start()
         return {"accepted":reason is None,"reason":reason or "connection_retry_started",
                 "state":self.startup_snapshot()}
+
+    def fit_game_window(self):
+        """Resize the game client to the validated size, then reconnect."""
+        with self._lock:
+            reason="launcher_closed" if self._closed else None
+            if self._cleanup_unresolved:
+                reason=reason or "previous_session_shutdown_unresolved"
+            controller,thread,cancel=self._controller,self._thread,self._cancel
+        if controller and controller.actions_snapshot()["ownership"]["owner"] is not None:
+            reason=reason or "input_owner_busy"
+        if reason:
+            return {"accepted":False,"reason":reason,"state":self.startup_snapshot()}
+        try:
+            candidates=list(self.discover())
+        except Exception as exc:
+            return {"accepted":False,"reason":"game_window_discovery_failed: "+type(exc).__name__,
+                    "state":self.startup_snapshot()}
+        windows=[candidate for candidate in candidates if not isinstance(candidate,dict)]
+        if len(candidates)!=1 or len(windows)!=1:
+            return {"accepted":False,"reason":"game_window_not_unique" if candidates else "game_window_not_found",
+                    "state":self.startup_snapshot()}
+        game=windows[0]
+        if tuple(game.client_size)!=CALIBRATED_SIZE:
+            try:
+                fitted=tuple(self.fit_window(game.hwnd,CALIBRATED_SIZE))
+            except Exception as exc:
+                return {"accepted":False,"reason":str(exc) if isinstance(exc,ValueError) else
+                        "game_window_resize_failed: "+type(exc).__name__,"state":self.startup_snapshot()}
+            if fitted!=CALIBRATED_SIZE:
+                return {"accepted":False,"reason":"game_window_size_not_applied","state":self.startup_snapshot()}
+        elif self.startup_snapshot()["phase"]=="connected":
+            return {"accepted":True,"reason":"game_window_already_validated_size","state":self.startup_snapshot()}
+        # The resize invalidates the pinned capture session; end it and reconnect
+        # at the new size off the request thread.
+        if thread and thread.is_alive() and cancel:
+            cancel.write_text("game window fitted to validated size",encoding="utf-8")
+        with self._lock:
+            self._phase,self._reason="connecting","Game window fitted; reconnecting at 2560x1440."
+        def reconnect():
+            if thread:
+                thread.join(15.)
+            self.retry_connection()
+        Thread(target=reconnect,daemon=True,name="manual-dashboard-fit").start()
+        return {"accepted":True,"reason":"game_window_fitted","state":self.startup_snapshot()}
 
     def _connect(self):
         session_entered=False

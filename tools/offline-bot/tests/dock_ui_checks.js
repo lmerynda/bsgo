@@ -83,9 +83,12 @@ const scenarios={
     const startup=connected({enabled:false,paused:true,acknowledgment_token:'ack-1'});
     startup.game={startup_layout:{control_supported:false},client_size:[1920,1080]};
     await boot(startup,readyActions({paused:true}));
-    const s=status();assert.equal(s.title,'Watching only');assert.equal(s.act,null);assert.match(s.line,/1920 × 1080/);
+    const s=status();assert.equal(s.title,'Watching only');assert.equal(s.act,'Fit game to 2560 × 1440');assert.match(s.line,/1920 × 1080/);
     assert.equal(small('scan_view'),'Actions need the game at 2560 × 1440.');assert.equal(el('checksec').hidden,true);
     assert.equal(el('rows').textContent,'Asteroids you scan will be listed here.');
+    assert.equal(posts.length,0,'polling never resizes the game');
+    await click('stateaction');
+    assert.deepEqual(posts,[{url:'/api/startup',body:{action:'fit_game_window'}}],'fit never enables actions');
   },
   async status_paused_and_enable(){
     await boot(connected({enabled:false,paused:true,acknowledgment_token:'ack-7'}),readyActions({paused:true}));
