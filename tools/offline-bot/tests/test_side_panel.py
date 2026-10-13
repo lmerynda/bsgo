@@ -18,15 +18,18 @@ RIGHT = (2560, 0, 5120, 1392)
 
 
 class PlacementTests(unittest.TestCase):
-    def test_panel_sits_on_the_monitor_touching_the_game(self):
-        self.assertEqual(dock_placement((0, 0, 2560, 1440), [LEFT, RIGHT], 300),
-                         (2560, 0, 300, 1392, "beside_right"))
+    def test_panel_takes_the_right_edge_of_the_games_screen(self):
+        # Windowed game on the left screen: the panel stays on that screen, full work height.
+        self.assertEqual(dock_placement((100, 50, 2000, 1200), [LEFT, RIGHT], 300),
+                         (2260, 0, 300, 1392, "beside_right"))
+        # Game on the right screen: never jump to the neighbouring screen.
         self.assertEqual(dock_placement((2560, 0, 5120, 1440), [LEFT, RIGHT], 300),
-                         (2260, 0, 300, 1392, "beside_left"))
+                         (4820, 0, 300, 1392, "over_game"))
 
-    def test_single_monitor_overlays_the_game_right_edge(self):
-        self.assertEqual(dock_placement((100, 50, 2000, 1200), [LEFT], 300),
-                         (1700, 50, 300, 1150, "overlay"))
+    def test_a_game_reaching_the_edge_is_overlapped_and_height_never_exceeds_the_screen(self):
+        x, y, width, height, mode = dock_placement((0, 0, 2560, 1440), [LEFT], 300)
+        self.assertEqual((x, y, width, height, mode), (2260, 0, 300, 1392, "over_game"))
+        self.assertLessEqual(y + height, LEFT[3])
 
     def test_without_a_game_the_panel_waits_on_the_primary_monitor(self):
         self.assertEqual(dock_placement(None, [LEFT, RIGHT], 300), (2260, 0, 300, 1392, "waiting"))
@@ -59,8 +62,9 @@ class FollowerTests(unittest.TestCase):
     def test_tick_snaps_panel_with_display_scaling(self):
         win32 = FakeWin32()
         state = DockFollower(win32=win32, width=320).tick()
-        self.assertEqual(win32.placed, [(7, (2560, 0, 480, 1392))])
-        self.assertEqual(state["mode"], "beside_right")
+        # 320 CSS px at 150% is 480 physical px, on the game's own screen.
+        self.assertEqual(win32.placed, [(7, (2080, 0, 480, 1392))])
+        self.assertEqual(state["mode"], "over_game")
         self.assertTrue(state["game"])
 
     def test_missing_panel_is_never_placed(self):
@@ -77,6 +81,16 @@ class FollowerTests(unittest.TestCase):
             self.assertIn("--app=http://127.0.0.1:1/dock", arguments)
             self.assertIn(f"--user-data-dir={directory / 'profile'}", arguments)
             self.assertIn("--window-position=10,20", arguments)
+
+    def test_open_panel_converts_physical_placement_to_scaled_browser_units(self):
+        # 150% scaling: the 2088 px tall work area must not open 3132 px tall.
+        with scratch_directory() as directory:
+            popen = Mock(return_value="process")
+            open_panel("http://127.0.0.1:1/dock", directory / "profile", (3360, 0, 480, 2088, "beside_right"),
+                       browser="edge.exe", popen=popen, scale=1.5)
+            arguments = popen.call_args.args[0]
+            self.assertIn("--window-position=2240,0", arguments)
+            self.assertIn("--window-size=320,1392", arguments)
 
     def test_missing_browser_is_reported(self):
         from bsgo_offline.dock_window import find_browser

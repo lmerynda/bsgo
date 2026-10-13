@@ -568,7 +568,8 @@ def main():
         if args.no_browser:
             return
         # A running instance keeps the panel docked; a repeat launch only reopens it.
-        opened=open_panel(url+"dock",local/"side-panel-profile",DockFollower().placement())
+        placement,scale=DockFollower().placement()
+        opened=open_panel(url+"dock",local/"side-panel-profile",placement,scale=scale)
         if args.dashboard or not opened:
             webbrowser.open(url)
 
@@ -609,6 +610,8 @@ def main():
         print(f"Mining dashboard: {url}",flush=True)
         # Hotkeys never send game input: F8 pauses, F9-F11 are requests the panel checks.
         registered=panel.start_hotkeys(server.hotkey_pause)
+        # Snap any Wingman window to the game's screen, even one opened by a repeat launch.
+        panel.follower.start()
         print("Hotkeys: "+", ".join(f"{key} {'ready' if ok else 'unavailable'}" for key,ok in registered.items()),flush=True)
         if not args.no_browser:
             opened=panel.open(url)

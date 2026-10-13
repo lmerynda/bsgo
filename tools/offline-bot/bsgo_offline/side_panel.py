@@ -26,8 +26,8 @@ class SidePanel:
         return self.hotkeys.start()
 
     def open(self, base_url):
-        placement = self.follower.placement()
-        self.process = self.opener(base_url.rstrip("/") + "/dock", self.profile_directory, placement)
+        placement, scale = self.follower.placement()
+        self.process = self.opener(base_url.rstrip("/") + "/dock", self.profile_directory, placement, scale=scale)
         self.window_reason = None if self.process else "edge_or_chrome_not_found"
         self.follower.start()
         return self.process is not None

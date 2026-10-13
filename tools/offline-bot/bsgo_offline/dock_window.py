@@ -27,26 +27,19 @@ def _overlap(a, b):
 def dock_placement(game, monitors, width=PANEL_WIDTH):
     """Return (x, y, width, height, mode) for rectangles given as (left, top, right, bottom).
 
-    Prefer the monitor touching the game's right edge, then its left edge, so the
-    panel sits beside the game. With no neighbour, overlay the game's right edge.
+    The panel takes the right edge of the screen the game is on, top to bottom of
+    that screen's work area (never under the taskbar or off-screen). It overlaps
+    the game only if the game reaches that edge. Without a game it waits on the
+    primary screen.
     """
     if not monitors:
         raise ValueError("monitor_work_areas_required")
-    if game is None:
-        area = monitors[0]
-        return area[2] - width, area[1], width, area[3] - area[1], "waiting"
-    home = max(monitors, key=lambda area: _overlap(game, area))
-    for area in monitors:
-        vertical = min(area[3], home[3]) - max(area[1], home[1])
-        if area is not home and vertical > 0 and area[0] == home[2]:
-            return area[0], area[1], width, area[3] - area[1], "beside_right"
-    for area in monitors:
-        vertical = min(area[3], home[3]) - max(area[1], home[1])
-        if area is not home and vertical > 0 and area[2] == home[0]:
-            return area[2] - width, area[1], width, area[3] - area[1], "beside_left"
-    top, bottom = max(game[1], home[1]), min(game[3], home[3])
-    right = min(game[2], home[2])
-    return right - width, top, width, bottom - top, "overlay"
+    home = monitors[0] if game is None else max(monitors, key=lambda area: _overlap(game, area))
+    width = min(width, home[2] - home[0])
+    x = home[2] - width
+    mode = "waiting" if game is None else "over_game" if game[2] > x and _overlap(
+        game, (x, home[1], home[2], home[3])) else "beside_right"
+    return x, home[1], width, home[3] - home[1], mode
 
 
 def find_browser(environ=os.environ):
@@ -77,6 +70,8 @@ class _Win32:
         user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
         user32.GetDpiForWindow.argtypes = [wintypes.HWND]
         user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.c_void_p]
+        user32.MonitorFromPoint.argtypes = [wintypes.POINT, wintypes.DWORD]
+        user32.MonitorFromPoint.restype = wintypes.HMONITOR
         self.monitor_callback = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
                                                    ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)
         user32.EnumDisplayMonitors.argtypes = [wintypes.HDC, ctypes.c_void_p, self.monitor_callback,
@@ -85,6 +80,17 @@ class _Win32:
     def scale(self, hwnd):
         dpi = self.user32.GetDpiForWindow(hwnd) if hwnd else 0
         return dpi / 96 if dpi else 1.
+
+    def point_scale(self, x, y):
+        """Display scaling of the screen containing physical point (x, y)."""
+        try:
+            monitor = self.user32.MonitorFromPoint(wintypes.POINT(x, y), 2)
+            dpi_x, dpi_y = ctypes.c_uint(), ctypes.c_uint()
+            if ctypes.windll.shcore.GetDpiForMonitor(monitor, 0, ctypes.byref(dpi_x), ctypes.byref(dpi_y)) == 0:
+                return dpi_x.value / 96
+        except (AttributeError, OSError):
+            pass
+        return 1.
 
     def per_monitor_dpi(self):
         return self.user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
@@ -130,12 +136,16 @@ class _Win32:
                                              SWP_NOACTIVATE | SWP_SHOWWINDOW))
 
 
-def open_panel(url, profile_directory, placement, *, browser=None, popen=subprocess.Popen):
-    """Launch an app-mode browser window with its own profile; returns the process or None."""
+def open_panel(url, profile_directory, placement, *, browser=None, popen=subprocess.Popen, scale=1.):
+    """Launch an app-mode browser window with its own profile; returns the process or None.
+
+    `placement` is in physical pixels; the browser's window switches take scaled
+    (DIP) units, so divide by the screen's scale or the window opens too large.
+    """
     browser = browser or find_browser()
     if browser is None:
         return None
-    x, y, width, height, _ = placement
+    x, y, width, height = (round(value / scale) for value in placement[:4])
     Path(profile_directory).mkdir(parents=True, exist_ok=True)
     return popen([str(browser), f"--app={url}", f"--user-data-dir={profile_directory}",
                   f"--window-position={x},{y}", f"--window-size={width},{height}",
@@ -169,15 +179,21 @@ class DockFollower:
         return self.last
 
     def placement(self):
+        """Physical-pixel placement for a new panel, plus that screen's scale."""
         win32 = self.win32 or _Win32()
         previous = win32.per_monitor_dpi()
         try:
             game_rect = win32.rect(win32.find(GAME_TITLE))
-            return dock_placement(game_rect, win32.monitors(), self.width)
+            monitors = win32.monitors()
+            home = monitors[0] if game_rect is None else max(monitors, key=lambda a: _overlap(game_rect, a))
+            scale = win32.point_scale(home[0] + 1, home[1] + 1)
+            return dock_placement(game_rect, monitors, round(self.width * scale)), scale
         finally:
             win32.restore_dpi(previous)
 
     def start(self):
+        if self._thread and self._thread.is_alive():
+            return  # one follower per process, however often the panel is (re)opened
         def run():
             self.win32 = self.win32 or _Win32()
             self.win32.per_monitor_dpi()

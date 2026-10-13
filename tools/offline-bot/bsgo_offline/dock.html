@@ -418,7 +418,7 @@ function render(){
 
   $('attach').innerHTML=''; const dot=document.createElement('span');
   dot.className='dot '+(connected()?'ok':statusOk?'warn':'bad'); $('attach').append(dot,
-    document.createTextNode(connected()?(dock?.window?.mode==='overlay'?'on the game':'beside the game'):'no game'));
+    document.createTextNode(connected()?(dock?.window?.mode==='over_game'?'on the game':'beside the game'):'no game'));
 
   for(const action of Object.keys(ROUTINE)){
     const el=$('k-'+action), r=readiness(action), name=ROUTINE[action];
