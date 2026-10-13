@@ -141,6 +141,10 @@
       <li data-step="pause"><i>5</i><b>Next enemy</b><small id="loop-pause">When it dies, stalls or leaves range</small></li>
     </ol>
     <div class="loopstats" id="loop-stats">Not running.</div>
+    <div class="rows" id="npc-stats" style="margin-top:8px">
+      <div><span class="r" id="st-run-label">This run</span><span id="st-run">—</span></div>
+      <div><span class="r">Today</span><span id="st-day">—</span></div>
+    </div>
   </section>
 
   <section class="sec" id="findsec">
@@ -198,7 +202,7 @@ const fmt=n=>typeof n==='number'&&Number.isFinite(n)?Math.round(n).toLocaleStrin
 
 let startup=null, actions=null, game=null, dock=null, statusOk=false, inFlight=false;
 let seenHotkey=null, checks={visible:null,target:null}, noticeUntil=0, lastActive=null;
-let mode='mining';
+let mode='mining', npcStats=null;
 try { if(localStorage.getItem('wingman-mode')==='npc') mode='npc'; } catch {}
 
 
@@ -339,6 +343,23 @@ function renderLoop(){
     $('loop-stats').textContent=running?'Starting…':'Not running.';
   }
 }
+const span=sec=>{ if(!Number.isFinite(sec)) return '—'; sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  return h?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m ${String(s).padStart(2,'0')}s`; };
+const rate=(kills,sec)=>Number.isFinite(kills)&&sec>=60?` · ${Math.round(kills*3600/sec)}/h`:'';
+function renderStats(){
+  const r=routines().npc_fight||{}, loop=activeRoutine()==='npc_fight'?r.loop:null, d=npcStats;
+  if(loop){ $('st-run-label').textContent='This run';
+    $('st-run').textContent=`${fmt(loop.kills||0)} kills · ${span(loop.run_seconds)}${rate(loop.kills,loop.run_seconds)}`; }
+  else if(d?.last_run){ $('st-run-label').textContent='Last run';
+    $('st-run').textContent=`${fmt(d.last_run.kills||0)} kills · ${fmt(d.last_run.bursts||0)} bursts · ${span(d.last_run.seconds)}`; }
+  else { $('st-run-label').textContent='This run'; $('st-run').textContent='—'; }
+  $('st-day').textContent=d&&Number.isFinite(d.runs)
+    ? `${fmt(d.kills)} kills · ${fmt(d.bursts)} bursts · ${span(d.seconds)} · ${d.runs} run${d.runs===1?'':'s'}${rate(d.kills,d.seconds)}`
+    : '—';
+}
+async function refreshStats(){ if(mode!=='npc') return;
+  try { const d=await getJson('/api/npc-stats'); npcStats=d&&Number.isFinite(d.runs)?d:null; } catch { npcStats=null; } }
 function npcReadiness(){
   const r=routines().npc_fight||{}, active=activeRoutine();
   if(active==='npc_fight') return {ok:true,running:true};
@@ -442,7 +463,7 @@ function render(){
   fk.disabled=inFlight; fk.setAttribute('aria-disabled',String(!nf.ok));
   fk.querySelector('.label').textContent=nf.running?'Stop Auto-fight':'Auto-fight';
   fk.querySelector('small').textContent=nf.running?'Running · press again to stop':nf.ok?'Ready':nf.why;
-  renderLoop();
+  renderLoop(); renderStats();
 
   const visible=routines().scan_nearby_unscanned?.visible_scan;
   const statuses={selecting:'Selecting…',scanning:'Scanning…',already_scanned:'Already scanned',selection_unverified:'Could not select',outside_scanner_range:'Out of range',scan_sent_result_unverified:'Result unreadable',scan_color_observed:'Scanned'};
@@ -506,11 +527,13 @@ function setMode(next){
   if(next===mode) return;
   if(activeRoutine()){ notice(next==='npc'?'Stop the running action before switching to NPC farming.':'Stop Auto-fight before switching to Asteroids.'); return; }
   mode=next; clearChecks(); try { localStorage.setItem('wingman-mode',mode); } catch {}
+  refreshStats();
   render();
 }
 $('m-mining').addEventListener('click',()=>setMode('mining'));
 $('m-npc').addEventListener('click',()=>setMode('npc'));
 $('k-npc_fight').addEventListener('click',()=>npcTrigger('button'));
+setInterval(refreshStats,2000); refreshStats();
 
 refresh(); refreshGame();
 setInterval(refresh,400); setInterval(refreshGame,1000);

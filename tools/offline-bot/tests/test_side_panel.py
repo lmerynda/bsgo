@@ -156,6 +156,9 @@ class RouteTests(unittest.TestCase):
                 self.assertTrue(claim({"action": "claim_hotkey", "sequence": 1})["accepted"])
                 self.assertFalse(claim({"action": "claim_hotkey", "sequence": 1})["accepted"])
                 self.assertEqual(claim({"action": "claim_hotkey", "sequence": "1"}), {"error": "invalid_dock_request"})
+                launcher.npc_stats_snapshot.return_value = {"runs": 2, "kills": 9}
+                with urlopen(base + "/api/npc-stats", timeout=3) as response:
+                    self.assertEqual(json.load(response), {"runs": 2, "kills": 9})
                 self.assertTrue(server.hotkey_pause()["accepted"])
                 launcher.pause_actions.assert_called_once_with()
             finally:

@@ -542,6 +542,13 @@ def make_server(runs_root: Path, port: int = 8765, mode_controller=None,
                 except Exception as exc:
                     self._json(503, {'error': 'game_state_unavailable', 'cause': type(exc).__name__})
                 return
+            if request.path == '/api/npc-stats':
+                provider = getattr(startup, 'npc_stats_snapshot', None)
+                if not callable(provider):
+                    self._json(503, {'error': 'npc_stats_unavailable'})
+                    return
+                self._json(200, provider())
+                return
             if request.path == '/api/features':
                 provider = getattr(startup, 'features_snapshot', None)
                 self._json(200 if callable(provider) else 503,

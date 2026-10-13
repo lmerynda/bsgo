@@ -40,6 +40,9 @@ class DockUiTests(unittest.TestCase):
     def test_npc_mode_toggle_hides_mining_and_ignores_mining_keys(self):
         self.run_scenario("npc_mode_toggle_hides_mining_and_ignores_mining_keys")
 
+    def test_npc_stats_show_this_run_last_run_and_today(self):
+        self.run_scenario("npc_stats_show_this_run_last_run_and_today")
+
     def test_unreachable_app_is_reported(self):
         self.run_scenario("status_app_down")
 

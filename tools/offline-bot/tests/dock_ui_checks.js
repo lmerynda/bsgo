@@ -33,7 +33,9 @@ const loopNow=()=>el('npc-loop').children.filter(li=>li.classes.has('now')).map(
 
 // Server state the fake fetch serves; scenarios mutate these between polls.
 const S={startup:null,actions:null,dock:{hotkeys:{sequence:0,last:null,registered:{F8:true,F9:true,F10:true,F11:true}},window:{mode:'beside_right'}},
-  game:{ship:{},target:{present:false}},npc:{environment:'simulation',input_authorized:false,phase:'idle',pass_number:0},down:false,replies:{}};
+  game:{ship:{},target:{present:false}},npc:{environment:'simulation',input_authorized:false,phase:'idle',pass_number:0},
+  npcStats:{date:'2026-10-12',runs:4,kills:31,bursts:168,engaged:40,skipped:9,seconds:3840,
+    last_run:{kills:7,bursts:42,seconds:725,ended:true}},down:false,replies:{}};
 const posts=[];
 async function fakeFetch(url,options={}){
   if(S.down)throw new Error('connection refused');
@@ -42,7 +44,7 @@ async function fakeFetch(url,options={}){
     if(body.action==='enable_manual_actions' && reply.accepted){S.startup={...S.startup,action_control:{enabled:true,paused:false}};
       if(S.actions)S.actions={...S.actions,paused:false};}
     return {json:async()=>reply};}
-  const row={'/api/startup':S.startup,'/api/manual-actions':S.actions,'/api/dock':S.dock,'/api/game-state':S.game,'/api/npc-farm':S.npc}[url];
+  const row={'/api/startup':S.startup,'/api/manual-actions':S.actions,'/api/dock':S.dock,'/api/game-state':S.game,'/api/npc-farm':S.npc,'/api/npc-stats':S.npcStats}[url];
   if(row===undefined)throw new Error('unexpected '+url);
   return {json:async()=>JSON.parse(JSON.stringify(row))};
 }
@@ -215,6 +217,19 @@ const scenarios={
     S.actions=readyActions({ownership:{owner:'approach_current_target',state:'active'},routines:{...readyActions().routines,
       approach_current_target:{...idleRoutine,active:true,state:'active'}}});await poll();
     assert.equal(el('m-npc').disabled,true);await click('m-npc');assert.equal(el('m-npc').attrs['aria-pressed'],'false');
+  },
+  async npc_stats_show_this_run_last_run_and_today(){
+    await boot(connected(),readyActions());await click('m-npc');await ctx.refreshStats();await poll();
+    // Idle: the latest run from today's file, plus today's totals.
+    assert.equal(el('st-run-label').textContent,'Last run');assert.equal(el('st-run').textContent,'7 kills · 42 bursts · 12m 05s');
+    assert.equal(el('st-day').textContent,'31 kills · 168 bursts · 1h 04m · 4 runs · 29/h');
+    // Running: live counters from the loop, with a kill rate once a minute has passed.
+    S.actions=readyActions({ownership:{owner:'npc_fight',state:'active'},routines:{...readyActions().routines,
+      npc_fight:{...idleRoutine,active:true,state:'active',loop:{step:'watch',kills:7,bursts:42,run_seconds:725}}}});await poll();
+    assert.equal(el('st-run-label').textContent,'This run');assert.equal(el('st-run').textContent,'7 kills · 12m 05s · 35/h');
+    // No stats service: dashes, never invented numbers.
+    S.npcStats=undefined;S.actions=readyActions();await ctx.refreshStats();await poll();
+    assert.equal(el('st-day').textContent,'—');assert.equal(el('st-run').textContent,'—');
   },
   async status_app_down(){
     await boot(connected(),readyActions());S.down=true;await poll();

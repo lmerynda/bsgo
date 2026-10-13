@@ -42,7 +42,8 @@ def _window(value, name, low, high):
 def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_size,
                   cancel_file, scope="native", fire=(.1, .3), delay=(1., 2.), max_cycles=None,
                   rng=None, delivery_timeout=1.5, on_cycle=None, guns_state=None,
-                  observe=None, max_range=2500, confirm_timeout=1.5, settle=.15, stall_seconds=8.):
+                  observe=None, max_range=2500, confirm_timeout=1.5, settle=.15, stall_seconds=8.,
+                  stats_directory=None):
     """Repeat X, G, hold `fire` s, G, pause `delay` s until canceled."""
     fire_lo, fire_hi = _window(fire, "fire", .05, 5)
     lo, hi = _window(delay, "delay", .2, 10)
@@ -69,6 +70,14 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
               "fired": 0, "skipped": {}, "last_target": None, "kills": 0, "outcomes": {},
               "engaged": None, "last_outcome": None,
               "unverified": ["target_kind", "target_hostility", "hits", "kills", "rewards"]}
+
+    from .npc_stats import RunRecorder
+    recorder = RunRecorder(stats_directory, diagnostic.journal.run_id) if stats_directory else None
+    started = time.monotonic()
+
+    def counters():
+        return {"kills": result["kills"], "bursts": result["cycles"], "engaged": result["fired"],
+                "skipped": sum(result["skipped"].values())}
 
     def canceled():
         try:
@@ -200,7 +209,10 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
                   "fire_ms": [round(fire_lo * 1000), round(fire_hi * 1000)], "pause_s": [lo, hi],
                   "max_range": max_range, "kills": result["kills"], "bursts": result["cycles"],
                   "engaged": result["engaged"], "last_outcome": result["last_outcome"],
-                  "stall_s": stall_seconds})
+                  "stall_s": stall_seconds, "run_seconds": round(time.monotonic() - started, 1),
+                  "engaged_targets": result["fired"]})
+        if recorder:
+            recorder.record(counters())
 
     try:
         diagnostic.attach(worker=None, store=None, coordinator=None, backend=backend)
@@ -304,6 +316,9 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
         shutdown["input_idle"] = not backend.pending_requests and not backend.held_keys
         shutdown["recognition"] = shutdown["source"] = True  # this loop owns neither
     result["cancel_requested"] = canceled()
+    if recorder:
+        recorder.record(counters(), force=True, ended=True)
+        result["stats_error"] = recorder.error
     report = diagnostic.close(shutdown=shutdown, result=result, error=error)
     report["result"] = plain(result)
     _write_json(diagnostic.directory / "report.json", report)

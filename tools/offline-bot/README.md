@@ -559,7 +559,10 @@ title), Auto-fight then stays on that target: every 1–2 s it reads the HP from
 fresh image and bursts again while the HP keeps dropping. It presses X once the
 target dies (HP 0, or the card vanishes after damage), switches, leaves range,
 takes no damage for 8 s, or its HP stays unreadable; hidden HP (`-- / --`) is
-unknown, never a number. The panel's loop shows the live HP and kill count.
+unknown, never a number. The panel's loop shows the live HP and kill count. Under it, **This run** shows kills,
+run time and kills per hour (the last run between runs) and **Today** the day's
+totals. Each run writes its counters to `logs/npc-stats/<YYYY-MM-DD>.json` (a
+run crossing midnight is split), served read-only at `/api/npc-stats`.
 
 Passive observation now uses exact-HWND Windows Graphics Capture, with the
 Windows packages pinned in `requirements.txt`. An overlapping cockpit window

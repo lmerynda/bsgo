@@ -167,6 +167,14 @@ class EasyLauncher:
         state = feed.game_state_snapshot() if feed else game_state_view(None, time.monotonic())
         return {**state, 'features': self.features_snapshot()}
 
+    @property
+    def stats_directory(self):
+        return self.workspace/"logs"/"npc-stats"
+
+    def npc_stats_snapshot(self):
+        from .npc_stats import daily_summary
+        return daily_summary(self.stats_directory)
+
     def features_snapshot(self):
         return {'mining': {'enabled': self.mining_enabled(), 'switchable': True},
                 'game_observation': {'enabled': True, 'switchable': False}}
@@ -430,6 +438,7 @@ class EasyLauncher:
                 frame_size=geometry.client_size,configuration=configuration,
                 scope="synthetic" if self.synthetic else "native",wheel_point=wheel_point,
                 flight_point_assessed=False)
+            runner.stats_directory=self.stats_directory
             def connected(controller,server):
                 with self._lock:
                     self._controller=controller
