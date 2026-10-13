@@ -205,6 +205,73 @@ class NpcFightTests(unittest.TestCase):
             self.assertEqual((loop["fired"], loop["skipped"], loop["checked"]), (2, 4, True))
             self.assertIn(loop["step"], ("select", "check", "fire", "pause"))
 
+    def run_engagement(self, script, stop_after_x=3, **options):
+        """script(x_count, bursts_since_x) -> selected_target card dict or None.
+
+        The run stops at the X press number `stop_after_x`, so every test ends.
+        """
+        made, sequence, stop = [], [0], []
+        def observe():
+            keys = made[0].keys if made else []
+            x_count = keys.count("X")
+            if x_count >= stop_after_x and stop:
+                stop[0].write_text("done", encoding="utf-8")
+            since = keys[len(keys) - keys[::-1].index("X"):] if "X" in keys else []
+            at = time.monotonic()
+            card = script(x_count, since.count("G") // 2)
+            sequence[0] += 1
+            fields = {"distance": FieldValue(card["distance"] if card else None, at, bool(card),
+                                             None if card else "unreadable"),
+                      "asteroid_selected": FieldValue(False, at),
+                      "selected_target": FieldValue(card or {"present": None}, at)}
+            return Snapshot(sequence[0], 1, sequence[0], at, at, "largehud-20261003", (2560, 1440), fields)
+        with scratch_directory() as directory:
+            stop.append(directory / "stop.request")
+            def factory(backend, journal):
+                made.append(KeyDispatcher(backend))
+                return made[0]
+            result = run_npc_fight(directory / "run", dispatcher_factory=factory, configuration={},
+                profile="largehud-20261003", frame_size=(2560, 1440), cancel_file=directory / "stop.request",
+                scope="synthetic", fire=(.05, .05), delay=(.2, .2), observe=observe, confirm_timeout=.6,
+                settle=0, **options)
+            return result, made[0].keys
+
+    @staticmethod
+    def npc(hp, maximum=2000, distance=900):
+        return {"present": True, "kind": None, "current_hp": hp, "max_hp": maximum, "distance": distance}
+
+    def test_stays_on_a_target_while_hp_drops_and_moves_on_when_it_dies(self):
+        drops = [2000, 1500, 900, 300, 0]
+        def script(x_count, bursts):
+            if x_count == 1:
+                return self.npc(drops[min(bursts, 4)])
+            return self.npc(3000, 3000, 1200)  # second target never loses HP
+        result, keys = self.run_engagement(script, stall_seconds=.7)
+        # Four bursts take target 1 from 2000 to 0 HP with no X in between, then X.
+        first = keys[:keys.index("X", 1)]
+        self.assertEqual(first, ["X"] + ["G", "G"] * 4)
+        self.assertEqual(result["kills"], 1)
+        self.assertEqual(result["outcomes"].get("killed"), 1)
+        self.assertFalse(result["guns_left_on"])
+
+    def test_target_without_damage_is_abandoned_after_the_stall_time(self):
+        result, keys = self.run_engagement(lambda x, b: self.npc(2000), stall_seconds=.5)
+        self.assertGreaterEqual(keys.count("X"), 2, "no damage means move on with X")
+        self.assertGreaterEqual(result["outcomes"].get("no_damage", 0), 1)
+        self.assertEqual(result["kills"], 0)
+
+    def test_vanished_damaged_target_counts_as_a_kill_and_a_switch_ends_it(self):
+        def script(x_count, bursts):
+            if x_count == 1:
+                return self.npc(1200) if bursts < 2 else None  # card gone after damage
+            if x_count == 2:
+                return self.npc(800) if bursts < 1 else self.npc(5000, 5000)  # another target took over
+            return None
+        result, keys = self.run_engagement(script, stall_seconds=5)
+        self.assertEqual(result["outcomes"].get("gone"), 1)
+        self.assertEqual(result["outcomes"].get("switched"), 1)
+        self.assertEqual(result["kills"], 1)
+
     def test_delay_bounds_are_validated(self):
         with scratch_directory() as directory:
             for options in ({"delay": (0, 1)}, {"delay": (2, 1)}, {"delay": (1, 11)}, {"delay": "1-2"},

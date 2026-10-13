@@ -28,7 +28,7 @@ for(const [action,key] of [['scan_view','F9'],['approach','F10'],['auto_scan','F
   label.className='label';kbd.own=key;b.children=[label,kbd,small];}
 {const b=el('k-pause'),label=new Element('span'),kbd=new Element('kbd');label.className='label';kbd.own='F8';b.children=[label,kbd];}
 for(const id of ['c-safe','c-corridor','c-heading','c-point'])el(id).tag='input';
-for(const step of ['select','check','fire','pause']){const li=new Element('li');li.dataset.step=step;el('npc-loop').children.push(li);}
+for(const step of ['select','check','fire','watch','pause']){const li=new Element('li');li.dataset.step=step;el('npc-loop').children.push(li);}
 const loopNow=()=>el('npc-loop').children.filter(li=>li.classes.has('now')).map(li=>li.dataset.step);
 
 // Server state the fake fetch serves; scenarios mutate these between polls.
@@ -184,7 +184,18 @@ const scenarios={
     S.actions=running({step:'fire',fired:3,skipped:1,checked:true,max_range:2500,fire_ms:[100,300],pause_s:[1,2],
       last:{fire:true,distance:886,reason:'target_in_range'}});await poll();
     assert.deepEqual(loopNow(),['fire']);assert.equal(el('loop-check').textContent,'886 m · in range');
-    assert.equal(el('loop-stats').textContent,'3 fired · 1 skipped');assert.equal(el('loop-skip').classes.has('hit'),false);
+    assert.equal(el('loop-stats').textContent,'0 kills · 0 bursts · 1 skipped');assert.equal(el('loop-skip').classes.has('hit'),false);
+    // Staying on a damaged target: step 4 shows live HP; a finished target says why it moved on.
+    S.actions=running({step:'watch',fired:3,skipped:1,kills:2,bursts:9,checked:true,max_range:2500,stall_s:8,
+      engaged:{hp:611,max:2364,best:611},last:{fire:true,distance:1205,reason:'target_in_range'}});await poll();
+    assert.deepEqual(loopNow(),['watch']);assert.equal(el('loop-watch').textContent,'HP 611 / 2,364 · dropping');
+    assert.equal(el('loop-stats').textContent,'2 kills · 9 bursts · 1 skipped');
+    S.actions=running({step:'fire',kills:2,bursts:10,skipped:1,checked:true,engaged:{hp:611,max:2364,best:611},
+      last:{fire:true,distance:1205,reason:'target_in_range'}});await poll();
+    assert.equal(el('loop-stay').classes.has('hit'),true,'re-firing at the same target lights the stay path');
+    S.actions=running({step:'select',kills:3,bursts:11,skipped:1,checked:true,engaged:null,last_outcome:'killed',
+      last:{fire:true,distance:1205,reason:'target_in_range'}});await poll();
+    assert.equal(el('loop-pause').textContent,'Killed → back to 1');assert.equal(el('loop-watch').textContent,'HP read 1–2 s after each burst');
     S.actions=running({step:'pause',fired:3,skipped:2,checked:true,max_range:2500,last:{fire:false,distance:null,reason:'no_target'}});await poll();
     assert.deepEqual(loopNow(),['pause']);assert.equal(el('loop-check').textContent,'No target');assert.equal(el('loop-skip').classes.has('hit'),true);
     await press('scan_view');assert.deepEqual(posts.at(-1),{url:'/api/manual-actions',body:{action:'stop',routine:'npc_fight'}});

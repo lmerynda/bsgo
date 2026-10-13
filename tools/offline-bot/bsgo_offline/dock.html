@@ -135,9 +135,10 @@
     <p class="note">Experimental. NPCs and players aren't told apart. Stops if the game loses focus.</p>
     <ol class="loop" id="npc-loop" aria-label="Auto-fight loop">
       <li data-step="select"><i>1</i><b>Select next enemy</b><small>Press X</small></li>
-      <li data-step="check"><i>2</i><b>Check target</b><small id="loop-check">In range, not an asteroid</small><span class="skip" id="loop-skip">none → 4</span></li>
+      <li data-step="check"><i>2</i><b>Check target</b><small id="loop-check">In range, not an asteroid</small><span class="skip" id="loop-skip">none → 5</span></li>
       <li data-step="fire"><i>3</i><b>Fire burst</b><small id="loop-fire">G on · 100–300 ms · G off</small></li>
-      <li data-step="pause"><i>4</i><b>Pause</b><small id="loop-pause">1–2 s, then back to 1</small></li>
+      <li data-step="watch"><i>4</i><b>Watch target</b><small id="loop-watch">HP read 1–2 s after each burst</small><span class="skip" id="loop-stay">HP dropping → 3</span></li>
+      <li data-step="pause"><i>5</i><b>Next enemy</b><small id="loop-pause">When it dies, stalls or leaves range</small></li>
     </ol>
     <div class="loopstats" id="loop-stats">Not running.</div>
   </section>
@@ -318,17 +319,23 @@ function renderLoop(){
   if(loop){
     const range=Number.isFinite(loop.max_range)?fmt(loop.max_range):'2,500';
     if(Array.isArray(loop.fire_ms)) $('loop-fire').textContent=`G on · ${loop.fire_ms[0]}–${loop.fire_ms[1]} ms · G off`;
-    if(Array.isArray(loop.pause_s)) $('loop-pause').textContent=`${loop.pause_s[0]}–${loop.pause_s[1]} s, then back to 1`;
+    const e=loop.engaged, outcome={killed:'Killed',gone:'Target gone',switched:'Target switched',out_of_range:'Left range',
+      no_damage:`No damage ${loop.stall_s||8} s`,unreadable:'HP unreadable'}[loop.last_outcome];
+    $('loop-watch').textContent=e&&Number.isFinite(e.hp)&&Number.isFinite(e.max)
+      ? `HP ${fmt(e.hp)} / ${fmt(e.max)}${e.best<e.max?' · dropping':''}` : e ? 'HP not readable yet' : 'HP read 1–2 s after each burst';
+    $('loop-stay').classList.toggle('hit',!!e && loop.step==='fire');
+    $('loop-pause').textContent=outcome?`${outcome} → back to 1`:'When it dies, stalls or leaves range';
     const last=loop.last;
     $('loop-check').textContent=!loop.checked?'Not checked':!last?`Target within ${range} m?`:
       last.fire?`${fmt(last.distance)} m · in range`:({no_target:'No target',out_of_range:`${fmt(last.distance)} m · too far`,
         asteroid_selected:'Asteroid',no_fresh_image:'No fresh image'})[last.reason]||human(last.reason);
     $('loop-skip').classList.toggle('hit',!!last && !last.fire && loop.step==='pause');
-    $('loop-stats').innerHTML=''; const b1=document.createElement('b'), b2=document.createElement('b');
-    b1.textContent=fmt(loop.fired); b2.textContent=fmt(loop.skipped);
-    $('loop-stats').append(b1,document.createTextNode(' fired · '),b2,document.createTextNode(' skipped'));
+    $('loop-stats').innerHTML='';
+    for(const [value,label,sep] of [[loop.kills,' kills',' · '],[loop.bursts,' bursts',' · '],[loop.skipped,' skipped','']]){
+      const b=document.createElement('b'); b.textContent=fmt(value||0); $('loop-stats').append(b,document.createTextNode(label+sep)); }
   } else {
-    $('loop-check').textContent='In range, not an asteroid'; $('loop-skip').classList.remove('hit');
+    $('loop-check').textContent='In range, not an asteroid'; $('loop-skip').classList.remove('hit'); $('loop-stay').classList.remove('hit');
+    $('loop-watch').textContent='HP read 1–2 s after each burst'; $('loop-pause').textContent='When it dies, stalls or leaves range';
     $('loop-stats').textContent=running?'Starting…':'Not running.';
   }
 }

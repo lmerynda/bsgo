@@ -1,6 +1,10 @@
-"""Experimental NPC fight loop: X (next enemy), G on, brief random hold, G off, pause.
+"""Experimental NPC fight loop: X (next enemy), G on, brief random hold, G off.
 
-Toggling the guns per target fires them fresh at each newly selected enemy.
+Toggling the guns per burst fires them fresh at each target. With a target-card
+reader in the feed, the loop then stays on that target, bursting every 1-2 s
+while its HP keeps dropping, and presses X only once it dies, disappears,
+switches, leaves range, stops taking damage for `stall_seconds`, or its HP stays
+unreadable. Without a card reader it bursts once per X.
 With an observation feed, each X is followed by a check of an image captured
 after it: G fires only when a target card shows a readable distance within
 `max_range` and the target is not an asteroid. NPCs and players are not told
@@ -13,6 +17,7 @@ key, and stop, F8 pause, focus loss or a refused key end the loop before the
 next press. A stop between the two G presses still sends the second G, so the
 guns are never left on by a stop.
 """
+from collections.abc import Mapping
 import math
 from pathlib import Path
 import random
@@ -37,7 +42,7 @@ def _window(value, name, low, high):
 def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_size,
                   cancel_file, scope="native", fire=(.1, .3), delay=(1., 2.), max_cycles=None,
                   rng=None, delivery_timeout=1.5, on_cycle=None, guns_state=None,
-                  observe=None, max_range=2500, confirm_timeout=1.5, settle=.15):
+                  observe=None, max_range=2500, confirm_timeout=1.5, settle=.15, stall_seconds=8.):
     """Repeat X, G, hold `fire` s, G, pause `delay` s until canceled."""
     fire_lo, fire_hi = _window(fire, "fire", .05, 5)
     lo, hi = _window(delay, "delay", .2, 10)
@@ -61,7 +66,8 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
     shutdown, error = {}, None
     result = {"state": "blocked", "reason": "not_started", "cycles": 0,
               "presses": {key: 0 for key in KEYS}, "guns_left_on": False, "cancel_requested": False,
-              "fired": 0, "skipped": {}, "last_target": None,
+              "fired": 0, "skipped": {}, "last_target": None, "kills": 0, "outcomes": {},
+              "engaged": None, "last_outcome": None,
               "unverified": ["target_kind", "target_hostility", "hits", "kills", "rewards"]}
 
     def canceled():
@@ -101,31 +107,82 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
             time.sleep(.01)
         raise RuntimeError(f"{key}_delivery_timeout")
 
-    def confirm(after):
-        """Judge the first healthy image captured after X; never an older one."""
+    def fresh(after):
+        """The first healthy observation captured after `after`; never an older one."""
         deadline = time.monotonic() + confirm_timeout
         while time.monotonic() < deadline:
             if canceled():
-                return {"fire": False, "reason": "stopped"}
+                return "stopped"
             try:
                 snapshot = observe()
             except Exception:
                 snapshot = None
             if snapshot is not None and snapshot.healthy and snapshot.acquired_at > after + settle:
-                def field(name):
-                    value = snapshot.fields.get(name)
-                    return value.value if value and value.valid and value.observed_at == snapshot.acquired_at else None
-                distance, asteroid = field("distance"), field("asteroid_selected")
-                row = {"sequence": snapshot.sequence, "distance": distance}
-                if asteroid is True:
-                    return {**row, "fire": False, "reason": "asteroid_selected"}
-                if type(distance) not in (int, float) or not distance > 0:
-                    return {**row, "fire": False, "reason": "no_target"}
-                if distance > max_range:
-                    return {**row, "fire": False, "reason": "out_of_range"}
-                return {**row, "fire": True, "reason": "target_in_range"}
+                return snapshot
             time.sleep(.05)
-        return {"fire": False, "reason": "no_fresh_image"}
+        return None
+
+    def field(snapshot, name):
+        value = snapshot.fields.get(name)
+        return value.value if value and value.valid and value.observed_at == snapshot.acquired_at else None
+
+    def card(snapshot):
+        """The selected-target card reading, or None where this feed has no card reader."""
+        value = field(snapshot, "selected_target")
+        return dict(value) if isinstance(value, Mapping) else None  # snapshots hold read-only proxies
+
+    def confirm(after):
+        """Judge the first healthy image captured after X."""
+        snapshot = fresh(after)
+        if snapshot == "stopped":
+            return {"fire": False, "reason": "stopped"}
+        if snapshot is None:
+            return {"fire": False, "reason": "no_fresh_image"}
+        target = card(snapshot) or {}
+        distance, asteroid = field(snapshot, "distance"), field(snapshot, "asteroid_selected")
+        distance = distance if distance is not None else target.get("distance")
+        row = {"sequence": snapshot.sequence, "distance": distance, "hp": target.get("current_hp"),
+               "max_hp": target.get("max_hp"), "card": "selected_target" in snapshot.fields}
+        if asteroid is True or target.get("kind") == "asteroid":
+            return {**row, "fire": False, "reason": "asteroid_selected"}
+        if type(distance) not in (int, float) or not distance > 0:
+            return {**row, "fire": False, "reason": "no_target"}
+        if distance > max_range:
+            return {**row, "fire": False, "reason": "out_of_range"}
+        return {**row, "fire": True, "reason": "target_in_range"}
+
+    def judge(snapshot, engaged):
+        """Keep firing at one target while its HP drops; otherwise say why to move on."""
+        now = time.monotonic()
+        stalled = now - engaged["drop_at"] > stall_seconds
+        if snapshot is None:
+            engaged["unreadable"] += 1
+            return "unreadable" if engaged["unreadable"] >= 4 else "no_damage" if stalled else "keep"
+        target = card(snapshot) or {}
+        distance = target.get("distance") if target.get("distance") is not None else field(snapshot, "distance")
+        if target.get("present") is not True and distance is None:
+            return "gone"
+        if target.get("kind") == "asteroid":
+            return "switched"
+        if distance is not None and distance > max_range:
+            return "out_of_range"
+        hp, maximum = target.get("current_hp"), target.get("max_hp")
+        if hp is None or maximum is None:
+            engaged["unreadable"] += 1
+            # Never seen this target's HP: fall back to one burst per X quickly.
+            limit = 2 if engaged["max"] is None else 4
+            return "unreadable" if engaged["unreadable"] >= limit else "no_damage" if stalled else "keep"
+        engaged["unreadable"] = 0
+        engaged["hp"] = hp
+        if engaged["max"] is None:
+            engaged.update(max=maximum, best=hp, drop_at=now)
+        elif maximum != engaged["max"]:
+            return "switched"
+        if hp == 0:
+            return "killed"
+        if hp < engaged["best"]:
+            engaged.update(best=hp, drop_at=now)
+        return "no_damage" if now - engaged["drop_at"] > stall_seconds else "keep"
 
     def publish(step, verdict=None):
         """One status update per step, so no field is wiped by a later one."""
@@ -141,18 +198,35 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
             loop={"step": step, "cycles": result["cycles"], "fired": result["fired"], "skipped": skipped,
                   "checked": observe is not None, "last": last,
                   "fire_ms": [round(fire_lo * 1000), round(fire_hi * 1000)], "pause_s": [lo, hi],
-                  "max_range": max_range})
+                  "max_range": max_range, "kills": result["kills"], "bursts": result["cycles"],
+                  "engaged": result["engaged"], "last_outcome": result["last_outcome"],
+                  "stall_s": stall_seconds})
 
     try:
         diagnostic.attach(worker=None, store=None, coordinator=None, backend=backend)
         dispatcher = dispatcher_factory(backend, diagnostic.journal)
         diagnostic.attach_dispatcher(dispatcher)
         dispatcher.start()
-        while not canceled():
+        def burst():
+            """G on, brief hold, G off. True when the cycle limit is reached."""
+            nonlocal guns_on
+            guns_on = guns_state["on"] = True
+            press("G")
+            time.sleep(rng.uniform(fire_lo, fire_hi))  # short; a stop waits for the off press
+            ended = press("G")
+            guns_on = guns_state["on"] = False
+            result["cycles"] += 1
+            if on_cycle:
+                on_cycle(result["cycles"])
+            return ended, max_cycles is not None and result["cycles"] >= max_cycles
+
+        done = False
+        while not canceled() and not done:
             publish("select")
             x_at = press("X")
             if canceled():
                 break
+            verdict = None
             if observe is not None:
                 publish("check")
                 verdict = confirm(x_at)
@@ -168,15 +242,39 @@ def run_npc_fight(output, *, dispatcher_factory, configuration, profile, frame_s
                 publish("fire", verdict)
             else:
                 publish("fire")
-            guns_on = guns_state["on"] = True
-            press("G")
-            time.sleep(rng.uniform(fire_lo, fire_hi))  # short; a stop waits for the off press
-            press("G")
-            guns_on = guns_state["on"] = False
-            result["cycles"] += 1
-            if on_cycle:
-                on_cycle(result["cycles"])
-            if max_cycles is not None and result["cycles"] >= max_cycles:
+            ended, done = burst()
+            if not done and verdict is not None and verdict["card"]:
+                # Stay on this target while its HP drops; X only once it is done.
+                engaged = {"max": verdict["max_hp"], "best": verdict["hp"], "hp": verdict["hp"],
+                           "drop_at": time.monotonic(), "unreadable": 0}
+                if engaged["best"] is None:
+                    engaged["max"] = None
+                while True:
+                    result["engaged"] = dict(engaged)
+                    publish("watch")
+                    if wait(rng.uniform(lo, hi)):
+                        done = True
+                        break
+                    snapshot = fresh(ended)
+                    if snapshot == "stopped":
+                        done = True
+                        break
+                    outcome = judge(snapshot, engaged)
+                    result["engaged"] = dict(engaged)
+                    if outcome != "keep":
+                        result["outcomes"][outcome] = result["outcomes"].get(outcome, 0) + 1
+                        if outcome == "killed" or outcome == "gone" and engaged["max"] is not None \
+                                and engaged["best"] is not None and engaged["best"] < engaged["max"]:
+                            result["kills"] += 1
+                        result["last_outcome"] = outcome
+                        break
+                    publish("fire")
+                    ended, done = burst()
+                    if done:
+                        break
+                result["engaged"] = None
+                continue
+            if done:
                 break
             publish("pause")
             if wait(rng.uniform(lo, hi)):

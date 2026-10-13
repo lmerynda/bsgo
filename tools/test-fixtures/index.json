@@ -6885,6 +6885,150 @@
     24,
     24
    ]
+  },
+  "tools/offline-bot/tests/fixtures/target_cards/hp-hidden-dashes.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1200,
+      1858,
+      300,
+      140
+     ],
+     "box": [
+      820,
+      50,
+      1120,
+      190
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/target_cards/hp-overlay-line.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      1500,
+      1858,
+      300,
+      140
+     ],
+     "box": [
+      820,
+      50,
+      1120,
+      190
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/target_cards/npc-1091-of-2364.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      0,
+      1858,
+      300,
+      140
+     ],
+     "box": [
+      820,
+      50,
+      1120,
+      190
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/target_cards/npc-611-of-2364-slash-visible.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      300,
+      1858,
+      300,
+      140
+     ],
+     "box": [
+      820,
+      50,
+      1120,
+      190
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/target_cards/player-4719-full.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      600,
+      1858,
+      300,
+      140
+     ],
+     "box": [
+      820,
+      50,
+      1120,
+      190
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
+  },
+  "tools/offline-bot/tests/fixtures/target_cards/player-9031-of-9129.png": {
+   "frame": true,
+   "parts": [
+    {
+     "at": [
+      900,
+      1858,
+      300,
+      140
+     ],
+     "box": [
+      820,
+      50,
+      1120,
+      190
+     ],
+     "sheet": "sheet-01.png"
+    }
+   ],
+   "size": [
+    2560,
+    1440
+   ]
   }
  }
 }

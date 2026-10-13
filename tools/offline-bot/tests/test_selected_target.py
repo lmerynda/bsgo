@@ -57,3 +57,46 @@ class SelectedTargetTests(unittest.TestCase):
         self.image.paste((0, 0, 0), (1020, 187, 1028, 213))
         self.assertIsNone(self.reader.selected_target.read(self.image)['distance'])
         self.assertIsNone(self.reader.selected_target.read(self.image.resize((2560, 1440)))['present'])
+
+
+class NativeTargetCardTests(unittest.TestCase):
+    """Live 2560 cards (October 12): any HP/shield ratio, range and hidden values."""
+    CARDS = Path(__file__).parent / 'fixtures' / 'target_cards'
+
+    @classmethod
+    def setUpClass(cls):
+        from bsgo_offline.recognition import load_hud_reader
+        from bsgo_offline.selected_target import SelectedTargetReader
+        from bsgo_offline.ship_telemetry import ShipTelemetryReader
+        cls.reader = SelectedTargetReader(ShipTelemetryReader(load_hud_reader(PROFILE)._large))
+
+    def read(self, name):
+        with Image.open(self.CARDS / (name + '.png')) as image:
+            return self.reader.read(image.convert('RGB'))
+
+    def test_partial_bars_read_hp_shield_and_range(self):
+        for name, expected in (
+                ('npc-1091-of-2364', (1091, 2364, 273, 300, 1296)),
+                ('npc-611-of-2364-slash-visible', (611, 2364, 275, 300, 1205)),
+                ('player-4719-full', (4719, 4719, 748, 750, 1791)),
+                ('player-9031-of-9129', (9031, 9129, 695, 750, 1741))):
+            with self.subTest(name):
+                card = self.read(name)
+                self.assertIs(card['present'], True)
+                self.assertIsNone(card['kind'])
+                self.assertEqual((card['current_hp'], card['max_hp'], card['shield_current'],
+                                  card['shield_max'], card['distance']), expected)
+
+    def test_hidden_or_obstructed_hp_stays_unknown_but_the_target_is_present(self):
+        for name in ('hp-hidden-dashes', 'hp-overlay-line'):
+            with self.subTest(name):
+                card = self.read(name)
+                self.assertIs(card['present'], True)
+                self.assertIsNone(card['current_hp'])
+                self.assertIsNone(card['max_hp'])
+                self.assertIsNotNone(card['distance'])
+
+    def test_empty_card_area_is_not_a_target(self):
+        card = self.reader.read(Image.new('RGB', (2560, 1440)))
+        self.assertIsNone(card['present'])
+        self.assertIsNone(card['current_hp'])

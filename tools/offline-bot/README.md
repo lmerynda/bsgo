@@ -553,7 +553,13 @@ of range, asteroid, no fresh image). NPCs and players are not distinguished. It 
 the image: the game decides what X selects and what G fires at, so use it only
 in a safe spot. Every key goes through the guarded native dispatcher; the game
 losing focus, a refused key, F8 or a second F9 ends it. F10/F11 do nothing in
-NPC mode, and switching activity is refused while either side's action runs.
+NPC mode, and switching activity is refused while either side's action runs. With the native
+target-card reader (HP and shield ratios on any bar fill, range, asteroid
+title), Auto-fight then stays on that target: every 1–2 s it reads the HP from a
+fresh image and bursts again while the HP keeps dropping. It presses X once the
+target dies (HP 0, or the card vanishes after damage), switches, leaves range,
+takes no damage for 8 s, or its HP stays unreadable; hidden HP (`-- / --`) is
+unknown, never a number. The panel's loop shows the live HP and kill count.
 
 Passive observation now uses exact-HWND Windows Graphics Capture, with the
 Windows packages pinned in `requirements.txt`. An overlapping cockpit window
