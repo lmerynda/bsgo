@@ -1,6 +1,6 @@
 # Versions used for saved-pixel recognition validation. Simulation uses stdlib only.
-numpy==2.5.2
-Pillow==12.3.0
+numpy==2.5.4
+Pillow==13.0.0
 # Exact-HWND read-only observation on Windows; native inputs keep GDI guards.
 windows-capture==2.0.1; sys_platform == "win32"
 opencv-python==5.0.0.93; sys_platform == "win32"
