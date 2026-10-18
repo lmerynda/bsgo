@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from bsgo_offline.trace import TraceJournal
+from bsgo_offline.trace import TraceJournal, _io_path, iter_trace_events
 
 
 @contextmanager
@@ -24,7 +24,7 @@ def scratch_directory():
         checked = directory.resolve()
         if checked.parent != base or not checked.name.startswith("trace-scratch-"):
             raise RuntimeError("Unexpected telemetry test cleanup path")
-        shutil.rmtree(checked)
+        shutil.rmtree(_io_path(checked))
 
 
 class ControlledStream:
@@ -55,7 +55,7 @@ class ControlledStream:
 def fake_binary_writer(stream, directory):
     original = Path.open
     def open_file(path, mode="r", *args, **kwargs):
-        if path.parent == directory and path.suffix == ".jsonl" and mode == "xb":
+        if path.suffix == ".jsonl" and mode == "xb" and path.parent.samefile(directory):
             return stream
         return original(path, mode, *args, **kwargs)
     with patch.object(Path, "open", open_file):
@@ -66,6 +66,31 @@ class TraceJournalTests(unittest.TestCase):
     def read_records(self, directory, stats):
         return [json.loads(line) for name in stats["segments"]
                 for line in (directory / name).read_text(encoding="utf-8").splitlines()]
+
+    def test_long_output_path_preserves_archive_active_events_and_summary(self):
+        with scratch_directory() as directory:
+            nested = directory
+            while len(str(nested)) < 300:
+                nested /= "nested-" + "x" * 60
+            journal = TraceJournal(nested, package_capacity=2)
+            try:
+                for ordinal in range(3):
+                    self.assertTrue(journal.submit({"event": "sample", "ordinal": ordinal}))
+            finally:
+                self.assertTrue(journal.close(2.))
+            stats = journal.stats()
+            self.assertIsNone(stats["error"])
+            self.assertTrue(stats["write_complete"])
+            self.assertEqual(stats["archive_count"], 1)
+            self.assertEqual(stats["archived_events"], 2)
+            self.assertEqual(stats["active_package_events"], 1)
+            records = list(iter_trace_events(nested, journal.run_id))
+            self.assertEqual([row["journal_sequence"] for row in records], [1, 2, 3])
+            self.assertEqual([row["payload"]["ordinal"] for row in records], [0, 1, 2])
+            summary = json.loads(_io_path(nested / f"trace-{journal.run_id}-summary.json")
+                                 .read_text(encoding="utf-8"))
+            self.assertTrue(summary["write_complete"])
+            self.assertEqual(summary["written"], 3)
 
     def test_rotation_preserves_order_and_fresh_run_namespace(self):
         with scratch_directory() as directory:

@@ -22,7 +22,7 @@ def scratch_directory():
         checked = directory.resolve()
         if checked.parent != base or not checked.name.startswith("trace-archives-scratch-"):
             raise RuntimeError("Unexpected archive test cleanup target")
-        shutil.rmtree(checked)
+        shutil.rmtree(trace._io_path(checked))
 
 
 class TraceArchiveTests(unittest.TestCase):
@@ -172,7 +172,7 @@ class TraceArchiveTests(unittest.TestCase):
         with scratch_directory() as directory:
             original_unlink = Path.unlink
             def blocked_unlink(path, *args, **kwargs):
-                if path.parent == directory and path.suffix == ".jsonl":
+                if path.suffix == ".jsonl" and path.parent.samefile(directory):
                     raise PermissionError("injected raw cleanup failure")
                 return original_unlink(path, *args, **kwargs)
             with patch.object(Path, "unlink", blocked_unlink):
