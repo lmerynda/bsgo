@@ -8,11 +8,25 @@ from __future__ import annotations
 from collections import deque
 import json
 import math
+import os
 from pathlib import Path
 import threading
 import time
 import uuid
 import zipfile
+
+
+def _io_path(path):
+    """Use native Windows long paths without changing published trace names."""
+    path = Path(path)
+    if os.name != 'nt':
+        return path
+    absolute = str(path.resolve())
+    if absolute.startswith('\\\\?\\'):
+        return Path(absolute)
+    if absolute.startswith('\\\\'):
+        return Path('\\\\?\\UNC\\' + absolute[2:])
+    return Path('\\\\?\\' + absolute)
 
 
 class TraceJournal:
@@ -23,7 +37,7 @@ class TraceJournal:
             if type(value) is not int or value<=0:
                 raise ValueError(f'{name} must be a positive integer')
         self.directory=Path(directory).resolve()
-        self.directory.mkdir(parents=True,exist_ok=True)
+        _io_path(self.directory).mkdir(parents=True,exist_ok=True)
         self.queue_capacity=queue_capacity
         self.max_file_bytes=max_file_bytes
         self.max_event_bytes=max_event_bytes
@@ -100,18 +114,19 @@ class TraceJournal:
                 raise OSError('Archive CRC verification failed')
 
     def _archive_package(self,package_index,segments,event_count,first_sequence,last_sequence):
-        paths=[(self.directory/name).resolve() for name in segments]
+        paths=[_io_path(self.directory/name).resolve() for name in segments]
+        owned_directory=_io_path(self.directory).resolve()
         # Only this run's closed, directly contained segment files can be removed.
         for path in paths:
-            if path.parent!=self.directory or not path.name.startswith(f'trace-{self.run_id}-'):
+            if path.parent!=owned_directory or not path.name.startswith(f'trace-{self.run_id}-'):
                 raise OSError('Archive source escaped its journal directory')
         manifest={'format_version':1,'run_id':self.run_id,'package_index':package_index,
                   'event_count':event_count,'first_journal_sequence':first_sequence,
                   'last_journal_sequence':last_sequence,
                   'segments':[{'name':path.name,'bytes':path.stat().st_size} for path in paths]}
         name=f'trace-{self.run_id}-package-{package_index:06d}.zip'
-        final=self.directory/name
-        temporary=self.directory/(name+'.tmp')
+        final=_io_path(self.directory/name)
+        temporary=_io_path(self.directory/(name+'.tmp'))
         with zipfile.ZipFile(temporary,'x',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
             for path in paths:
                 archive.write(path,arcname=path.name)
@@ -150,7 +165,7 @@ class TraceJournal:
                             stream.close()
                         segment_index+=1
                         name=f'trace-{self.run_id}-{segment_index:06d}.jsonl'
-                        stream=(self.directory/name).open('xb')
+                        stream=_io_path(self.directory/name).open('xb')
                         segment_size=0
                         with self._condition:
                             self._segments.append(name)
@@ -197,7 +212,7 @@ class TraceJournal:
                 self._finished=True
             summary=self.stats()
             try:
-                (self.directory/f'trace-{self.run_id}-summary.json').write_text(
+                _io_path(self.directory/f'trace-{self.run_id}-summary.json').write_text(
                     json.dumps(summary,indent=2,allow_nan=False),encoding='utf-8')
             except Exception as error:
                 with self._condition:
@@ -224,7 +239,7 @@ def iter_trace_events(directory,run_id):
     """Read a run's archived packages and active raw files without duplicates."""
     if not isinstance(run_id,str) or len(run_id)!=32 or any(c not in '0123456789abcdef' for c in run_id):
         raise ValueError('Expected a journal run UUID in hexadecimal form')
-    directory=Path(directory).resolve()
+    directory=_io_path(Path(directory).resolve())
     last_archived_segment=0
     for path in sorted(directory.glob(f'trace-{run_id}-package-*.zip')):
         with zipfile.ZipFile(path,'r') as archive:
